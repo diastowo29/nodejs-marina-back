@@ -3,6 +3,12 @@ var REDIS_URL = 'redis://127.0.0.1:6379'
 let redisClient = require('redis');
 let client = redisClient.createClient();
 client.connect();
+
+const setting = {
+    settings: {
+        maxStalledCount: 3
+    }
+}
 /* let workQueue = new Queue('newSendMessage', {
     redis: {
         password: REDIS_URL.split('@')[0].split(':')[2],
@@ -16,17 +22,8 @@ client.connect();
     }
 }); */
 
-let workQueue = new Queue('newSendMessage', REDIS_URL, {
-    settings: {
-        maxStalledCount: 2
-    }
-});
-
-let anotherWorkQueue = new Queue('getOrderDetail', REDIS_URL, {
-    settings: {
-        maxStalledCount: 2
-    }
-})
+let workQueue = new Queue('newSendMessage', REDIS_URL, setting);
+let anotherWorkQueue = new Queue('getOrderDetail', REDIS_URL, setting);
 
 let jobOpts = {
     removeOnComplete : true,

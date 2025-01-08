@@ -8,8 +8,13 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var tokopediaRouter = require('./routes/tokopedia');
 var lazadaRouter = require('./routes/lazada');
+var blibliRouter = require('./routes/blibli');
+
+var orderRouter = require('./routes/module/order');
+var channelRouter = require('./routes/module/channel');
 
 var app = express();
+// require('dotenv').config()
 // var port = 3001;
 
 // view engine setup
@@ -29,6 +34,10 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/v1/tokopedia', tokopediaRouter);
 app.use('/api/v1/lazada', lazadaRouter);
+app.use('/api/v1/blibli', blibliRouter);
+
+app.use('/api/v1/orders', orderRouter);
+app.use('/api/v1/channels', channelRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

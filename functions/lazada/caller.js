@@ -1,64 +1,116 @@
 let lazadaAuthHost = 'https://auth.lazada.com/rest';
-let lazadaHost = 'https://api.lazada.co.id/rest';
-
-let lazGenerateTokenApi = `/auth/token/create?`;
 let lazRefreshToken = `/auth/token/refresh`;
-let lazGetOrder = `/order/get`;
-let lazGetOrderItem = `/order/items/get`;
 const { default: axios } = require("axios");
 var CryptoJS = require("crypto-js");
-
-// require('dotenv/config')
-// require('dotenv').config({ path: "../.env" });
-
 let { client } =  require("../../config/redis.config");
+// 
+let test = require('dotenv').config()
+let appKeyId = test.parsed.LAZ_APP_KEY_ID;
+let appKeySecret = test.parsed.LAZ_APP_KEY_SECRET;
 
-let appKeyId = process.env.LAZ_APP_KEY_ID || 'sampleKeyId'
-let appKeySecret = process.env.LAZ_APP_KEY_SECRET || 'thesecret'
 let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
 
-function lazCall (endpoint, refToken) {
-    console.log(endpoint);
-    axios.get(endpoint).then(async function(result) {
-        console.log(result.data);
+async function lazCall (api, additionalParams, refToken, token) {
+    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
+    let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
+    return axios.get(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
-            let newToken = await refreshToken(refToken);
-            // console.log('new token', newToken);
-            let params = lazParamz(appKeyId, '', Date.now(), 'newToken', newToken, lazGetOrder)
-            lazCall(`${lazadaAuthHost}${lazGetOrder}?${params.params}&sign=${params.signed}`, 'newToken')
-            // lazCall(endpoint, newToken);
-            return;
+            let newToken = await refreshToken(api, refToken);
+            if (newToken) {
+                lazCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
+                return;
+            }
         } else if (result.data.code == 'MissingParameter') {
-            console.log(result.data);
+            return result.data;
+        } else {
+            return result.data;
         }
     }).catch(function (error) {
         console.log(error);
+        return error;
     })
 }
 
-async function refreshToken (refreshToken) {
-    let params = lazParamz(appKeyId, authCode, Date.now(), refreshToken, 'currentToken', lazRefreshToken);
+async function lazPostCall (api, additionalParams, refToken, token) {
+    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
+    lazCommonParams.sorted['sign'] = lazCommonParams.signed;
+    let completeUrl = `${api.host}${api.endpoint}`;
+    return axios.post(completeUrl, lazCommonParams.sorted)
+    .then(async function(result) {
+        console.log(result.data);
+        if (result.data.code == 'IllegalAccessToken') {
+            let newToken = await refreshToken(api, refToken);
+            console.log(newToken);
+            if (newToken) {
+                lazPostCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
+                return;
+            }
+        } else if (result.data.code == 'MissingParameter') {
+            return result.data;
+        } else {
+            return result.data;
+        }
+    }).catch(function (error) {
+        console.log(error);
+        return error;
+    })
+}
+
+async function populateResult (result) {
+    // if (result.data.code == 'IllegalAccessToken') {
+    //     let newToken = await refreshToken(refToken);
+    //     console.log(newToken);
+    //     if (newToken) {
+    //         lazPostCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
+    //         return;
+    //     }
+    // } else if (result.data.code == 'MissingParameter') {
+    //     console.log(result.data);
+    // } else {
+    //     return result.data;
+    // }
+}
+
+async function refreshToken (api, refreshToken) {
+    console.log(' --- refreshing token --- ');
+    let addonParams = `refresh_token=${refreshToken}`;
+    let params = lazParamz(api.appKey, '', Date.now(), 'currentToken', lazRefreshToken, addonParams);
     return axios.get(`${lazadaAuthHost}${lazRefreshToken}?${params.params}&sign=${params.signed}`).then(function(result) {
         console.log(result.data);
         if (result.data.code == '0') {
             let newToken = result.data.access_token;
             let newRefToken = result.data.refresh_token;
-            client.hSet('lazClient', {
-                accToken: newToken,
-                refToken: newRefToken
-            });
-            return newToken;
+            // client.hSet('lazClient', {
+            //     accToken: newToken,
+            //     refToken: newRefToken
+            // });
+            return result.data;
         }
     })
 }
 
-function lazParamz (key, code, ts, refToken, accToken, endpoint) {
+function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
+    let addOns = [];
+    if (addonParams!= '') {
+        let addOnsSplit = addonParams.split('&')
+        addOnsSplit.forEach(addOn => {
+            addOns.push({
+                [addOn.split('=')[0]]: addOn.split('=')[1]
+            })
+        });
+    }
+
     let params = {
-        app_key: key,
+        app_key: key.split('-_-')[0],
         timestamp: ts,
-        ...(code=='' ? { access_token: accToken } : { code: code, refresh_token: refToken }),
+        ...(code=='' ? { access_token: accToken } : { code: code }),
         sign_method: 'sha256'
     };
+    if (addOns.length > 0) {
+        addOns.forEach(addOn => {
+            params = Object.assign(params, addOn);
+        });
+    }
     // Sort alphabetically by key :*
     let sortedObject = Object.keys(params).sort().reduce((Obj, key) => {
         Obj[key] = params[key];
@@ -76,15 +128,17 @@ function lazParamz (key, code, ts, refToken, accToken, endpoint) {
             joinedParams = [joinedParams, joined].join('');
         }
     }
-    let signed = CryptoJS.HmacSHA256(joinedPresigned, appKeySecret).toString(CryptoJS.enc.Hex).toUpperCase();
-    return {signed: signed, params: joinedParams};
+    let signed = CryptoJS.HmacSHA256(joinedPresigned, key.split('-_-')[1]).toString(CryptoJS.enc.Hex).toUpperCase();
+    return {signed: signed, params: joinedParams, sorted: sortedObject};
 }
 
-client.hGetAll('lazClient').then(function(data) {
-    console.log(data);
-    // console.log(process.env);
-    let params = lazParamz(appKeyId, '', Date.now(), data.refToken, data.accToken, lazGetOrder)
-    lazCall(`${lazadaAuthHost}${lazGetOrder}?${params.params}&sign=${params.signed}`, data.refToken)
-})
+// client.hGetAll('lazClient').then(function(data) {
+//     /* GET TOKEN FROM REDIS */
+//     // console.log(data);
+//     // console.log(process.env);
+//     let addParams = 'session_id=abcde';
+//     let params = lazParamz(appKeyId, '', Date.now(), data.refToken, '50000701d02uDU1f4547d7accteLzYFjkMI3duy9G0AoofPOYwMvv0jvChXo5Fwy', lazGetOrder, addParams);
+//     // lazCall(`${lazadaAuthHost}${lazGetOrder}?${params.params}&sign=${params.signed}`, data.refToken)
+// })
 
-module.exports = { lazCall }
+module.exports = { lazCall, lazParamz, lazPostCall }

@@ -22,15 +22,88 @@ model customers {
   orders    orders[]
 }
 
+model products_img {
+  id           Int       @id @default(autoincrement())
+  origin_id    String?   @unique
+  filename     String?
+  status       String?
+  width        Int?
+  height       Int?
+  originalUrl  String?
+  thumbnailUrl String?
+  products     products? @relation(fields: [productsId], references: [id])
+  productsId   Int?
+}
+
+model channel {
+  id    Int     @id @default(autoincrement())
+  name  String? @unique
+  store store[]
+}
+
+model store {
+  id        Int        @id @default(autoincrement())
+  channel   channel?   @relation(fields: [channelId], references: [id])
+  name      String?
+  origin_id String?    @unique
+  token String?
+  refresh_token String?
+  orders    orders[]
+  products  products[]
+  omnichat  omnichat[]
+  channelId Int?
+}
+
+model products {
+  id          Int            @id @default(autoincrement())
+  origin_id   String?        @unique
+  status      String?
+  name        String?
+  condition   Int?
+  desc        String?
+  category    Int?
+  price       Int?
+  currency    String?
+  createdAt   DateTime       @default(now())
+  weight      Int?
+  stock       Int?
+  sku         String?
+  store       store?         @relation(fields: [storeId], references: [id])
+  product_img products_img[]
+  order_items order_items[]
+  storeId     Int?
+}
+
+model order_items {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  origin_id String? @unique
+  qty         Int
+  products    products? @relation(fields: [productsId], references: [id])
+  invoice     String?
+  total_price Int
+  notes       String?
+  orders      orders?   @relation(fields: [ordersId], references: [id])
+  ordersId    Int?
+  productsId  Int?
+}
+
+model logistic {
+  id     Int      @id @default(autoincrement())
+  name   String?  @unique
+  orders orders[]
+}
+
 model orders {
-  id                    Int        @id @default(autoincrement())
-  createdAt             DateTime   @default(now())
+  id                    Int           @id @default(autoincrement())
+  createdAt             DateTime      @default(now())
   status                String?
   shop_id               String?
   payment_id            String?
-  origin_id             String? @unique
+  origin_id             String?       @unique
+  order_items           order_items[]
   invoice               String?
-  customers             customers? @relation(fields: [customersId], references: [id])
+  customers             customers?    @relation(fields: [customersId], references: [id])
   recp_name             String?
   recp_phone            String?
   recp_addr_full        String?
@@ -44,15 +117,17 @@ model orders {
   recp_addr_province_id String?
   recp_addr_geo         String?
   logistic_service      String?
-  origin_createdAt      DateTime   @default(now())
+  origin_createdAt      DateTime      @default(now())
   accept_partial        Boolean?
   device                String?
   storeId               Int?
   customersId           Int?
-  logisticId            Int?
   total_product_price   Int?
   shipping_price        Int?
+  logistic              logistic?     @relation(fields: [logisticId], references: [id])
   total_amount          Int?
+  store                 store?        @relation(fields: [storeId], references: [id])
+  logisticId            Int?
 }
 
 model omnichat_user {
@@ -74,8 +149,9 @@ model omnichat {
   messages        omnichat_line[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @default(now())
-  storeId         Int?
+  store           store?          @relation(fields: [storeId], references: [id])
   omnichat_userId Int?
+  storeId         Int?
 }
 
 model omnichat_line {
