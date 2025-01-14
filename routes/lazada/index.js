@@ -23,55 +23,78 @@ router.post('/webhook', async function (req, res, next) {
 });
 
 router.post('/order', async function(req, res, next) {
-    console.log(req.body);
     let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
     if (jsonBody.seller_id == '9999') {
         res.status(200).send({});
         return;
     }
-    try {
-        let newOrder = await prisma.orders.create({
-            data: {
-                origin_id: jsonBody.data.trade_order_id.toString(),
-                status: jsonBody.data.order_status,
-                store: {
-                    connect: {
-                        origin_id: jsonBody.seller_id.toString()
-                    }
-                }
-            },
-            include: {
-                store: true
-            }
-        });
-         workQueue.add({
-            channel: LAZADA, 
-            orderId: jsonBody.data.trade_order_id, 
-            customerId: jsonBody.data.buyer_id,
-            id: newOrder.id,
-            token: newOrder.store.token,
-            refresh_token: newOrder.store.refresh_token,
-            new: true,
-            // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
-        }, jobOpts);
-        res.status(200).send(newOrder);
-    } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
-            if (err.code === 'P2002') {
-                workQueue.add({
-                    channel: LAZADA,
+    if (jsonBody.message_type == 0) {
+        console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
+        // console.log(req.body);
+        try {
+            let newOrder = await prisma.orders.create({
+                data: {
+                    origin_id: jsonBody.data.trade_order_id.toString(),
                     status: jsonBody.data.order_status,
-                    orderId: jsonBody.data.trade_order_id,
-                    new: false,
-                }, jobOpts);
-                res.status(200).send({});
+                    updatedAt: new Date(),
+                    store: {
+                        connect: {
+                            origin_id: jsonBody.seller_id.toString()
+                        }
+                    }
+                },
+                include: {
+                    store: true
+                }
+            });
+             workQueue.add({
+                channel: LAZADA, 
+                orderId: jsonBody.data.trade_order_id, 
+                customerId: jsonBody.data.buyer_id,
+                id: newOrder.id,
+                token: newOrder.store.token,
+                refresh_token: newOrder.store.refresh_token,
+                new: true,
+                // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
+            }, jobOpts);
+            res.status(200).send(newOrder);
+        } catch (err) {
+            console.log(req.body.message.data);
+            if (err instanceof Prisma.PrismaClientKnownRequestError) {
+                if (err.code === 'P2002') {
+                    workQueue.add({
+                        channel: LAZADA,
+                        status: jsonBody.data.order_status,
+                        updatedAt: new Date(),
+                        orderId: jsonBody.data.trade_order_id,
+                        new: false,
+                    }, jobOpts);
+                    res.status(200).send({});
+                } else {
+                    res.status(400).send({err: err});
+                }
             } else {
-                res.status(400).send({code: err.code});
+                console.log(err);
+                res.status(400).send({err: err});
             }
-        } else {
-            res.status(400).send({});
         }
+    } else if(jsonBody.message_type == 21) {
+        /* product review
+        eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjIxLCJkYXRhIjp7Iml0ZW1faWQiOjgyOTg3ODgzNTksImlkIjoxNTMwMDEzMTE5Njg4MzU5LCJvcmRlcl9pZCI6MTU3MTg2MDg3NjE2OTAwN30sInRpbWVzdGFtcCI6MTczNjQ3Njc5Nywic2l0ZSI6ImxhemFkYV9pZCJ9
+         */
+
+        /* cancel success
+        eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjEwLCJkYXRhIjp7ImJ1eWVyX2lkIjo0MDA2NTk2NjkwMDcsImV4dHJhUGFyYW1zIjp7fSwicmV2ZXJzZV9vcmRlcl9pZCI6ODU2MjI5ODA1MTY5MDA3LCJyZXZlcnNlX29yZGVyX2xpbmVfaWQiOjg1NjIyOTgwNTI2OTAwNywicmV2ZXJzZV9zdGF0dXMiOiJDQU5DRUxfU1VDQ0VTUyIsInNlbGxlcl9pZCI6NDAwNjU2NTc2MTA3LCJzdGF0dXNfdXBkYXRlX3RpbWUiOjE3MzY0NzM1ODIsInRyYWRlX29yZGVyX2lkIjoxNTk2MDk1NDk5OTY5MDA3LCJ0cmFkZV9vcmRlcl9saW5lX2lkIjoxNjExNTk4MTAwMzY5MDA3fSwidGltZXN0YW1wIjoxNzM2NDczNTg3LCJzaXRlIjoibGF6YWRhX2lkIn0=
+         */
+        
+        console.log('inbound another message type');
+        console.log(req.body.message.data);
+        res.status(200).send({});
+    } else {
+        console.log('inbound another message type');
+        console.log(req.body.message.data);
+        res.status(200).send({});
     }
 });
 
@@ -107,8 +130,7 @@ router.put('/order/:id', async function(req, res, next) {
 })
 
 router.post('/chat', async function(req, res, next) {
-    console.log(req.body);
-    // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
+    console.log(req.body.message.data);
     let jsonBody = gcpParser(req.body.message.data);
     if (jsonBody.message_type != 2) {
         res.status(200).send({});
@@ -171,7 +193,12 @@ router.post('/chat', async function(req, res, next) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
             res.status(400).send({code: err.code});
         } else {
-            res.status(400).send({error: err});
+            if (err.code == 'P2025') {
+                console.log(`error on chat ${err.meta.cause}`);
+                res.status(200).send({error: err});
+            } else {
+                res.status(400).send({error: err});
+            }
         }
     }
 })

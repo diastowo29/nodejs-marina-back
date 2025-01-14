@@ -18,6 +18,9 @@ router.get('/', async function(req, res, next) {
         console.log(req.query.channel);
     }
     let order = await prisma.orders.findMany({
+        orderBy: [
+            { updatedAt: 'desc' }
+        ],
         where: {
             store : {
                 channel: {

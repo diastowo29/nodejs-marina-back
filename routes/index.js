@@ -20,10 +20,22 @@ router.get('/laz', async function(req, res, next) {
 
 router.get('/job', async function(req, res, next) {
   // router.get('/jobs', function(req, res, next) {
-    workQueue.getJobs().then(function(thisJob) {
+    workQueue.getJobs(['paused', 'waiting', 'failed']).then(function(thisJob) {
       res.status(200).send(thisJob == null ? {} : thisJob)
     })
   // })
+})
+
+router.get('/job/retry',async function(req, res, next) {
+  await workQueue.getJobs(['failed']).then(function(thisJob) {
+    thisJob.forEach(async (failedJob) => {
+      console.log(failedJob.id);
+      let job = await workQueue.getJob(failedJob.id);
+      job.retry();
+      // console.log(job);
+    });
+  })
+  res.status(200).send({});
 })
 
 module.exports = router;

@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var { PrismaClient } = require('@prisma/client');
+var { PrismaClient, Prisma } = require('@prisma/client');
 const {workQueue, jobOpts} = require('../../config/redis.config');
 const { TOKOPEDIA, TOKOPEDIA_CHAT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
@@ -124,12 +124,79 @@ router.post('/order', async function(req, res, next) {
 
 })
 
-router.post('/chat', function(req, res, next) {
-    workQueue.add({
-        channel: TOKOPEDIA_CHAT,
-        body: req.body
-    }, jobOpts);
-    res.status(200).send({});
+router.put('/order/:id', async function(req, res, next) {
+    let order = await prisma.orders.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
+        include: {
+            order_items: true
+        }
+    });
+    res.status(200).send(order);
+})
+
+
+router.post('/chat',async function(req, res, next) {
+    let jsonBody = gcpParser(req.body.message.data);
+    let tokoChatId = `${jsonBody.shop_id}-${jsonBody.buyer_id}`;
+    try {
+        let message = await prisma.omnichat.upsert({
+            where: {
+                origin_id: tokoChatId
+            },
+            update: {
+                last_message: jsonBody.message,
+                last_messageId: jsonBody.msg_id.toString(),
+                messages: {
+                    create: {
+                        line_text: jsonBody.message,
+                        author: jsonBody.buyer_id.toString(),
+                        origin_id: jsonBody.msg_id.toString()
+                    }
+                }
+            },
+            create: {
+                origin_id: tokoChatId,
+                last_message: jsonBody.message,
+                last_messageId: jsonBody.msg_id.toString(),
+                store: {
+                    connect: {
+                        origin_id: jsonBody.shop_id.toString()
+                    }
+                },
+                omnichat_user: {
+                    connectOrCreate: {
+                        where: {
+                            origin_id: jsonBody.buyer_id.toString()
+                        },
+                        create: {
+                            origin_id: jsonBody.buyer_id.toString(),
+                            username: jsonBody.full_name
+                        }
+                    }
+                },
+                messages: {
+                    create: {
+                        line_text: jsonBody.message,
+                        author: jsonBody.buyer_id.toString(),
+                        origin_id: jsonBody.msg_id.toString()
+                    }
+                }
+            }
+        })
+        workQueue.add({
+            channel: TOKOPEDIA_CHAT,
+            body: jsonBody
+        }, jobOpts);
+        res.status(200).send(message);
+    } catch (err) {
+        if (err instanceof Prisma.PrismaClientUnknownRequestError) {
+            res.status(400).send(err.code);
+        } else {
+            res.status(400).send(err);
+        }
+    }
 })
 
 

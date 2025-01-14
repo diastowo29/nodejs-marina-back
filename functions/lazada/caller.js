@@ -2,13 +2,13 @@ let lazadaAuthHost = 'https://auth.lazada.com/rest';
 let lazRefreshToken = `/auth/token/refresh`;
 const { default: axios } = require("axios");
 var CryptoJS = require("crypto-js");
-let { client } =  require("../../config/redis.config");
+// let { client } =  require("../../config/redis.config");
 // 
-let test = require('dotenv').config()
-let appKeyId = test.parsed.LAZ_APP_KEY_ID;
-let appKeySecret = test.parsed.LAZ_APP_KEY_SECRET;
+// let test = require('dotenv').config()
+// let appKeyId = test.parsed.LAZ_APP_KEY_ID;
+// let appKeySecret = test.parsed.LAZ_APP_KEY_SECRET;
 
-let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
+// let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
 
 async function lazCall (api, additionalParams, refToken, token) {
     let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);

@@ -97,6 +97,7 @@ model logistic {
 model orders {
   id                    Int           @id @default(autoincrement())
   createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
   status                String?
   shop_id               String?
   payment_id            String?

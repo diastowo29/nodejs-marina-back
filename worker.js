@@ -36,7 +36,7 @@ async function processJob (jobData, done) {
             processTokopedia(body, done);
             break;
         case TOKOPEDIA_CHAT: 
-            processTokopedia(body, done);
+            processTokopediaChat(jobData.data, done);
             break;
         default:
             console.log('channel not supported', jobData.data.channel);
@@ -52,7 +52,8 @@ async function processLazadaChat (body, done) {
         if (body.new) {
             let session = await lazCall(lazGetSessionDetail, apiParams, refresh_token, token);
             if (session && session.success) {
-                console.log(session);
+                // console.log(session);
+                console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
                 // console.log('update session');
                 await prisma.omnichat_user.update({
                     where: {
@@ -86,7 +87,6 @@ async function processLazada(body, done) {
     
     if (body.new) {
         console.log('create order id: ', body.orderId);
-        let prod_token = body.token.split('~')[lazGetOrderDetail.pos];
         let orderDetailPromise = await Promise.all([
             lazCall(lazGetOrderDetail, 
                 addParams, refresh_token, 
@@ -114,10 +114,10 @@ async function processLazada(body, done) {
                     products: {
                         connectOrCreate: {
                             where: {
-                                origin_id: item.product_id
+                                origin_id: item.product_id.toString()
                             },
                             create: {
-                                origin_id: item.product_id,
+                                origin_id: item.product_id.toString(),
                                 currency: item.currency,
                                 name: item.name,
                                 price: item.item_price,
@@ -186,6 +186,7 @@ async function processLazada(body, done) {
             //     console.log(err);
             //     done(new Error(err));
             // }
+            
         });
 
         try {
@@ -197,11 +198,11 @@ async function processLazada(body, done) {
                     customers: {
                         connectOrCreate: {
                             where: {
-                                origin_id: body.customerId
+                                origin_id: body.customerId.toString()
                             },
                             create: {
                                 name: orderDetail.data.customer_first_name,
-                                origin_id: body.customerId
+                                origin_id: body.customerId.toString()
                             }
                         }
                     },
@@ -250,6 +251,12 @@ async function processLazada(body, done) {
 
 async function processTokopedia(body, done) {
     console.log(body);
+    done(null, {response: 'testing'});
+}
+
+async function processTokopediaChat(body, done) {
+    console.log(body);
+    
     done(null, {response: 'testing'});
 }
 
