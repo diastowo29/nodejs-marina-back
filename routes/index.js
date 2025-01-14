@@ -9,6 +9,8 @@ router.get('/', async function(req, res, next) {
   // client.h
   // let lazClient = await client.hGetAll('lazClient');
   // res.status(200).send(lazClient);
+  let secret = process.env.SECRET;
+  res.status(200).send({secret: secret})
 });
 
 router.get('/laz', async function(req, res, next) {
