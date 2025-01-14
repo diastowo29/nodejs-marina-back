@@ -125,7 +125,7 @@ router.put('/order/:id', async function(req, res, next) {
         shipping_allocate_type: 'TFS',
     }
     let apiParams = `packReq=${JSON.stringify(packReq)}`;
-    let packOrder = await lazPostCall(lazPackOrder, apiParams, 'refToken', sampleLazOMSToken);
+    // let packOrder = await lazPostCall(lazPackOrder, apiParams, 'refToken', sampleLazOMSToken);
     res.status(200).send(packOrder);
 })
 
