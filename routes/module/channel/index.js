@@ -13,8 +13,20 @@ const prisma = new PrismaClient();
 /* GET home page. */
 
 router.get('/', async function(req, res, next) {
-    // console.log(req.query)
-    let channels = await prisma.channel.findMany({})
+    let channels = await prisma.channel.findMany({ })
+    res.status(200).send(channels);
+})
+
+router.get('/products', async function(req, res, next) {
+    let channels = await prisma.channel.findMany({
+        include : {
+            store : {
+                include: {
+                    products: true
+                }
+            }
+        }
+    })
     res.status(200).send(channels);
 })
 

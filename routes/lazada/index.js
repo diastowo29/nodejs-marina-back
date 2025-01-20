@@ -4,7 +4,7 @@ var {
     PrismaClient,
     Prisma
 } = require('@prisma/client');
-const { workQueue, jobOpts } = require('../../config/redis.config');
+// const { workQueue, jobOpts } = require('../../config/redis.config');
 const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazGenToken, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
@@ -18,7 +18,7 @@ router.get('/webhook', async function (req, res, next) {
 
 router.post('/webhook', async function (req, res, next) {
     console.log(req.body);
-    workQueue.add({channel:LAZADA, body: req.body}, jobOpts);
+    // workQueue.add({channel:LAZADA, body: req.body}, jobOpts);
     res.status(200).send({});
 });
 
@@ -48,28 +48,28 @@ router.post('/order', async function(req, res, next) {
                     store: true
                 }
             });
-             workQueue.add({
-                channel: LAZADA, 
-                orderId: jsonBody.data.trade_order_id, 
-                customerId: jsonBody.data.buyer_id,
-                id: newOrder.id,
-                token: newOrder.store.token,
-                refresh_token: newOrder.store.refresh_token,
-                new: true,
-                // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
-            }, jobOpts);
+            //  workQueue.add({
+            //     channel: LAZADA, 
+            //     orderId: jsonBody.data.trade_order_id, 
+            //     customerId: jsonBody.data.buyer_id,
+            //     id: newOrder.id,
+            //     token: newOrder.store.token,
+            //     refresh_token: newOrder.store.refresh_token,
+            //     new: true,
+            //     // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
+            // }, jobOpts);
             res.status(200).send(newOrder);
         } catch (err) {
             console.log(req.body.message.data);
             if (err instanceof Prisma.PrismaClientKnownRequestError) {
                 if (err.code === 'P2002') {
-                    workQueue.add({
-                        channel: LAZADA,
-                        status: jsonBody.data.order_status,
-                        updatedAt: new Date(),
-                        orderId: jsonBody.data.trade_order_id,
-                        new: false,
-                    }, jobOpts);
+                    // workQueue.add({
+                    //     channel: LAZADA,
+                    //     status: jsonBody.data.order_status,
+                    //     updatedAt: new Date(),
+                    //     orderId: jsonBody.data.trade_order_id,
+                    //     new: false,
+                    // }, jobOpts);
                     res.status(200).send({});
                 } else {
                     res.status(400).send({err: err});
@@ -180,14 +180,14 @@ router.post('/chat', async function(req, res, next) {
                 }
             }
         });
-        workQueue.add({
-            channel: LAZADA_CHAT, 
-            sessionId: sessionId, 
-            id: conversation.id,
-            token: conversation.store.token,
-            refresh_token: conversation.store.refresh_token,
-            ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
-        }, jobOpts);
+        // workQueue.add({
+        //     channel: LAZADA_CHAT, 
+        //     sessionId: sessionId, 
+        //     id: conversation.id,
+        //     token: conversation.store.token,
+        //     refresh_token: conversation.store.refresh_token,
+        //     ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
+        // }, jobOpts);
         res.status(200).send(conversation);
     } catch (err) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {

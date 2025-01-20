@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var { PrismaClient, Prisma } = require('@prisma/client');
-const {workQueue, jobOpts} = require('../../config/redis.config');
+// const {workQueue, jobOpts} = require('../../config/redis.config');
 const { TOKOPEDIA, TOKOPEDIA_CHAT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
 
@@ -13,7 +13,7 @@ router.get('/webhook', async function (req, res, next) {
 
 router.post('/webhook', async function (req, res, next) {
     console.log(req.body);
-    workQueue.add({channel:TOKOPEDIA, body: req.body}, jobOpts);
+    // workQueue.add({channel:TOKOPEDIA, body: req.body}, jobOpts);
     res.status(200).send({});
 });
 
@@ -185,10 +185,10 @@ router.post('/chat',async function(req, res, next) {
                 }
             }
         })
-        workQueue.add({
-            channel: TOKOPEDIA_CHAT,
-            body: jsonBody
-        }, jobOpts);
+        // workQueue.add({
+        //     channel: TOKOPEDIA_CHAT,
+        //     body: jsonBody
+        // }, jobOpts);
         res.status(200).send(message);
     } catch (err) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {

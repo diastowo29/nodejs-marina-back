@@ -3,7 +3,7 @@ var router = express.Router();
 var {
     PrismaClient
 } = require('@prisma/client');
-const {workQueue, jobOpts} = require('../../config/redis.config');
+// const {workQueue, jobOpts} = require('../../config/redis.config');
 const { BLIBLI } = require('../../config/utils');
 
 const prisma = new PrismaClient();
@@ -16,10 +16,10 @@ router.get('/webhook', async function (req, res, next) {
 
 router.post('/webhook', async function (req, res, next) {
     // console.log(req.body);
-    workQueue.add({
-        channel: BLIBLI,
-        body: req.body
-    }, jobOpts);
+    // workQueue.add({
+    //     channel: BLIBLI,
+    //     body: req.body
+    // }, jobOpts);
     res
         .status(200)
         .send({});
