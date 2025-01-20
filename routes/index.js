@@ -7,8 +7,9 @@ var { PrismaClient } = require('@prisma/client');
 router.get('/', async function(req, res, next) {
   // const users = await prisma.channel.findMany({});
   // client.h
-  let lazClient = await client.hGetAll('lazClient');
-  res.status(200).send(lazClient);
+  // let lazClient = await client.hGetAll('lazClient');
+  // res.status(200).send(lazClient);
+  res.status(200).send({});
 });
 
 router.get('/laz', async function(req, res, next) {
@@ -24,6 +25,7 @@ router.get('/job', async function(req, res, next) {
     //   res.status(200).send(thisJob == null ? {} : thisJob)
     // })
   // })
+  res.status(200).send({});
 })
 
 router.get('/job/retry',async function(req, res, next) {
