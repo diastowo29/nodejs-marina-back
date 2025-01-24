@@ -14,6 +14,7 @@ var orderRouter = require('./routes/module/order');
 var channelRouter = require('./routes/module/channel');
 var chatRouter = require('./routes/module/chat');
 var productRouter = require('./routes/module/product');
+var storeRouter = require('./routes/module/store');
 
 var app = express();
 // require('dotenv').config()
@@ -42,6 +43,7 @@ app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/channels', channelRouter);
 app.use('/api/v1/chats', chatRouter);
 app.use('/api/v1/products', productRouter);
+app.use('/api/v1/stores', storeRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

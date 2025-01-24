@@ -22,6 +22,16 @@ router.get('/', async function(req, res, next) {
             { updatedAt: 'desc' }
         ],
         where: {
+            ...(req.query.channel || req.query.c) ? {
+                store : {
+                    channel: { name : req.query.channel || req.query.c }
+                }
+            } : {},
+            ...(req.query.user || req.query.u) ? {
+                customers: {
+                    origin_id: req.query.user || req.query.u
+                }
+            } : {},
             store : {
                 channel: {
                     name : req.query.channel || req.query.c
@@ -50,7 +60,8 @@ router.get('/', async function(req, res, next) {
             }
         },
         logistic: true
-       }
+       },
+       ...(req.query.user || req.query.u) ? { take: 10, orderBy: { id:'desc' } } : {}
     })
     res.status(200).send(order);
 })

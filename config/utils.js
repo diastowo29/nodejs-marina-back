@@ -1,11 +1,31 @@
-let env = require('dotenv').config()
+// let env = require('dotenv').config()
 
-let appKeyOMS = env.parsed.LAZ_OMS_APP_KEY_ID
-let appKeyCHAT = env.parsed.LAZ_APP_KEY_ID
+let appKeyOMS = process.env.LAZ_OMS_APP_KEY_ID
+let appKeyCHAT = process.env.LAZ_APP_KEY_ID
 let lazadaHost = 'https://api.lazada.co.id/rest';
 let lazadaAuthHost = 'https://auth.lazada.com/rest';
 
+function lazGetToken (appKey) {
+    return {
+        host: lazadaAuthHost,
+        endpoint: '/auth/token/create',
+        appKey: appKey,
+        pos: 1
+    }
+}
+
+function lazGetSellerInfo (appKey) {
+    return {
+        host: lazadaHost,
+        endpoint: '/seller/get',
+        appKey: appKey,
+        pos: 1
+    }
+}
+
 module.exports = {
+    lazGetToken,
+    lazGetSellerInfo,
     TOKOPEDIA: 'tokopedia',
     TOKOPEDIA_CHAT: 'tokopediaChat',
     LAZADA: 'lazada',
@@ -16,14 +36,27 @@ module.exports = {
     lazadaHost:'https://api.lazada.co.id/rest',
     lazadaAuthHost:'https://auth.lazada.com/rest',
 
+    // lazGenToken: '/auth/token/create',
+
     // lazGetSessionDetail: '/im/session/get',
     // lazGetOrderDetail: '/order/get',
     // lazGetOrderItems: '/order/items/get',
+    // lazGetSellerInfo: '/seller/get',
     lazReadSession: '/im/session/read',
-    lazGetSellerInfo: '/seller/get',
     lazRejectOrder: '',
 
-    lazGenToken: '/auth/token/create',
+    // lazGetSellerInfo: {
+    //     host: lazadaHost,
+    //     endpoint: '/seller/get',
+    //     appKey: appKeyCHAT,
+    //     pos:1
+    // },
+    // lazGetToken: {
+    //     host: lazadaAuthHost,
+    //     endpoint: '/auth/token/create',
+    //     appKey: appKeyCHAT,
+    //     pos:1
+    // },
 
     lazGetSessionDetail: {
         host: lazadaHost,

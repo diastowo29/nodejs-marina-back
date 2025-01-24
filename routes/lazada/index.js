@@ -4,8 +4,8 @@ var {
     PrismaClient,
     Prisma
 } = require('@prisma/client');
-// const { workQueue, jobOpts } = require('../../config/redis.config');
-const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazGenToken, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder } = require('../../config/utils');
+const { workQueue, jobOpts } = require('../../config/redis.config');
+const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 
@@ -48,28 +48,28 @@ router.post('/order', async function(req, res, next) {
                     store: true
                 }
             });
-            //  workQueue.add({
-            //     channel: LAZADA, 
-            //     orderId: jsonBody.data.trade_order_id, 
-            //     customerId: jsonBody.data.buyer_id,
-            //     id: newOrder.id,
-            //     token: newOrder.store.token,
-            //     refresh_token: newOrder.store.refresh_token,
-            //     new: true,
-            //     // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
-            // }, jobOpts);
+             workQueue.add({
+                channel: LAZADA, 
+                orderId: jsonBody.data.trade_order_id, 
+                customerId: jsonBody.data.buyer_id,
+                id: newOrder.id,
+                token: newOrder.store.token,
+                refresh_token: newOrder.store.refresh_token,
+                new: true,
+                // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
+            }, jobOpts);
             res.status(200).send(newOrder);
         } catch (err) {
             console.log(req.body.message.data);
             if (err instanceof Prisma.PrismaClientKnownRequestError) {
                 if (err.code === 'P2002') {
-                    // workQueue.add({
-                    //     channel: LAZADA,
-                    //     status: jsonBody.data.order_status,
-                    //     updatedAt: new Date(),
-                    //     orderId: jsonBody.data.trade_order_id,
-                    //     new: false,
-                    // }, jobOpts);
+                    workQueue.add({
+                        channel: LAZADA,
+                        status: jsonBody.data.order_status,
+                        updatedAt: new Date(),
+                        orderId: jsonBody.data.trade_order_id,
+                        new: false,
+                    }, jobOpts);
                     res.status(200).send({});
                 } else {
                     res.status(400).send({err: err});
@@ -180,14 +180,14 @@ router.post('/chat', async function(req, res, next) {
                 }
             }
         });
-        // workQueue.add({
-        //     channel: LAZADA_CHAT, 
-        //     sessionId: sessionId, 
-        //     id: conversation.id,
-        //     token: conversation.store.token,
-        //     refresh_token: conversation.store.refresh_token,
-        //     ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
-        // }, jobOpts);
+        workQueue.add({
+            channel: LAZADA_CHAT, 
+            sessionId: sessionId, 
+            id: conversation.id,
+            token: conversation.store.token,
+            refresh_token: conversation.store.refresh_token,
+            ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
+        }, jobOpts);
         res.status(200).send(conversation);
     } catch (err) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
@@ -204,30 +204,43 @@ router.post('/chat', async function(req, res, next) {
 })
 
 router.post('/authorize', async function(req, res, next) {
-    let code = req.body.code;
-    let app = req.body.app;
-    console.log(req.body);
-
-    let appKeyId = (app == 1) ? test.parsed.LAZ_APP_KEY_ID : test.parsed.LAZ_APP_KEY_ID_2;
-    let endpoint = lazGenToken;
-    let authParams = lazParamz(appKeyId, code, Date.now(), '', '', endpoint, '');
-    let authResponse = await lazCall(`${lazadaAuthHost}${endpoint}?${authParams.params}&sign=${authParams.signed}`, '');
-
+    let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
+    let addParams = `code=${req.body.code}`;
+    let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
     if (authResponse.code != '0') {
-        console.log(authResponse)
-        return res.status(400).send(authResponse);
+        return res.status(400).send({process: 'generate_token', response: authResponse});
     }
     let token = authResponse.access_token;
     let refToken = authResponse.refresh_token;
-
-    endpoint = lazGetSellerInfo;
-    authParams = lazParamz(appKeyId, '', Date.now(), refToken, token, endpoint, '');
-    let sellerResponse = await lazCall(`${lazadaHost}${endpoint}?${authParams.params}&sign=${authParams.signed}`, '');
-    if (sellerResponse != '0') {
-        console.log(sellerResponse);
-        res.status(200).send(sellerResponse);
+    let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', refToken, token);
+    if (sellerResponse.code != '0') {
+        return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
     }
-
+    let newStore = await prisma.store.upsert({
+        where: {
+            origin_id: sellerResponse.data.seller_id.toString()
+        },
+        update: {
+            token: token,
+            refresh_token: refToken
+        },
+        create: {
+            origin_id: sellerResponse.data.seller_id.toString(),
+            name: sellerResponse.data.name,
+            token: token,
+            refresh_token: refToken,
+            channel: {
+                connect: {
+                    id: 2
+                }
+            }
+        }
+    });
+    res.status(200).send({
+        token: authResponse,
+        seller: sellerResponse,
+        store: newStore
+    });
 })
 
 

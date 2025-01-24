@@ -17,6 +17,15 @@ router.get('/', async function(req, res, next) {
     res.status(200).send(channels);
 })
 
+router.get('/stores', async function(req, res, next) {
+    let channels = await prisma.channel.findMany({
+        include: {
+            store: true
+        }
+    })
+    res.status(200).send(channels);
+})
+
 router.get('/products', async function(req, res, next) {
     let channels = await prisma.channel.findMany({
         include : {

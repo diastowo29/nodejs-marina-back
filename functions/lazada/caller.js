@@ -12,6 +12,8 @@ var CryptoJS = require("crypto-js");
 
 async function lazCall (api, additionalParams, refToken, token) {
     let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
+    console.log(api.endpoint)
+    console.log(lazCommonParams)
     let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
     return axios.get(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
@@ -103,7 +105,7 @@ function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
     let params = {
         app_key: key.split('-_-')[0],
         timestamp: ts,
-        ...(code=='' ? { access_token: accToken } : { code: code }),
+        ...(accToken == '' ? {} : { access_token: accToken }),
         sign_method: 'sha256'
     };
     if (addOns.length > 0) {

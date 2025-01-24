@@ -20,4 +20,21 @@ router.get('/', async function(req, res, next) {
     res.status(200).send(chat);
 });
 
+router.get('/:id/comments', async function(req, res, next) {
+    let chat = await prisma.omnichat.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
+        include: {
+            messages: true,
+            store: {
+                include: {
+                    channel: true
+                }
+            }
+        }
+    });
+    res.status(200).send(chat);
+});
+
 module.exports = router;

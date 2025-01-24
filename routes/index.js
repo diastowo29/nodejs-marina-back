@@ -12,6 +12,16 @@ router.get('/', async function(req, res, next) {
   res.status(200).send({});
 });
 
+router.post ('/zd', async function(req, res, next) {
+  console.log(req);
+  res.status(200).send({});
+});
+
+router.get('/zd', async function(req, res, next) {
+  console.log(req.headers);
+  res.status(200).send({});
+});
+
 router.get('/laz', async function(req, res, next) {
   // await client.hSet('lazClient', {
   //   accToken: 'tokenab'
