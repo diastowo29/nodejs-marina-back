@@ -20,6 +20,8 @@ model customers {
   phone     String?
   email     String?
   orders    orders[]
+  clientId  clients? @relation(fields: [clientsId], references: [id])
+  clientsId Int?
 }
 
 model products_img {
@@ -36,22 +38,26 @@ model products_img {
 }
 
 model channel {
-  id    Int     @id @default(autoincrement())
-  name  String? @unique
-  store store[]
+  id        Int      @id @default(autoincrement())
+  name      String?  @unique
+  store     store[]
+  clientId  clients? @relation(fields: [clientsId], references: [id])
+  clientsId Int?
 }
 
 model store {
-  id        Int        @id @default(autoincrement())
-  channel   channel?   @relation(fields: [channelId], references: [id])
-  name      String?
-  origin_id String?    @unique
-  token String?
-  refresh_token String?
-  orders    orders[]
-  products  products[]
-  omnichat  omnichat[]
-  channelId Int?
+  id                      Int        @id @default(autoincrement())
+  channel                 channel?   @relation(fields: [channelId], references: [id])
+  name                    String?
+  origin_id               String?    @unique
+  token                   String?
+  refresh_token           String?
+  secondary_token         String?
+  secondary_refresh_token String?
+  orders                  orders[]
+  products                products[]
+  omnichat                omnichat[]
+  channelId               Int?
 }
 
 model products {
@@ -72,12 +78,14 @@ model products {
   product_img products_img[]
   order_items order_items[]
   storeId     Int?
+  clientId    clients?       @relation(fields: [clientsId], references: [id])
+  clientsId   Int?
 }
 
 model order_items {
   id          Int       @id @default(autoincrement())
   createdAt   DateTime  @default(now())
-  origin_id String? @unique
+  origin_id   String?   @unique
   qty         Int
   products    products? @relation(fields: [productsId], references: [id])
   invoice     String?
@@ -129,6 +137,8 @@ model orders {
   total_amount          Int?
   store                 store?        @relation(fields: [storeId], references: [id])
   logisticId            Int?
+  clientId              clients?      @relation(fields: [clientsId], references: [id])
+  clientsId             Int?
 }
 
 model omnichat_user {
@@ -139,6 +149,8 @@ model omnichat_user {
   createdAt     DateTime        @default(now())
   omnichat      omnichat[]
   omnichat_line omnichat_line[]
+  clientId      clients?        @relation(fields: [clientsId], references: [id])
+  clientsId     Int?
 }
 
 model omnichat {
@@ -153,6 +165,8 @@ model omnichat {
   store           store?          @relation(fields: [storeId], references: [id])
   omnichat_userId Int?
   storeId         Int?
+  clientId        clients?        @relation(fields: [clientsId], references: [id])
+  clientsId       Int?
 }
 
 model omnichat_line {
@@ -165,4 +179,39 @@ model omnichat_line {
   author          String?
   omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
   omnichat_userId Int?
+}
+
+model zdconnector {
+  id             Int      @id @default(autoincrement())
+  name           String
+  host           String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  suncoAppId     String
+  suncoAppKey    String
+  suncoAppSecret String
+  zdAPIToken     String
+  resource       String?
+  clientId       clients? @relation(fields: [clientsId], references: [id])
+  clientsId      Int?
+}
+
+model omnicrm {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  name      String?
+  type      String?
+}
+
+model clients {
+  id            Int             @id @default(autoincrement())
+  name          String
+  customers     customers[]
+  channel       channel[]
+  products      products[]
+  orders        orders[]
+  omnichat_user omnichat_user[]
+  omnichat      omnichat[]
+  zdconnector   zdconnector[]
 }

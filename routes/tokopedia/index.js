@@ -191,6 +191,7 @@ router.post('/chat',async function(req, res, next) {
         // }, jobOpts);
         res.status(200).send(message);
     } catch (err) {
+        console.log(err);
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
             res.status(400).send(err.code);
         } else {

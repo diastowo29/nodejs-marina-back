@@ -5,7 +5,7 @@ var {
     Prisma
 } = require('@prisma/client');
 const { workQueue, jobOpts } = require('../../config/redis.config');
-const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken } = require('../../config/utils');
+const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 
@@ -129,6 +129,44 @@ router.put('/order/:id', async function(req, res, next) {
     res.status(200).send(packOrder);
 })
 
+let clients = [];
+let chats = [];
+
+router.get('/chat/events', async function(req, res, next) {
+    // const headers = {
+    //     'Content-Type': 'text/event-stream',
+    //     'Connection': 'keep-alive',
+    //     'Cache-Control': 'no-cache'
+    // };
+    // res.writeHead(200, headers);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Connection', 'keep-alive');
+
+    const data = `data: ${JSON.stringify(chats)}\n\n`;
+    res.write(data);
+    const clientId = Date.now();
+    const newClient = {
+        id: clientId,
+        res
+    };
+
+    clients.push(newClient);
+    req.on('close', () => {
+        console.log(`${clientId} Connection closed`);
+        clients = clients.filter(client => client.id !== clientId);
+    });
+});
+
+router.get('/event/test', async function(req, res, next) {
+    clients.forEach(client => {
+        let jsonTest = {test:true};
+        client.res.write(`data: ${JSON.stringify(jsonTest)}\n\n`);
+    });
+    res.status(200).send({});
+})
+
 router.post('/chat', async function(req, res, next) {
     console.log(req.body.message.data);
     let jsonBody = gcpParser(req.body.message.data);
@@ -148,13 +186,29 @@ router.post('/chat', async function(req, res, next) {
                 store: true
             },
             where: {
-                origin_id: `${jsonBody.seller_id}-${userId}`
+                origin_id: sessionId
+                // origin_id: `${sessionId}-${userId}`
             },
             update: {
-                last_message: bodyData.content
+                last_message: bodyData.content,
+                last_messageId: messageId,
+                updatedAt: new Date(),
+                messages: {
+                    connectOrCreate: {
+                        where: {
+                            origin_id: bodyData.message_id
+                        },
+                        create: {
+                            origin_id: bodyData.message_id,
+                            line_text: bodyData.content,
+                            author: userId
+                        }
+                    }
+                },
             },
             create: {
-                origin_id: `${jsonBody.seller_id}-${userId}`,
+                origin_id: sessionId,
+                // origin_id: `${sessionId}-${userId}`,
                 last_message: bodyData.content,
                 last_messageId: messageId,
                 store: {
@@ -180,6 +234,14 @@ router.post('/chat', async function(req, res, next) {
                 }
             }
         });
+        let sseEventPayload = {
+            user_id: userId,
+            message: JSON.parse(bodyData.content),
+            message_id: messageId
+        }
+        clients.forEach(client => {
+            client.res.write(`data: ${JSON.stringify(sseEventPayload)}\n\n`);
+        });
         workQueue.add({
             channel: LAZADA_CHAT, 
             sessionId: sessionId, 
@@ -191,12 +253,14 @@ router.post('/chat', async function(req, res, next) {
         res.status(200).send(conversation);
     } catch (err) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
+            console.log(err);
             res.status(400).send({code: err.code});
         } else {
             if (err.code == 'P2025') {
                 console.log(`error on chat ${err.meta.cause}`);
                 res.status(200).send({error: err});
             } else {
+                console.log(err);
                 res.status(400).send({error: err});
             }
         }

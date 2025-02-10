@@ -14,9 +14,9 @@ const prisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
     // console.log(req.query)
-    if (req.query.channel) {
-        console.log(req.query.channel);
-    }
+    // if (req.query.channel) {
+    //     console.log(req.query.channel);
+    // }
     let order = await prisma.orders.findMany({
         orderBy: [
             { updatedAt: 'desc' }
@@ -61,7 +61,7 @@ router.get('/', async function(req, res, next) {
         },
         logistic: true
        },
-       ...(req.query.user || req.query.u) ? { take: 10, orderBy: { id:'desc' } } : {}
+       ...(req.query.user || req.query.u) ? { take: 3, orderBy: { id:'desc' } } : {orderBy: { id:'desc' }}
     })
     res.status(200).send(order);
 })

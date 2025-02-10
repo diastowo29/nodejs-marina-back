@@ -70,6 +70,12 @@ module.exports = {
         appKey: appKeyOMS,
         pos: 0
     },
+    lazReplyChat: {
+        host: lazadaHost,
+        endpoint: '/im/message/send',
+        appKey: appKeyCHAT,
+        pos: 0
+    },
     lazGetOrderItems: {
         host: lazadaHost,
         endpoint: '/order/items/get',
@@ -85,6 +91,21 @@ module.exports = {
         host: lazadaHost,
         endpoint: '/order/fulfill/pack',
         appKey: appKeyOMS
+    },
+
+    chatContentType: {  
+        TEXT : 'text',
+        IMAGE : 'image',
+        PRODUCT : 'product',
+        INVOICE : 'invoice'
+    },
+
+    channelSource: {
+        LAZADA: 'Lazada',
+        TOKOPEDIA: 'Tokopedia',
+        SHOPEE: 'Shopee',
+        BLIBLI: 'Blibli',
+        TIKTOK: 'Tiktok'
     },
 
     sampleLazOMSToken: '50000701b25svjsdYGEQ3sz1GIDxI0DwxIGyD10be5dc5xufRtaUOv2vjFYPmCZm'

@@ -33,10 +33,35 @@ async function lazCall (api, additionalParams, refToken, token) {
     })
 }
 
+async function lazPostGetCall (api, additionalParams, refToken, token) {
+    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
+    console.log(api.endpoint)
+    console.log(lazCommonParams)
+    let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
+    return axios.post(completeUrl).then(async function(result) {
+        if (result.data.code == 'IllegalAccessToken') {
+            let newToken = await refreshToken(api, refToken);
+            if (newToken) {
+                lazCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
+                return;
+            }
+        } else if (result.data.code == 'MissingParameter') {
+            return result.data;
+        } else {
+            return result.data;
+        }
+    }).catch(function (error) {
+        console.log(error);
+        return error;
+    })
+}
+
 async function lazPostCall (api, additionalParams, refToken, token) {
     let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
     lazCommonParams.sorted['sign'] = lazCommonParams.signed;
     let completeUrl = `${api.host}${api.endpoint}`;
+    // console.log(completeUrl);
+    console.log(lazCommonParams.sorted);
     return axios.post(completeUrl, lazCommonParams.sorted)
     .then(async function(result) {
         console.log(result.data);
@@ -143,4 +168,4 @@ function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
 //     // lazCall(`${lazadaAuthHost}${lazGetOrder}?${params.params}&sign=${params.signed}`, data.refToken)
 // })
 
-module.exports = { lazCall, lazParamz, lazPostCall }
+module.exports = { lazCall, lazParamz, lazPostCall, lazPostGetCall }
