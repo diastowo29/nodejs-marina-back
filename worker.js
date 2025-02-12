@@ -6,8 +6,16 @@ const { PrismaClient, Prisma } = require('@prisma/client');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
+const functions = require('@google-cloud/functions-framework');
 
 require('dotenv').config()
+
+functions.http('crfWorkers', (req, res) => {
+    console.log('workers start')
+    console.log(req.body);
+    // processJob(req.body);
+    res.status(200).send({});
+});
 
 function start() {
     console.log('frontline start');

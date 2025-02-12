@@ -8,6 +8,7 @@ env_variables:
   DATABASE_URL: >-
     postgresql://marina-neon_owner:6yUZ7KmqdizA@ep-fragrant-shadow-a17yci2r-pooler.ap-southeast-1.aws.neon.tech/marina-neon?sslmode=require
   SECRET: SECRET123
+  REDIS_IP: 10.55.140.36
 automatic_scaling:
   min_idle_instances: automatic
   max_idle_instances: automatic

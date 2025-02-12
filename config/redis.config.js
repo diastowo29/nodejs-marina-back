@@ -1,5 +1,6 @@
 let Queue = require('bull');
-var REDIS_URL = 'redis://127.0.0.1:6379'
+let redisIp = process.env.REDIS_IP || '10.55.140.36';
+var REDIS_URL = `redis://${redisIp}:6379`
 let redisClient = require('redis');
 let client = redisClient.createClient();
 client.connect();
