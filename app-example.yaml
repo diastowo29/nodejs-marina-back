@@ -1,4 +1,4 @@
-runtime: nodejs18
+runtime: nodejs22
 env: standard
 instance_class: F1
 handlers:
@@ -6,11 +6,18 @@ handlers:
     script: auto
 env_variables:
   DATABASE_URL: >-
-    postgresql://marina-neon_ownerxxxx:xxxxxx
+    postgresql://xxx:xxx@ep-xxx-1.aws.neon.tech/xxx?sslmode=require
   SECRET: SECRET123
+  REDIS_IP: xxx:xxx@redis-xxx-cloud.com
+  REDIS_PORT: 0000
+  NODE_ENV: production
+  GCP_PROJECT_ID: marina-apps
+  GCP_QUEUE: marina-be-que
+  GCP_LOCATION: asia-southeast2
+  GCP_WORKER_URL: https://xxx.us-xxx.run.app/xxx
 automatic_scaling:
   min_idle_instances: automatic
   max_idle_instances: automatic
   min_pending_latency: automatic
   max_pending_latency: automatic
-service_account: marina-apps@appspot.gserviceaccount.com
+service_account: xxx@xxxx.com
