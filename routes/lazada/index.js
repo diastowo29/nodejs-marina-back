@@ -4,12 +4,13 @@ var {
     PrismaClient,
     Prisma
 } = require('@prisma/client');
-const { workQueue, jobOpts } = require('../../config/redis.config');
 const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
+const { pushTask } = require('../../functions/queue/task');
+var env = process.env.NODE_ENV || 'development';
 
-let test = require('dotenv').config()
+// let test = require('dotenv').config()
 const prisma = new PrismaClient();
 /* GET home page. */
 router.get('/webhook', async function (req, res, next) {
@@ -48,7 +49,7 @@ router.post('/order', async function(req, res, next) {
                     store: true
                 }
             });
-             workQueue.add({
+            let taskPayload = {
                 channel: LAZADA, 
                 orderId: jsonBody.data.trade_order_id, 
                 customerId: jsonBody.data.buyer_id,
@@ -57,19 +58,22 @@ router.post('/order', async function(req, res, next) {
                 refresh_token: newOrder.store.refresh_token,
                 new: true,
                 // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
-            }, jobOpts);
+            }
+            pushTask(env, taskPayload);
+            //  workQueue.add(taskPayload, jobOpts);
             res.status(200).send(newOrder);
         } catch (err) {
             console.log(req.body.message.data);
             if (err instanceof Prisma.PrismaClientKnownRequestError) {
                 if (err.code === 'P2002') {
-                    workQueue.add({
+                    let taskPayload = {
                         channel: LAZADA,
                         status: jsonBody.data.order_status,
                         updatedAt: new Date(),
                         orderId: jsonBody.data.trade_order_id,
                         new: false,
-                    }, jobOpts);
+                    }
+                    pushTask(env, taskPayload);
                     res.status(200).send({});
                 } else {
                     res.status(400).send({err: err});
@@ -111,9 +115,6 @@ router.put('/order/:id', async function(req, res, next) {
     order.order_items.forEach(item => {
         orderItemIds.push(Number.parseInt(item.origin_id))
     });
-    // let updateOrderParams = lazParamz(appKeyId, '', Date.now(), 'refToken', '50000700338bKKractvEylKDuyOxZc4fXgjpZwuC9iBy3pW0D6144cc65eaSsSJu', lazPackOrder, addParams);
-    // let updateOrder = await lazPostCall(`${lazadaHost}${lazPackOrder}?${updateOrderParams.params}&sign=${updateOrderParams.signed}`, '');
-
     let packReq = {
         pack_order_list: [
             {
@@ -133,6 +134,7 @@ let clients = [];
 let chats = [];
 
 router.get('/chat/events', async function(req, res, next) {
+    /* SSE */
     // const headers = {
     //     'Content-Type': 'text/event-stream',
     //     'Connection': 'keep-alive',
@@ -195,9 +197,7 @@ router.post('/chat', async function(req, res, next) {
                 updatedAt: new Date(),
                 messages: {
                     connectOrCreate: {
-                        where: {
-                            origin_id: bodyData.message_id
-                        },
+                        where: { origin_id: bodyData.message_id },
                         create: {
                             origin_id: bodyData.message_id,
                             line_text: bodyData.content,
@@ -212,9 +212,7 @@ router.post('/chat', async function(req, res, next) {
                 last_message: bodyData.content,
                 last_messageId: messageId,
                 store: {
-                    connect: {
-                        origin_id: jsonBody.seller_id
-                    }
+                    connect: { origin_id: jsonBody.seller_id }
                 },
                 messages: {
                     create: {
@@ -224,12 +222,8 @@ router.post('/chat', async function(req, res, next) {
                 },
                 omnichat_user: {
                     connectOrCreate: {
-                        where: {
-                            origin_id: userId.toString(),
-                        },
-                        create: {
-                            origin_id: userId.toString()
-                        }
+                        where: { origin_id: userId.toString() },
+                        create: { origin_id: userId.toString() }
                     }
                 }
             }
@@ -242,14 +236,15 @@ router.post('/chat', async function(req, res, next) {
         clients.forEach(client => {
             client.res.write(`data: ${JSON.stringify(sseEventPayload)}\n\n`);
         });
-        workQueue.add({
+        let taskPayload = {
             channel: LAZADA_CHAT, 
             sessionId: sessionId, 
             id: conversation.id,
             token: conversation.store.token,
             refresh_token: conversation.store.refresh_token,
             ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
-        }, jobOpts);
+        }
+        pushTask(env, taskPayload);
         res.status(200).send(conversation);
     } catch (err) {
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
@@ -306,6 +301,14 @@ router.post('/authorize', async function(req, res, next) {
         store: newStore
     });
 })
+
+// function pushTask (env, taskPayload) {
+//     if (env == 'development') {
+//         workQueue.add(taskPayload, jobOpts);
+//     } else {
+//         addTask(taskPayload);
+//     }
+// }
 
 
 const sample = {

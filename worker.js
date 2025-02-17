@@ -1,21 +1,41 @@
 let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 2;
 let maxJobsPerWorker = 20;
-let { workQueue, client, anotherWorkQueue, jobOpts } = require('./config/redis.config');
+let { workQueue } = require('./config/redis.config');
 const { PrismaClient, Prisma } = require('@prisma/client');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
-const functions = require('@google-cloud/functions-framework');
+let env = process.env.NODE_ENV || 'developemnt';
 
-require('dotenv').config()
+const express = require('express');
+const app = express();
+if (env == 'production') {
+    app.use(express.json());
+    const PORT = 3003;
+    app.listen(PORT, () => {
+      console.log(`Worker running on port ${PORT}`);
+    });
+    app.post('/doworker', async (req, res) => {
+        const data = req.body;
+        console.log('Processing task:', data);
+        let job = await processJob({data: data});
+        res.status(200).send({job: job});
+    });
+} else {
+    throng({ workers, start });
+}
 
-functions.http('crfWorkers', (req, res) => {
-    console.log('workers start')
-    console.log(req.body);
-    // processJob(req.body);
-    res.status(200).send({});
-});
+
+// const PORT = process.env.PORT || 8080;
+
+
+// functions.http('crfWorkers', (req, res) => {
+//     console.log('workers start')
+//     console.log(req.body);
+//     // processJob(req.body);
+//     res.status(200).send({});
+// });
 
 function start() {
     console.log('frontline start');
@@ -25,7 +45,7 @@ function start() {
 }
 
 async function processJob (jobData, done) {
-    let body = jobData.data.body;
+    // let body = jobData.data.body;
     // console.log(jobData);
     // console.log(body)
     // console.log(jobData.data.channel);
@@ -38,16 +58,16 @@ async function processJob (jobData, done) {
             processLazadaChat(jobData.data, done);
             break;
         case BLIBLI: 
-            processBlibli(body, done);
+            processBlibli(jobData.data, done);
             break;
         case TOKOPEDIA: 
-            processTokopedia(body, done);
+            processTokopedia(jobData.data, done);
             break;
         case TOKOPEDIA_CHAT: 
             processTokopediaChat(jobData.data, done);
             break;
         default:
-            console.log('channel not supported', jobData.data.channel);
+            console.log('channel not supported: ', jobData.data.channel);
             break;
     }
 }
@@ -347,5 +367,3 @@ async function processBlibli(body, done) {
     console.log(body);
     done(null, {response: 'testing'});
 }
-
-throng({ workers, start });

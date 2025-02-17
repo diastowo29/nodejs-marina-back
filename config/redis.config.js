@@ -1,30 +1,28 @@
 let Queue = require('bull');
-let redisIp = process.env.REDIS_IP || '10.55.140.36';
-var REDIS_URL = `redis://${redisIp}:6379`
-let redisClient = require('redis');
-let client = redisClient.createClient();
-client.connect();
-
+let redisHost = process.env.REDIS_IP || '127.0.0.1';
+let redisPort = process.env.REDIS_PORT || '6379';
+var redisUrl = `redis://${redisHost}:${redisPort}`;
+console.log(redisUrl);
 const setting = {
     settings: {
         maxStalledCount: 3
     }
 }
+
 /* let workQueue = new Queue('newSendMessage', {
     redis: {
-        password: REDIS_URL.split('@')[0].split(':')[2],
-        host: REDIS_URL.split('@')[1].split(':')[0],
-        port: parseInt(REDIS_URL.split('@')[1].split(':')[1]),
+        username: 'default',
+        password: 'SUfflD6BtgLI875WO1JQKv972YD0csl3',
+        host: 'redis-18018.c334.asia-southeast2-1.gce.redns.redis-cloud.com',
+        port: 18018,
         tls: { rejectUnauthorized: false },
     }
 }, {
-    settings: {
-        maxStalledCount: 2
-    }
+    setting
 }); */
 
-let workQueue = new Queue('newSendMessage', REDIS_URL, setting);
-let anotherWorkQueue = new Queue('getOrderDetail', REDIS_URL, setting);
+let workQueue = new Queue('newSendMessage', redisUrl, setting);
+let anotherWorkQueue = new Queue('getOrderDetail', redisUrl, setting);
 
 let jobOpts = {
     removeOnComplete : true,
@@ -33,4 +31,4 @@ let jobOpts = {
     }
 }
 
-module.exports = {workQueue, jobOpts, client, anotherWorkQueue}
+module.exports = {workQueue, jobOpts, anotherWorkQueue}

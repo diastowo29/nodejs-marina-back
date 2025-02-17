@@ -2,8 +2,10 @@ var express = require('express');
 var router = express.Router();
 var { PrismaClient, Prisma } = require('@prisma/client');
 // const {workQueue, jobOpts} = require('../../config/redis.config');
-const { TOKOPEDIA, TOKOPEDIA_CHAT } = require('../../config/utils');
+const { TOKOPEDIA_CHAT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
+const { pushTask } = require('../../functions/queue/task');
+var env = process.env.NODE_ENV || 'development';
 
 const prisma = new PrismaClient();
 /* GET home page. */
@@ -133,6 +135,9 @@ router.put('/order/:id', async function(req, res, next) {
             order_items: true
         }
     });
+    /* CALL TOKPED API HERE */
+
+    /* CALL TOKPED API HERE */
     res.status(200).send(order);
 })
 
@@ -184,11 +189,13 @@ router.post('/chat',async function(req, res, next) {
                     }
                 }
             }
-        })
-        // workQueue.add({
-        //     channel: TOKOPEDIA_CHAT,
-        //     body: jsonBody
-        // }, jobOpts);
+        });
+
+        let taskPayload = {
+            channel: TOKOPEDIA_CHAT,
+            body: jsonBody
+        }
+        pushTask(env, taskPayload);
         res.status(200).send(message);
     } catch (err) {
         console.log(err);

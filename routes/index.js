@@ -1,26 +1,29 @@
 var express = require('express');
 var router = express.Router();
-var { PrismaClient } = require('@prisma/client');
-// const { workQueue, client } = require('../config/redis.config');
+const { workQueue, jobOpts } = require('../config/redis.config');
+const { addTask } = require('../functions/queue/task');
 
 /* GET home page. */
 router.get('/', async function(req, res, next) {
-  // const users = await prisma.channel.findMany({});
-  // client.h
-  // let lazClient = await client.hGetAll('lazClient');
-  // res.status(200).send(lazClient);
   res.status(200).send({});
 });
 
-router.post ('/zd', async function(req, res, next) {
-  console.log(req);
-  res.status(200).send({});
-});
+router.get('/job_test', async function(req, res, next) {
+  let jobTest = await workQueue.add({
+    channel: 'test channel'
+  }, jobOpts);
+  res.status(200).send(jobTest);
+})
 
-router.get('/zd', async function(req, res, next) {
-  console.log(req.headers);
-  res.status(200).send({});
-});
+router.get('/task_test', async function(req, res, next) {
+  try {
+    let taskQue = await addTask({channel: 'test channel'});
+    res.status(200).send(taskQue);
+  } catch (err) {
+    console.log(err);
+    res.status(400).send({error: err});
+  }
+})
 
 router.get('/laz', async function(req, res, next) {
   // await client.hSet('lazClient', {
