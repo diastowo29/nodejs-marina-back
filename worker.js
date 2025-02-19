@@ -12,6 +12,7 @@ const express = require('express');
 const app = express();
 if (env == 'production') {
     app.use(express.json());
+    // const PORT = process.env.PORT || 8080;
     const PORT = 3003;
     app.listen(PORT, () => {
       console.log(`Worker running on port ${PORT}`);
@@ -25,10 +26,6 @@ if (env == 'production') {
 } else {
     throng({ workers, start });
 }
-
-
-// const PORT = process.env.PORT || 8080;
-
 
 // functions.http('crfWorkers', (req, res) => {
 //     console.log('workers start')

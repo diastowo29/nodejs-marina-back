@@ -58,6 +58,7 @@ model store {
   products                products[]
   omnichat                omnichat[]
   channelId               Int?
+  url String?
 }
 
 model products {

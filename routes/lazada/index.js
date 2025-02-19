@@ -115,6 +115,8 @@ router.put('/order/:id', async function(req, res, next) {
     order.order_items.forEach(item => {
         orderItemIds.push(Number.parseInt(item.origin_id))
     });
+
+    /* PACKED */
     let packReq = {
         pack_order_list: [
             {
@@ -125,6 +127,32 @@ router.put('/order/:id', async function(req, res, next) {
         delivery_type: 'dropship',
         shipping_allocate_type: 'TFS',
     }
+    /* REPACKED */
+    // /order/package/repack
+    /* let rePackReq = {
+        packages: [
+            {
+                package_id: 'packageId'
+            }
+        ]
+    } */
+
+    /* READY TO SHIP */
+    // /order/package/rts
+    /* let readyToShipReq = {
+        packages: [
+            {
+                package_id: 'packageId'
+            }
+        ]
+    } */
+   
+    /* SHIPPED */
+
+    /* CANCELLED */
+    // /order/cancel
+    // https://open.lazada.com/apps/doc/api?path=%2Forder%2Fcancel
+    
     let apiParams = `packReq=${JSON.stringify(packReq)}`;
     let packOrder = await lazPostCall(lazPackOrder, apiParams, 'refToken', sampleLazOMSToken);
     res.status(200).send(packOrder);
