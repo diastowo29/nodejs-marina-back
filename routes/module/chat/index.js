@@ -6,6 +6,8 @@ var {
 const { lazReplyChat, chatContentType, channelSource } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
+const { api } = require('../../../functions/axios/Axioser');
+const { TOKO_REPLYCHAT } = require('../../../config/toko_apis');
 
 const prisma = new PrismaClient();
 
@@ -58,29 +60,65 @@ router.post('/', async function(req, res, next) {
         if (!chatReply.success) {
             return res.status(400).send(chatReply);
         }
-        let chat = await prisma.omnichat.update({
-            where: {
-                origin_id: body.omnichat_origin_id
-            },
-            data: {
-                last_message: body.line_text,
-                updatedAt: new Date(),
-                last_messageId: chatReply.data.message_id, // change this
-                messages: {
-                    create: {
-                        omnichat_user_id: body.omnichat_user_id,
-                        line_text: body.line_text,
-                        origin_id: chatReply.data.message_id,
-                        author: 'agent'
-                    }
-                }
-            }
-        })
+        let chat = await updateOmnichat(body, chatReply.data.message_id);
         res.status(200).send(chat);
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TOKOPEDIA.toLowerCase()) {
-        res.status(200).send('Not implemented');
+        let token = await getToken(body.store_origin_id);
+        // console.log(token);
+        // console.log(TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId));
+        let templateId;
+        switch (body.content_type) {
+            case chatContentType.IMAGE:
+                templateId = '2';
+                break;
+            case chatContentType.PRODUCT:
+                templateId = '0';
+                break;
+            case chatContentType.INVOICE:
+                templateId = '19';
+                break;
+            default:
+                templateId = '1';
+                break;
+        }
+        let replyPayload = {
+            shop_id: Number.parseInt(body.store_origin_id),
+            ...(templateId === '1') ? { message: body.line_text } : {},
+            ...(templateId === '2') ? {
+                attachment_type: templateId,
+                file_path: ''
+            } : {},
+            ...(templateId === '19') ? {
+                attachment_type: templateId,
+                payload: {
+                    thumbnail: '',
+                    identifier: '',
+                    title: '',
+                    price: '',
+                    url: ''
+                }
+            } : {},
+        };
+        try {
+            let chatReply = await api.post(
+                TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId), 
+                JSON.stringify(replyPayload), 
+                {
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token.token}`
+                    }
+                }
+            );
+            let chat = await updateOmnichat(body, chatReply.data.msg_id);
+            res.status(200).send(chat);
+        } catch (err) {
+            console.log(err.response.data);
+            res.status(400).send({error: err.response.data});
+        }
     } else {
-        res.status(400).send('Not implemented');
+        res.status(400).send({error: 'Not implemented'});
     }
 })
 
@@ -100,5 +138,27 @@ router.get('/:id/comments', async function(req, res, next) {
     });
     res.status(200).send(chat);
 });
+
+async function updateOmnichat (body, msgId) {
+    let chat = await prisma.omnichat.update({
+        where: {
+            origin_id: body.omnichat_origin_id
+        },
+        data: {
+            last_message: body.line_text,
+            updatedAt: new Date(),
+            last_messageId: msgId,
+            messages: {
+                create: {
+                    omnichat_user_id: body.omnichat_user_id,
+                    line_text: body.line_text,
+                    origin_id: msgId,
+                    author: 'agent'
+                }
+            }
+        }
+    })
+    return chat;
+}
 
 module.exports = router;

@@ -15,6 +15,9 @@ env_variables:
   GCP_QUEUE: xxx-queue
   GCP_LOCATION: asia-xxx
   GCP_WORKER_URL: https://xxx.us-xxx.run.app/xxx
+  TOKO_CLIENT_ID: xxx323d2
+  TOKO_CLIENT_SECRET: xx4f54g5g
+  TOKO_APP_ID: 2231
 automatic_scaling:
   min_idle_instances: automatic
   max_idle_instances: automatic

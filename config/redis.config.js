@@ -2,7 +2,7 @@ let Queue = require('bull');
 let redisHost = process.env.REDIS_IP || '127.0.0.1';
 let redisPort = process.env.REDIS_PORT || '6379';
 var redisUrl = `redis://${redisHost}:${redisPort}`;
-console.log(redisUrl);
+// console.log(redisUrl);
 const setting = {
     settings: {
         maxStalledCount: 3
