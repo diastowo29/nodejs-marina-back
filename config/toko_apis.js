@@ -28,8 +28,16 @@ function TOKO_ORD_CONFIRMSHIP (fsId, orderId) {
 function TOKO_CATEGORY (fsId) {
     return `${HOST}/inventory/v1/fs/${fsId}/product/category`
 }
+function TOKO_REJECT_CANCEL_REQUEST (fsId, orderId, shopId) {
+    return `${HOST}/v1/order/${orderId}/fs/${fsId}/reject-cancel?shop_id=${shopId}`
+}
+
+function TOKO_INITIATE_CHAT (fsId, orderId) {
+    return `${HOST}/v1/chat/fs/${fsId}/initiate?order_id=${orderId}`;
+}
 
 module.exports = {
+    TOKO_INITIATE_CHAT,
     TOKO_GETTOKEN,
     TOKO_SHOPINFO,
     TOKO_PRODUCTLIST,
@@ -39,5 +47,6 @@ module.exports = {
     TOKO_REPLYCHAT,
     TOKO_PRINTLABEL,
     TOKO_ORD_CONFIRMSHIP,
-    TOKO_CATEGORY
+    TOKO_CATEGORY,
+    TOKO_REJECT_CANCEL_REQUEST
 }

@@ -3,12 +3,13 @@ var router = express.Router();
 var {
     PrismaClient
 } = require('@prisma/client');
-const { lazReplyChat, chatContentType, channelSource } = require('../../../config/utils');
+const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/Axioser');
-const { TOKO_REPLYCHAT } = require('../../../config/toko_apis');
+const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 
+const tokoAppId = process.env.TOKO_APP_ID;
 const prisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
@@ -27,6 +28,66 @@ router.get('/', async function(req, res, next) {
     });
     res.status(200).send(chat);
 });
+
+router.post('/initiate', async function(req, res, next) {
+    const orderId = req.body.order_id;
+    const customerId = '';
+    const storeId = req.body.store_id;
+    const channel = req.body.channel;
+
+    let store = await prisma.store.findUnique({
+        where: {
+            origin_id: storeId
+        }
+    });
+
+    if (channel === TOKOPEDIA) {
+        let chat = await api.get(TOKO_INITIATE_CHAT(tokoAppId, orderId),{
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${store.token}`
+            }
+        });
+        let chatDb = await prisma.omnichat.upsert({
+            where: {
+                origin_id: '',
+            },
+            update: {
+                last_message: `order_id:${orderId}`,
+                last_messageId: chat.data.data.msg_id
+            },
+            create: {
+                origin_id: '',
+                last_message: `order_id:${orderId}`,
+                last_messageId: chat.data.data.msg_id,
+                storeId: storeId,
+                omnichat_user: {
+                    connectOrCreate: {
+                        where: {
+                            origin_id: chat.data.data.contact.id.toString(),
+                        },
+                        create: {
+                            origin_id: chat.data.data.contact.id.toString(),
+                            username: chat.data.data.contact.attributes.name,
+                            thumbnailUrl: chat.data.data.contact.attributes.thumbnail
+                        }
+                    }
+                },
+                messages: {
+                    create: {
+                        line_text: `order_id:${orderId}`,
+                        author: 'agent',
+                        origin_id: chat.data.data.msg_id
+                    }
+                }
+            }
+        })
+        res.status(200).send(chatDb);
+    } else {
+        res.status(400).send({error: 'Not implemented'});
+    }
+})
 
 router.post('/', async function(req, res, next) {
     console.log(req.body);
@@ -101,7 +162,7 @@ router.post('/', async function(req, res, next) {
         };
         try {
             let chatReply = await api.post(
-                TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId), 
+                TOKO_REPLYCHAT(tokoAppId, body.last_messageId), 
                 JSON.stringify(replyPayload), 
                 {
                     headers: {

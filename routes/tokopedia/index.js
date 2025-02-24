@@ -6,8 +6,9 @@ const { TOKOPEDIA_CHAT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
-const { TOKO_ACCEPT_ORDER } = require('../../config/toko_apis');
+const { TOKO_ACCEPT_ORDER, TOKO_REJECT_CANCEL_REQUEST, TOKO_REJECT_ORDER } = require('../../config/toko_apis');
 var env = process.env.NODE_ENV || 'development';
+const tokoAppId = process.env.TOKO_APP_ID;
 
 const prisma = new PrismaClient();
 /* GET home page. */
@@ -26,7 +27,7 @@ router.post('/order', async function(req, res, next) {
     let jsonBody = gcpParser(req.body.message.data);
     console.log(JSON.stringify(jsonBody));
     try {
-        // IF NEW, THERE IS INVOICE
+        // IF NEW ORDER, THERE IS INVOICE
         if (jsonBody.invoice_ref_num) {
             let logisticName = `toko-${jsonBody.logistics.shipping_agency}`;
             let orderItemList = [];
@@ -140,6 +141,7 @@ router.post('/order', async function(req, res, next) {
         }
         if (err instanceof Prisma.PrismaClientKnownRequestError) {
             if (err.code === 'P2025') {
+                console.log(err.meta);
                 return res.status(200).send();
             }
         }
@@ -147,6 +149,59 @@ router.post('/order', async function(req, res, next) {
         res.status(400).send({})
     }
 })
+
+router.put('/order/cancel', async function(req, res, next) {
+    let order = await prisma.orders.findUnique({
+        where: {
+            id: Number.parseInt(req.body.order_id)
+        },
+        include: {
+            store: true
+        }
+    });
+    let approved = req.body.approved;
+    let tokoApi = (approved) ? TOKO_REJECT_ORDER(tokoAppId, order.origin_id) : TOKO_REJECT_CANCEL_REQUEST(tokoAppId, order.origin_id, order.store.origin_id);
+    let tokoPayload = (approved) ? {reason_code: 8, reason: ''} : {};
+    let rejectRequest = await api.post(
+        tokoApi,
+        JSON.stringify(tokoPayload),
+        {
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${order.store.token}`
+            }
+        }
+    )
+
+    console.log(rejectRequest);
+    res.status(200).send({rejection: rejectRequest});
+})
+
+/* router.put('/order/:id/reject', async function(req, res, next) {
+    let order = await prisma.orders.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
+        include: {
+            store: true
+        }
+    });
+    let rejectRequest = await api.post(
+        TOKO_REJECT_CANCEL_REQUEST(tokoAppId, order.origin_id, order.store.origin_id),
+        JSON.stringify({}),
+        {
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${order.store.token}`
+            }
+        }
+    )
+
+    console.log(rejectRequest);
+    res.status(200).send({rejection: rejectRequest});
+}) */
 
 router.put('/order/:id', async function(req, res, next) {
     let order = await prisma.orders.findUnique({
@@ -157,9 +212,10 @@ router.put('/order/:id', async function(req, res, next) {
             store: true
         }
     });
+
     /* CALL TOKPED API HERE */
     let acceptOrder = await api.post(
-        TOKO_ACCEPT_ORDER(process.env.TOKO_APP_ID, order.origin_id),
+        TOKO_ACCEPT_ORDER(tokoAppId, order.origin_id),
         JSON.stringify({}),
         {
             headers: {
@@ -169,8 +225,9 @@ router.put('/order/:id', async function(req, res, next) {
             }
         }
     );
+    console.log(acceptOrder);
     /* CALL TOKPED API HERE */
-    res.status(200).send(acceptOrder);
+    res.status(200).send({accepted: acceptOrder});
 })
 
 
