@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var { PrismaClient, Prisma } = require('@prisma/client');
 // const {workQueue, jobOpts} = require('../../config/redis.config');
-const { TOKOPEDIA_CHAT } = require('../../config/utils');
+const { TOKOPEDIA_CHAT, CHAT_TEXT, CHAT_PRODUCT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
@@ -162,20 +162,25 @@ router.put('/order/cancel', async function(req, res, next) {
     let approved = req.body.approved;
     let tokoApi = (approved) ? TOKO_REJECT_ORDER(tokoAppId, order.origin_id) : TOKO_REJECT_CANCEL_REQUEST(tokoAppId, order.origin_id, order.store.origin_id);
     let tokoPayload = (approved) ? {reason_code: 8, reason: ''} : {};
-    let rejectRequest = await api.post(
-        tokoApi,
-        JSON.stringify(tokoPayload),
-        {
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${order.store.token}`
+    try {
+        let rejectRequest = await api.post(
+            tokoApi,
+            JSON.stringify(tokoPayload),
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${order.store.token}`
+                }
             }
-        }
-    )
-
-    console.log(rejectRequest);
-    res.status(200).send({rejection: rejectRequest});
+        )
+    
+        // console.log(rejectRequest);
+        res.status(200).send({rejection: rejectRequest});
+    }  catch (err) {
+        console.log(err);
+        res.status(400).send({err: err});
+    }
 })
 
 /* router.put('/order/:id/reject', async function(req, res, next) {
@@ -232,29 +237,41 @@ router.put('/order/:id', async function(req, res, next) {
 
 
 router.post('/chat',async function(req, res, next) {
+    // let jsonBody = req.body;
     let jsonBody = gcpParser(req.body.message.data);
     console.log(jsonBody);
     let tokoChatId = `${jsonBody.shop_id}-${jsonBody.user_id}`;
+    let newMessageId = `${jsonBody.msg_id}-${Date.now()}`
+    let atttachmentType = 0;
+    let chatType = CHAT_TEXT;
+    if (jsonBody.payload) {
+        atttachmentType = jsonBody.payload.attachment_type;        
+        if (atttachmentType == 3) {
+            chatType = CHAT_PRODUCT;
+        }
+    }
+    // console.log(tokoChatId)
     try {
         let message = await prisma.omnichat.upsert({
             where: {
                 origin_id: tokoChatId
             },
             update: {
-                last_message: jsonBody.message,
-                last_messageId: jsonBody.msg_id.toString(),
+                last_message: (atttachmentType == 0) ? jsonBody.message : JSON.stringify(jsonBody.payload),
+                last_messageId: newMessageId,
                 messages: {
                     create: {
-                        line_text: jsonBody.message,
+                        line_text: (atttachmentType == 0) ? jsonBody.message : JSON.stringify(jsonBody.payload),
                         author: jsonBody.user_id.toString(),
-                        origin_id: jsonBody.msg_id.toString()
+                        origin_id: newMessageId,
+                        chat_type: chatType
                     }
                 }
             },
             create: {
                 origin_id: tokoChatId,
-                last_message: jsonBody.message,
-                last_messageId: jsonBody.msg_id.toString(),
+                last_message: (atttachmentType == 0) ? jsonBody.message : JSON.stringify(jsonBody.payload),
+                last_messageId: newMessageId,
                 store: {
                     connect: {
                         origin_id: jsonBody.shop_id.toString()
@@ -273,9 +290,10 @@ router.post('/chat',async function(req, res, next) {
                 },
                 messages: {
                     create: {
-                        line_text: jsonBody.message,
+                        line_text: (atttachmentType == 0) ? jsonBody.message : JSON.stringify(jsonBody.payload),
                         author: jsonBody.user_id.toString(),
-                        origin_id: jsonBody.msg_id.toString()
+                        origin_id: newMessageId,
+                        chat_type: chatType
                     }
                 }
             }
@@ -290,7 +308,7 @@ router.post('/chat',async function(req, res, next) {
     } catch (err) {
         console.log(err);
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
-            res.status(400).send(err.code);
+            res.status(422).send(err.code);
         } else {
             res.status(400).send(err);
         }

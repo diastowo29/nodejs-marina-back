@@ -61,7 +61,7 @@ router.get('/', async function(req, res, next) {
         },
         logistic: true
        },
-       ...(req.query.user || req.query.u) ? { take: 3, orderBy: { id:'desc' } } : {orderBy: { id:'desc' }}
+       ...(req.query.user || req.query.u) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
     })
     res.status(200).send(order);
 })

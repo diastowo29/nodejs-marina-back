@@ -32,6 +32,10 @@ module.exports = {
     LAZADA_CHAT: 'lazadaChat',
     BLIBLI: 'blibli',
     BLIBLI_CHAT: 'blibliChat',
+
+    CHAT_TEXT: 'TEXT',
+    CHAT_PRODUCT: 'PRODUCT',
+    CHAT_INVOICE: 'INVOICE',
     
     lazadaHost:'https://api.lazada.co.id/rest',
     lazadaAuthHost:'https://auth.lazada.com/rest',

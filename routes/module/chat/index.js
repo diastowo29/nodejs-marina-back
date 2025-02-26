@@ -3,11 +3,12 @@ var router = express.Router();
 var {
     PrismaClient
 } = require('@prisma/client');
-const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA } = require('../../../config/utils');
+const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/Axioser');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
+const sendLazadaChat = require('../../../functions/lazada/function');
 
 const tokoAppId = process.env.TOKO_APP_ID;
 const prisma = new PrismaClient();
@@ -41,7 +42,7 @@ router.post('/initiate', async function(req, res, next) {
         }
     });
 
-    if (channel === TOKOPEDIA) {
+    if (channel.toLowerCase() === TOKOPEDIA) {
         let chat = await api.get(TOKO_INITIATE_CHAT(tokoAppId, orderId),{
             headers: {
                 Accept: 'application/json',
@@ -84,6 +85,11 @@ router.post('/initiate', async function(req, res, next) {
             }
         })
         res.status(200).send(chatDb);
+    } else if (channel.toLowerCase() === LAZADA) {
+        let templateId = '10007';
+        let contentType = 'order_id';
+        let chat = await sendLazadaChat('chatId', templateId, storeId, contentType, 'chatLine');
+        res.status(200).send({chat: chat});
     } else {
         res.status(400).send({error: 'Not implemented'});
     }
@@ -95,7 +101,7 @@ router.post('/', async function(req, res, next) {
     if (body.channel_name.toString().toLowerCase() === channelSource.LAZADA.toLowerCase()) {
         let templateId;
         let contentType;
-        switch (body.content_type) {
+        switch (body.chat_type) {
             case chatContentType.IMAGE:
                 templateId = '3';
                 contentType = 'img_url';
@@ -115,11 +121,12 @@ router.post('/', async function(req, res, next) {
             default:
                 break;
         }
-        let apiParams = `session_id=${body.omnichat_origin_id}&template_id=${templateId}&${contentType}=${body.line_text}`;
-        let token = await getToken(body.store_origin_id);
-        let chatReply = await lazPostCall(lazReplyChat, apiParams, token.secondary_refresh_token, token.secondary_token);
+        // let apiParams = `session_id=${body.omnichat_origin_id}&template_id=${templateId}&${contentType}=${body.line_text}`;
+        // let token = await getToken(body.store_origin_id);
+        // let chatReply = await lazPostCall(lazReplyChat, apiParams, token.secondary_refresh_token, token.secondary_token);
+        let chatReply = await sendLazadaChat(body.omnichat_origin_id, templateId, body.store_origin_id, contentType, body.line_text);
         if (!chatReply.success) {
-            return res.status(400).send(chatReply);
+            return res.status(400).send({chat: chatReply});
         }
         let chat = await updateOmnichat(body, chatReply.data.message_id);
         res.status(200).send(chat);
@@ -128,7 +135,7 @@ router.post('/', async function(req, res, next) {
         // console.log(token);
         // console.log(TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId));
         let templateId;
-        switch (body.content_type) {
+        switch (body.chat_type) {
             case chatContentType.IMAGE:
                 templateId = '2';
                 break;

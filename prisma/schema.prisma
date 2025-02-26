@@ -178,6 +178,7 @@ model omnichat_line {
   line_text       String         @db.Text
   omnichatId      Int?
   author          String?
+  chat_type String?
   omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
   omnichat_userId Int?
 }
