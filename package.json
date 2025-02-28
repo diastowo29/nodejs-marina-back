@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "node ./bin/www",
+    "prisma": "prisma generate"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.5",

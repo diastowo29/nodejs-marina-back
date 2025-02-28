@@ -100,6 +100,7 @@ model order_items {
 model logistic {
   id     Int      @id @default(autoincrement())
   name   String?  @unique
+  type String?
   orders orders[]
 }
 
