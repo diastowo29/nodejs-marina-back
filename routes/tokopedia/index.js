@@ -5,8 +5,8 @@ var { PrismaClient, Prisma } = require('@prisma/client');
 const { TOKOPEDIA_CHAT, CHAT_TEXT, CHAT_PRODUCT } = require('../../config/utils');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
-const { api } = require('../../functions/axios/Axioser');
-const { TOKO_ACCEPT_ORDER, TOKO_REJECT_CANCEL_REQUEST, TOKO_REJECT_ORDER } = require('../../config/toko_apis');
+const { api } = require('../../functions/axios/axioser');
+const { TOKO_ACCEPT_ORDER, TOKO_REJECT_CANCEL_REQUEST, TOKO_REJECT_ORDER, TOKO_PRODUCTLIST } = require('../../config/toko_apis');
 var env = process.env.NODE_ENV || 'development';
 const tokoAppId = process.env.TOKO_APP_ID;
 
@@ -51,13 +51,19 @@ router.post('/order', async function(req, res, next) {
                                     name: item.name,
                                     price: item.price,
                                     sku: item.sku,
-                                    origin_id: item.id.toString()
+                                    origin_id: item.id.toString(),
+                                    store: {
+                                        connect: {
+                                            origin_id: jsonBody.shop_id.toString()
+                                        }
+                                    },
                                 }
                             }
                         }
                     }
                 })
             });
+
             let newOrder = await prisma.orders.upsert({
                 update: {
                     status: jsonBody.order_status.toString(),
@@ -149,6 +155,46 @@ router.post('/order', async function(req, res, next) {
         res.status(400).send({})
     }
 })
+
+router.get('/product/sync', async function(req, res, next) {
+    let store = await prisma.store.findUnique({
+        where: {
+            id: Number.parseInt(req.query.store_id)
+        }
+    });
+    try {
+        let products = await api.get(
+            TOKO_PRODUCTLIST(tokoAppId, store.origin_id), 
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${store.token}`
+                }
+            }
+        );
+        let productList = [];
+        products.data.data.forEach(product => {
+            productList.push({
+                name: product.basic.name,
+                price: product.price.value,
+                status: product.basic.status.toString(),
+                sku: product.other.sku,
+                origin_id: product.basic.productID.toString(),
+                condition: product.basic.condition,
+                desc: product.basic.shortDesc,
+                stock: product.stock.value,
+                weight: product.weight.value,
+                storeId: Number.parseInt(req.query.store_id)
+            })
+        });
+        let syncProduct = await prisma.products.createMany({data: productList});
+        res.status(200).send(syncProduct);
+    } catch (err) {
+        console.log(err);
+        res.status(400).send({err: err})
+    }
+});
 
 router.put('/order/cancel', async function(req, res, next) {
     let order = await prisma.orders.findUnique({

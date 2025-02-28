@@ -6,9 +6,10 @@ var {
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
-const { api } = require('../../../functions/axios/Axioser');
+const { api } = require('../../../functions/axios/axioser');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
+const { route } = require('../order');
 
 const tokoAppId = process.env.TOKO_APP_ID;
 const prisma = new PrismaClient();
@@ -29,6 +30,15 @@ router.get('/', async function(req, res, next) {
     });
     res.status(200).send(chat);
 });
+
+router.get('/comments', async function(req, res, next) {
+    let comments = await prisma.omnichat_line.findMany({
+        select: {
+            chat_type: true
+        }
+    });
+    res.status(200).send(comments);
+})
 
 router.post('/initiate', async function(req, res, next) {
     const orderId = req.body.order_id;
