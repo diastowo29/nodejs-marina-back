@@ -4,7 +4,7 @@ var {
     PrismaClient,
     Prisma
 } = require('@prisma/client');
-const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat } = require('../../config/utils');
+const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat, CHAT_TEXT } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
@@ -225,11 +225,12 @@ router.post('/chat', async function(req, res, next) {
                 updatedAt: new Date(),
                 messages: {
                     connectOrCreate: {
-                        where: { origin_id: bodyData.message_id },
+                        where: { origin_id: messageId },
                         create: {
-                            origin_id: bodyData.message_id,
+                            origin_id: messageId,
                             line_text: bodyData.content,
-                            author: userId
+                            author: userId,
+                            chat_type: CHAT_TEXT
                         }
                     }
                 },
@@ -244,8 +245,10 @@ router.post('/chat', async function(req, res, next) {
                 },
                 messages: {
                     create: {
+                        origin_id: messageId,
                         line_text: bodyData.content,
-                        author: userId
+                        author: userId,
+                        chat_type: CHAT_TEXT
                     }
                 },
                 omnichat_user: {

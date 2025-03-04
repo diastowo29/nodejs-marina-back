@@ -4,3 +4,5 @@ node_modules
 app.yaml
 private.pem
 public.pub
+
+*.bak

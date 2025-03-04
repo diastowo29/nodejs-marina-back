@@ -76,6 +76,18 @@ router.post('/', async function(req, res, next) {
     res.status(200).send({});
 })
 
+router.get('/:id/products', async function(req, res, next) {
+    let products = await prisma.products.findMany({
+        where: {
+            storeId: Number.parseInt(req.params.id)
+        },
+        include: {
+            product_img: true
+        }
+    })
+    res.status(200).send(products);
+})
+
 router.get('/products', async function(req, res, next) {
     let channels = await prisma.store.findMany({
         include : {

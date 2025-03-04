@@ -285,7 +285,7 @@ router.put('/order/:id', async function(req, res, next) {
 router.post('/chat',async function(req, res, next) {
     // let jsonBody = req.body;
     let jsonBody = gcpParser(req.body.message.data);
-    console.log(jsonBody);
+    // console.log(jsonBody);
     let tokoChatId = `${jsonBody.shop_id}-${jsonBody.user_id}`;
     let newMessageId = `${jsonBody.msg_id}-${Date.now()}`
     let atttachmentType = 0;
