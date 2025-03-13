@@ -58,7 +58,9 @@ model store {
   products                products[]
   omnichat                omnichat[]
   channelId               Int?
-  url String?
+  url                     String?
+  client                  clients?   @relation(fields: [clientsId], references: [id])
+  clientsId               Int?
 }
 
 model products {
@@ -100,7 +102,7 @@ model order_items {
 model logistic {
   id     Int      @id @default(autoincrement())
   name   String?  @unique
-  type String?
+  type   String?
   orders orders[]
 }
 
@@ -153,6 +155,7 @@ model omnichat_user {
   omnichat_line omnichat_line[]
   clientId      clients?        @relation(fields: [clientsId], references: [id])
   clientsId     Int?
+  externalId    String?
 }
 
 model omnichat {
@@ -169,6 +172,7 @@ model omnichat {
   storeId         Int?
   clientId        clients?        @relation(fields: [clientsId], references: [id])
   clientsId       Int?
+  externalId      String?
 }
 
 model omnichat_line {
@@ -179,7 +183,7 @@ model omnichat_line {
   line_text       String         @db.Text
   omnichatId      Int?
   author          String?
-  chat_type String?
+  chat_type       String?
   omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
   omnichat_userId Int?
 }
@@ -210,6 +214,7 @@ model omnicrm {
 model clients {
   id            Int             @id @default(autoincrement())
   name          String
+  origin_id     String?         @unique
   customers     customers[]
   channel       channel[]
   products      products[]
@@ -217,4 +222,27 @@ model clients {
   omnichat_user omnichat_user[]
   omnichat      omnichat[]
   zdconnector   zdconnector[]
+  integration   integration[]
+  store         store[]
+}
+
+model integration {
+  id        Int       @id @default(autoincrement())
+  name      String?
+  baseUrl   String?
+  clientId  clients?  @relation(fields: [clientsId], references: [id])
+  f_chat    Boolean?
+  f_review  Boolean?
+  f_cancel  Boolean?
+  f_rr      Boolean?
+  clientsId Int?
+  credent   credent[]
+}
+
+model credent {
+  id            Int          @id @default(autoincrement())
+  key           String?
+  value         String?
+  integration   integration? @relation(fields: [integrationId], references: [id])
+  integrationId Int?
 }

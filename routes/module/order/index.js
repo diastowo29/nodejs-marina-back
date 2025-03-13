@@ -67,11 +67,10 @@ router.get('/', async function(req, res, next) {
 })
 
 router.get('/:id', async function(req, res, next) {
-    // console.log(req.query)
     if (req.params.id) {
         console.log(req.params.id);
     }
-    // res.status(200).send({});
+    
     let order = await prisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -90,7 +89,6 @@ router.get('/:id', async function(req, res, next) {
         logistic: true
        }
     });
-    console.log(order);
     res.status(200).send(order);
 })
 
