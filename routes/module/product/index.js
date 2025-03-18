@@ -32,6 +32,7 @@ router.get('/', async function(req, res, next) {
 
 router.get('/find', async function(req, res, next) {
     let queryName = req.query.skuname;
+    let storeId = Number.parseInt(req.query.storeId);
     let products = await prisma.products.findMany({
         where: {
             OR: [{
@@ -44,7 +45,15 @@ router.get('/find', async function(req, res, next) {
                     contains: queryName,
                     mode: 'insensitive'
                 }
-            }]
+            }],
+            AND:[
+                {
+                    storeId: storeId
+                }
+            ]
+        },
+        include: {
+            product_img: true
         }
     });
     res.status(200).send({
