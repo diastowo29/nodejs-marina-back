@@ -10,9 +10,9 @@ const { auth } = require('express-oauth2-jwt-bearer');
 const prisma = new PrismaClient();
 
 const jwtCheck = auth({
-    audience: 'http://localhost:3002/',
-    issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/',
-    tokenSigningAlg: 'RS256'
+    audience: process.env.AUTH0_AUDIENCE,
+    issuerBaseURL: process.env.AUTH0_BASEURL,
+    tokenSigningAlg: process.env.SIGN_ALG
 });
     
   
