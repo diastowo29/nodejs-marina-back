@@ -60,7 +60,7 @@ router.post('/connect/toko', async function(req, res, next) {
 
 router.post('/', async function(req, res, next) {
     let channel = req.body.channel;
-    console.log(req.body)
+    // console.log(req.body)
     let storeCreate = await prisma.store.create({
         data: {
             channel: {

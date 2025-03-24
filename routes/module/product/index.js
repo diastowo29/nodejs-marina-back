@@ -30,4 +30,36 @@ router.get('/', async function(req, res, next) {
     res.status(200).send(products);
 });
 
+router.get('/find', async function(req, res, next) {
+    let queryName = req.query.skuname;
+    let storeId = Number.parseInt(req.query.storeId);
+    let products = await prisma.products.findMany({
+        where: {
+            OR: [{
+                name: {
+                    contains: queryName,
+                    mode: 'insensitive'
+                }
+            },{
+                sku: {
+                    contains: queryName,
+                    mode: 'insensitive'
+                }
+            }],
+            AND:[
+                {
+                    storeId: storeId
+                }
+            ]
+        },
+        include: {
+            product_img: true
+        }
+    });
+    res.status(200).send({
+        query: queryName,
+        result: products
+    });
+})
+
 module.exports = router;

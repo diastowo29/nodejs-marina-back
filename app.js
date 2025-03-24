@@ -10,17 +10,26 @@ var tokopediaRouter = require('./routes/tokopedia');
 var lazadaRouter = require('./routes/lazada');
 var blibliRouter = require('./routes/blibli');
 
+var auth0Router = require('./routes/auth0');
+
 var orderRouter = require('./routes/module/order');
 var channelRouter = require('./routes/module/channel');
 var chatRouter = require('./routes/module/chat');
 var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
+// const { auth } = require('express-oauth2-jwt-bearer');
 
 var app = express();
 // require('dotenv').config()
 // var port = 3001;
+// const jwtCheck = auth({
+//   audience: 'http://localhost:3002/',
+//   issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/',
+//   tokenSigningAlg: 'RS256'
+// });
 
+// app.use(jwtCheck);
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
@@ -39,6 +48,7 @@ app.use('/users', usersRouter);
 app.use('/api/v1/tokopedia', tokopediaRouter);
 app.use('/api/v1/lazada', lazadaRouter);
 app.use('/api/v1/blibli', blibliRouter);
+app.use('/api/v1/auth0', auth0Router);
 
 app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/channels', channelRouter);
