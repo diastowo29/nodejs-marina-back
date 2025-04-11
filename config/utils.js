@@ -32,6 +32,8 @@ module.exports = {
     LAZADA_CHAT: 'lazadaChat',
     BLIBLI: 'blibli',
     BLIBLI_CHAT: 'blibliChat',
+    SHOPEE: 'shopee',
+    SHOPEE_CHAT: 'shopeeChat',
 
     CHAT_TEXT: 'TEXT',
     CHAT_PRODUCT: 'PRODUCT',

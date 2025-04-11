@@ -9,6 +9,7 @@ var usersRouter = require('./routes/users');
 var tokopediaRouter = require('./routes/tokopedia');
 var lazadaRouter = require('./routes/lazada');
 var blibliRouter = require('./routes/blibli');
+var shopeeRouter = require('./routes/shopee');
 
 var auth0Router = require('./routes/auth0');
 
@@ -48,6 +49,7 @@ app.use('/users', usersRouter);
 app.use('/api/v1/tokopedia', tokopediaRouter);
 app.use('/api/v1/lazada', lazadaRouter);
 app.use('/api/v1/blibli', blibliRouter);
+app.use('/api/v1/shopee', shopeeRouter);
 app.use('/api/v1/auth0', auth0Router);
 
 app.use('/api/v1/orders', orderRouter);
