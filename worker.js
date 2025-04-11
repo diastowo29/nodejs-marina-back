@@ -1,12 +1,37 @@
 let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 2;
 let maxJobsPerWorker = 20;
-let { workQueue } = require('./config/redis.config');
-const { PrismaClient, Prisma } = require('@prisma/client');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail } = require('./config/utils');
-const { lazCall } = require('./functions/lazada/caller');
+let {
+    workQueue
+} = require('./config/redis.config');
+const {
+    PrismaClient,
+    Prisma
+} = require('@prisma/client');
+const {
+    LAZADA,
+    BLIBLI,
+    TOKOPEDIA,
+    TOKOPEDIA_CHAT,
+    LAZADA_CHAT,
+    lazGetOrderDetail,
+    lazGetOrderItems,
+    sampleLazOMSToken,
+    lazGetSessionDetail
+} = require('./config/utils');
+const {
+    lazCall
+} = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
+
+const SunshineConversationsClient = require('sunshine-conversations-client');
+const messageApi = new SunshineConversationsClient.MessagesApi();
+
+// sunco hardcode part
+let suncoAppId = process.env.SUNCO_APP_ID
+let suncoKeyId = process.env.SUNCO_KEY_ID
+let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 
 const express = require('express');
 const app = express();
@@ -15,16 +40,23 @@ if (env == 'production') {
     // const PORT = process.env.PORT || 8080;
     const PORT = 3003;
     app.listen(PORT, () => {
-      console.log(`Worker running on port ${PORT}`);
+        console.log(`Worker running on port ${PORT}`);
     });
     app.post('/doworker', async (req, res) => {
         const data = req.body;
         console.log('Processing task:', data);
-        let job = await processJob({data: data});
-        res.status(200).send({job: job});
+        let job = await processJob({
+            data: data
+        });
+        res.status(200).send({
+            job: job
+        });
     });
 } else {
-    throng({ workers, start });
+    throng({
+        workers,
+        start
+    });
 }
 
 // functions.http('crfWorkers', (req, res) => {
@@ -41,7 +73,7 @@ function start() {
     });
 }
 
-async function processJob (jobData, done) {
+async function processJob(jobData, done) {
     // let body = jobData.data.body;
     // console.log(jobData);
     // console.log(body)
@@ -51,16 +83,16 @@ async function processJob (jobData, done) {
         case LAZADA:
             processLazada(jobData.data, done);
             break;
-        case LAZADA_CHAT: 
+        case LAZADA_CHAT:
             processLazadaChat(jobData.data, done);
             break;
-        case BLIBLI: 
+        case BLIBLI:
             processBlibli(jobData.data, done);
             break;
-        case TOKOPEDIA: 
+        case TOKOPEDIA:
             processTokopedia(jobData.data, done);
             break;
-        case TOKOPEDIA_CHAT: 
+        case TOKOPEDIA_CHAT:
             processTokopediaChat(jobData.data, done);
             break;
         default:
@@ -69,7 +101,7 @@ async function processJob (jobData, done) {
     }
 }
 
-async function processLazadaChat (body, done) {
+async function processLazadaChat(body, done) {
     let refresh_token = 'refToken';
     let token = body.token.split('~')[lazGetSessionDetail.pos];
     try {
@@ -93,7 +125,7 @@ async function processLazadaChat (body, done) {
             } else {
                 console.log('session invalid');
             }
-            done(null, { response: session });
+            // done(null, { response: session });
         }
     } catch (err) {
         // console.log(err);
@@ -103,21 +135,59 @@ async function processLazadaChat (body, done) {
             console.log('error');
         }
     }
+    let messageContent = JSON.parse(body.body.data.content)
+    let suncoMessagePayload = {
+        author: {
+            type: 'user',
+            userExternalId: body.user_external_id
+        }
+    }
+
+    if (body.body.data.template_id == 1) { // text
+        let contentText
+        if(body.body.data.hasOwnProperty('process_msg')){
+            contentText = body.body.data.process_msg
+        }else{
+            contentText = messageContent.txt
+        }
+        
+        suncoMessagePayload.content = {
+            type: "text",
+            text: contentText
+        }
+    } else if (body.body.data.template_id == 3 || body.body.data.template_id == 4) { // attachment or sticker
+        suncoMessagePayload.content = {
+            type: 'image',
+            mediaUrl: messageContent.imgUrl
+        }
+    } else { // product attachment_type = 3
+        suncoMessagePayload.content = {
+            type: 'image',
+            text: `${messageContent.title}\n${messageContent.actionUrl}`,
+            mediaUrl: messageContent.pic
+        }
+    }
+
+    let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
+    done(null, {
+        response: 'testing'
+    });
+
 }
 
 async function processLazada(body, done) {
     let addParams = `order_id=${body.orderId}`;
     let refresh_token = 'refToken';
     // let refresh_token = body.refresh_token.split('~')[lazGetOrderDetail.pos];
-    
+
     if (body.new) {
         console.log('create order id: ', body.orderId);
         let orderDetailPromise = await Promise.all([
-            lazCall(lazGetOrderDetail, 
-                addParams, refresh_token, 
+            lazCall(lazGetOrderDetail,
+                addParams, refresh_token,
                 body.token.split('~')[lazGetOrderDetail.pos]),
-            lazCall(lazGetOrderItems, 
-                addParams, refresh_token, 
+            lazCall(lazGetOrderItems,
+                addParams, refresh_token,
                 body.token.split('~')[lazGetOrderItems.pos]),
         ]);
 
@@ -211,7 +281,7 @@ async function processLazada(body, done) {
             //     console.log(err);
             //     done(new Error(err));
             // }
-            
+
         });
 
         try {
@@ -263,10 +333,16 @@ async function processLazada(body, done) {
         console.log('update order id: ', body.orderId);
         try {
             await prisma.orders.update({
-                where: { origin_id: body.orderId.toString() },
-                data: { status: body.status }
+                where: {
+                    origin_id: body.orderId.toString()
+                },
+                data: {
+                    status: body.status
+                }
             });
-            done(null, {response: 'testing'});
+            done(null, {
+                response: 'testing'
+            });
         } catch (err) {
             console.log(err);
             done(new Error(err));
@@ -276,13 +352,47 @@ async function processLazada(body, done) {
 
 async function processTokopedia(body, done) {
     console.log(body);
-    done(null, {response: 'testing'});
+    done(null, {
+        response: 'testing'
+    });
 }
 
 async function processTokopediaChat(body, done) {
-    console.log(body);
-    
-    done(null, {response: 'testing'});
+    console.log('process tokopedia chat', body);
+    let suncoMessagePayload = {
+        author: {
+            type: 'user',
+            userExternalId: body.user_external_id
+        }
+    }
+
+    if (body.body.payload.attachment_type == 0) { // text
+        suncoMessagePayload.content = {
+            type: "text",
+            text: body.body.message
+        }
+    } else if (body.body.payload.attachment_type == 2) { // attachment
+        suncoMessagePayload.content = {
+            type: 'image',
+            mediaUrl: body.body.payload.image.image_url
+        }
+    } else if(body.body.payload.attachment_type == 3){ // product attachment_type = 3
+        suncoMessagePayload.content = {
+            type: 'image',
+            text: body.body.payload.product.product_url,
+            mediaUrl: body.body.payload.product.image_url
+        }
+    }else{ //sticker
+        suncoMessagePayload.content = {
+            type: 'text',
+            text: `:${body.body.message}:`
+        }
+    }
+
+    let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
+    done(null, {
+        response: 'testing'
+    });
 }
 
 async function processBlibli(body, done) {
@@ -360,7 +470,41 @@ async function processBlibli(body, done) {
     } catch (err) {
         console.log(err);
     } */
-   
+
     console.log(body);
-    done(null, {response: 'testing'});
+    done(null, {
+        response: 'testing'
+    });
+}
+
+function postMessage(conversationId, payload) {
+    console.log('post message Payload', payload)
+    const messageApi = new SunshineConversationsClient.MessagesApi()
+    let defaultClient = SunshineConversationsClient.ApiClient.instance
+    let basicAuth = defaultClient.authentications['basicAuth']
+    basicAuth.username = suncoKeyId
+    basicAuth.password = suncoKeySecret
+
+    return messageApi.postMessage(suncoAppId, conversationId, payload).then(function(message) {
+        console.log(`message sent to ${conversationId}`)
+        return message
+    }, function(error) {
+        if (error.status == 429) {
+            console.log(`post message to ${conversationId} error: ${error.response.text}`)
+            return {
+                error: {
+                    title: error.response.text,
+                    data: error.response.req.data
+                }
+            }
+        } else {
+            console.log(`post message to ${conversationId} error: ${error.body.errors[0].title}`)
+            return {
+                error: {
+                    title: error.body.errors[0].title,
+                    data: error.body.errors[0]
+                }
+            }
+        }
+    })
 }
