@@ -3,7 +3,7 @@ let workers = process.env.WEB_CONCURRENCY || 2;
 let maxJobsPerWorker = 20;
 let { workQueue } = require('./config/redis.config');
 const { PrismaClient, Prisma } = require('@prisma/client');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail } = require('./config/utils');
+const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
@@ -62,6 +62,9 @@ async function processJob (jobData, done) {
             break;
         case TOKOPEDIA_CHAT: 
             processTokopediaChat(jobData.data, done);
+            break;
+        case SHOPEE:
+            processShopee(jobData.data, done);
             break;
         default:
             console.log('channel not supported: ', jobData.data.channel);
@@ -281,7 +284,95 @@ async function processTokopedia(body, done) {
 
 async function processTokopediaChat(body, done) {
     console.log(body);
-    
+    done(null, {response: 'testing'});
+}
+
+async function processShopee(body, done) {
+    console.log(body);
+    /* WORKER PART */
+    const ts = Math.floor(Date.now() / 1000);
+    const PARTNER_ID = process.env.SHOPEE_PARTNER_ID;
+    const PARTNER_KEY = process.env.SHOPEE_PARTNER_KEY;
+
+    const shopeeSignString = `${PARTNER_ID}${GET_ORDER_DETAIL_PATH}${ts}${body.token}${body.storeId}`;
+    const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+    const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${body.token}&shop_id=${body.storeId}&sign=${sign}&order_sn_list=${body.orderId}`;
+
+    console.log(sign);
+
+    l/* et orderDetail = await api.get(
+        `${SHOPEE_HOST}${GET_ORDER_DETAIL_PATH}?${shopInfoParams}`,
+    ).catch(function(err) {
+        console.log(err.response.data);
+        return res.status(400).send({error: err.response.data});
+    });
+
+    console.log(orderDetail); */
+
+    /* if (orderDetail.data) {
+        if (orderDetail.data.error) {
+            return;
+        }
+        // if orderlist length > 0
+        let orderX = orderDetail.data.response.order_list[0];
+        let order = await prisma.orders.update({
+            where: {
+                origin_id: orderX.order_sn
+            },
+            data: {
+                status: orderX.order_status,
+                recp_addr_city: orderX.recipient_address.city,
+                recp_addr_district: orderX.recipient_address.district,
+                recp_addr_full: orderX.recipient_address.full_address,
+                recp_addr_postal_code: orderX.recipient_address.zipcode,
+                recp_addr_province: orderX.recipient_address.state,
+                recp_addr_country: orderX.recipient_address.country,
+                recp_name: orderX.recipient_address.name,
+                recp_phone: orderX.recipient_address.phone,
+                logistic: {
+                    connectOrCreate: {
+                        where: {
+                            name: orderX.shipping_carrier
+                        },
+                        create: {
+                            name: orderX.shipping_carrier
+                        }
+                    }
+                },
+                origin_id: orderX.order_sn,
+                shipping_price: orderX.estimated_shipping_fee,
+                total_amount: orderX.total_amount,
+                order_items: {
+                    createMany: {
+                        data: orderX.item_list.map(item => ({
+                            origin_id: `${orderId}-${item.item_id}`,
+                            qty: item.model_quantity_purchased,
+                            notes: orderX.note,
+                            total_price: item.model_discounted_price,
+                            products: {
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: item.item_id.toString()
+                                    },
+                                    create: {
+                                        name: item.item_name,
+                                        price: item.model_original_price,
+                                        sku: item.item_sku,
+                                        origin_id: item.item_id.toString(),
+                                        store: {
+                                            connect: {
+                                                origin_id: storeId.toString()
+                                            }
+                                        },
+                                    }
+                                }
+                            }
+                        }))
+                    }
+                }
+            }
+        })
+    } */
     done(null, {response: 'testing'});
 }
 
