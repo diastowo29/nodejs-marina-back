@@ -1,4 +1,5 @@
 var express = require('express');
+const SunshineConversationsClient = require('sunshine-conversations-client');
 var router = express.Router();
 var { PrismaClient, Prisma } = require('@prisma/client');
 // const {workQueue, jobOpts} = require('../../config/redis.config');
@@ -281,15 +282,21 @@ router.put('/order/:id', async function(req, res, next) {
     res.status(200).send({accepted: acceptOrder});
 })
 
-
 router.post('/chat',async function(req, res, next) {
     // let jsonBody = req.body;
     let jsonBody = gcpParser(req.body.message.data);
-    // console.log(jsonBody);
+    console.log('tokopedia/chat', jsonBody);
     let tokoChatId = `${jsonBody.shop_id}-${jsonBody.user_id}`;
     let newMessageId = `${jsonBody.msg_id}-${Date.now()}`
     let atttachmentType = 0;
     let chatType = CHAT_TEXT;
+    let userExternalId = `${jsonBody.user_id}-${jsonBody.msg_id}-${jsonBody.shop_id}`
+
+    // sunco hardcode part
+    let suncoAppId = process.env.SUNCO_APP_ID
+    let suncoKeyId = process.env.SUNCO_KEY_ID
+    let suncoKeySecret = process.env.SUNCO_KEY_SECRET
+
     if (jsonBody.payload) {
         atttachmentType = jsonBody.payload.attachment_type;        
         if (atttachmentType == 3) {
@@ -345,10 +352,52 @@ router.post('/chat',async function(req, res, next) {
             }
         });
 
+        if(!message.externalId){
+            let defaultClient = SunshineConversationsClient.ApiClient.instance
+            let basicAuth = defaultClient.authentications['basicAuth']
+            basicAuth.username = suncoKeyId
+            basicAuth.password = suncoKeySecret
+
+            // create sunco user
+            let suncoUser = await createSuncoUser(userExternalId, jsonBody.full_name, suncoAppId)
+            let conversationBody = suncoUser
+            conversationBody.metadata = {
+                'dataCapture.ticketField.44421785876377': jsonBody.user_id,
+                'dataCapture.ticketField.44415748503577': jsonBody.msg_id,
+                'dataCapture.ticketField.44414210097049': jsonBody.shop_id,
+                'dataCapture.ticketField.44413794291993': 'tokopedia',
+            }
+            // create sunco conversation
+            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+
+            // update omnichat set externalId
+            message = await prisma.omnichat.update({
+                where:{
+                    id: message.id
+                },
+                data:{
+                    externalId: suncoConversation.conversation.id
+                }
+            })
+
+            // update omnichatUser set external id
+            await prisma.omnichat_user.update({
+                where:{
+                    id: message.omnichat_userId
+                },
+                data:{
+                    externalId: userExternalId
+                }
+            })
+        }
+
         let taskPayload = {
             channel: TOKOPEDIA_CHAT,
+            user_external_id: userExternalId,
+            message_external_id: message.externalId,
             body: jsonBody
         }
+
         pushTask(env, taskPayload);
         res.status(200).send(message);
     } catch (err) {
@@ -361,5 +410,80 @@ router.post('/chat',async function(req, res, next) {
     }
 })
 
+function createSuncoUser(userExternalId, username, appId){
+    let baseLog = 'createSuncoUser()'
+    let usersApi = new SunshineConversationsClient.UsersApi()
+    let userCreateBody = new SunshineConversationsClient.UserCreateBody()
+  
+    userCreateBody.externalId = userExternalId
+    userCreateBody.profile = {
+        givenName: username
+    }
+  
+    return usersApi.createUser(appId, userCreateBody).then(function(suncoUser) {
+        console.log(`${baseLog} - user #${suncoUser.user.externalId} created as ${username}`)
+        return {
+            type: 'personal',
+            participants: [{
+                userExternalId: suncoUser.user.externalId,
+                subscribeSDKClient: false
+            }]
+        }
+    }, function(error) {
+        if(error.status == 429){
+            console.log(`${baseLog} - create user #${userExternalId} error: ${error.response.text}`)
+            return {
+                status: error.status,
+                body:{
+                    errors:[
+                        {
+                            title: error.response.text,
+                            data: error.response.req.data
+                        }
+                    ]
+                },
+                error:{
+                    title: error.response.text,
+                    data: error.response.req.data
+                }
+            }
+        }
+    
+        console.log(`${baseLog} - create user #${userExternalId} error: ${error.body.errors[0].title}`)
+        return error
+    })
+}
+
+function createSuncoConversation(appId, conversationCreateBody){
+    let baseLog = 'createSuncoConversation()'
+    let conversationsApi = new SunshineConversationsClient.ConversationsApi()
+    
+    return conversationsApi.createConversation(appId, conversationCreateBody).then(function(conv) {
+        console.log(baseLog, `conversation for user #${conversationCreateBody.participants[0].userExternalId} created: #${conv.conversation.id}`)
+        return conv
+    }, function(error) {
+        if(error.status == 429){
+            console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.response.text}`)
+            return {
+                status: error.status,
+                body:{
+                errors:[
+                    {
+                        title: error.response.text,
+                        data: error.response.req.data
+                    }
+                ]
+                },
+                error:{
+                    title: error.response.text,
+                    data: error.response.req.data
+                }
+            }
+        }
+
+        console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.body.errors[0].title}`)
+        return error
+    })
+}
 
 module.exports = router;

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,9 +13,9 @@ model customers {
   origin_id String?  @unique
   phone     String?
   email     String?
-  orders    orders[]
-  clientId  clients? @relation(fields: [clientsId], references: [id])
   clientsId Int?
+  clientId  clients? @relation(fields: [clientsId], references: [id])
+  orders    orders[]
 }
 
 model products_img {
@@ -33,34 +27,32 @@ model products_img {
   height       Int?
   originalUrl  String?
   thumbnailUrl String?
-  products     products? @relation(fields: [productsId], references: [id])
   productsId   Int?
+  products     products? @relation(fields: [productsId], references: [id])
 }
 
 model channel {
   id        Int      @id @default(autoincrement())
   name      String?  @unique
-  store     store[]
-  clientId  clients? @relation(fields: [clientsId], references: [id])
   clientsId Int?
+  clientId  clients? @relation(fields: [clientsId], references: [id])
+  store     store[]
 }
 
 model store {
   id                      Int        @id @default(autoincrement())
-  channel                 channel?   @relation(fields: [channelId], references: [id])
   name                    String?
   origin_id               String?    @unique
-  token                   String?
+  channelId               Int?
   refresh_token           String?
-  secondary_token         String?
+  token                   String?
   secondary_refresh_token String?
+  secondary_token         String?
+  url                     String?
+  omnichat                omnichat[]
   orders                  orders[]
   products                products[]
-  omnichat                omnichat[]
-  channelId               Int?
-  url                     String?
-  client                  clients?   @relation(fields: [clientsId], references: [id])
-  clientsId               Int?
+  channel                 channel?   @relation(fields: [channelId], references: [id])
 }
 
 model products {
@@ -77,26 +69,26 @@ model products {
   weight      Int?
   stock       Int?
   sku         String?
+  storeId     Int?
+  clientsId   Int?
+  order_items order_items[]
+  clientId    clients?       @relation(fields: [clientsId], references: [id])
   store       store?         @relation(fields: [storeId], references: [id])
   product_img products_img[]
-  order_items order_items[]
-  storeId     Int?
-  clientId    clients?       @relation(fields: [clientsId], references: [id])
-  clientsId   Int?
 }
 
 model order_items {
   id          Int       @id @default(autoincrement())
   createdAt   DateTime  @default(now())
-  origin_id   String?   @unique
   qty         Int
-  products    products? @relation(fields: [productsId], references: [id])
   invoice     String?
   total_price Int
   notes       String?
-  orders      orders?   @relation(fields: [ordersId], references: [id])
   ordersId    Int?
   productsId  Int?
+  origin_id   String?   @unique
+  orders      orders?   @relation(fields: [ordersId], references: [id])
+  products    products? @relation(fields: [productsId], references: [id])
 }
 
 model logistic {
@@ -109,14 +101,11 @@ model logistic {
 model orders {
   id                    Int           @id @default(autoincrement())
   createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
   status                String?
   shop_id               String?
   payment_id            String?
   origin_id             String?       @unique
-  order_items           order_items[]
   invoice               String?
-  customers             customers?    @relation(fields: [customersId], references: [id])
   recp_name             String?
   recp_phone            String?
   recp_addr_full        String?
@@ -135,14 +124,17 @@ model orders {
   device                String?
   storeId               Int?
   customersId           Int?
+  logisticId            Int?
   total_product_price   Int?
   shipping_price        Int?
-  logistic              logistic?     @relation(fields: [logisticId], references: [id])
   total_amount          Int?
-  store                 store?        @relation(fields: [storeId], references: [id])
-  logisticId            Int?
-  clientId              clients?      @relation(fields: [clientsId], references: [id])
+  updatedAt             DateTime      @updatedAt
   clientsId             Int?
+  order_items           order_items[]
+  clientId              clients?      @relation(fields: [clientsId], references: [id])
+  customers             customers?    @relation(fields: [customersId], references: [id])
+  logistic              logistic?     @relation(fields: [logisticId], references: [id])
+  store                 store?        @relation(fields: [storeId], references: [id])
 }
 
 model omnichat_user {
@@ -151,41 +143,41 @@ model omnichat_user {
   thumbnailUrl  String?
   origin_id     String?         @unique
   createdAt     DateTime        @default(now())
+  clientsId     Int?
+  externalId    String?
   omnichat      omnichat[]
   omnichat_line omnichat_line[]
   clientId      clients?        @relation(fields: [clientsId], references: [id])
-  clientsId     Int?
-  externalId    String?
 }
 
 model omnichat {
   id              Int             @id @default(autoincrement())
   origin_id       String?         @unique
-  last_message    String          @db.Text
+  last_message    String
   last_messageId  String?
-  omnichat_user   omnichat_user?  @relation(fields: [omnichat_userId], references: [id])
-  messages        omnichat_line[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @default(now())
-  store           store?          @relation(fields: [storeId], references: [id])
-  omnichat_userId Int?
   storeId         Int?
-  clientId        clients?        @relation(fields: [clientsId], references: [id])
+  omnichat_userId Int?
   clientsId       Int?
   externalId      String?
+  clientId        clients?        @relation(fields: [clientsId], references: [id])
+  omnichat_user   omnichat_user?  @relation(fields: [omnichat_userId], references: [id])
+  store           store?          @relation(fields: [storeId], references: [id])
+  messages        omnichat_line[]
 }
 
 model omnichat_line {
   id              Int            @id @default(autoincrement())
   origin_id       String?        @unique
-  omnichat        omnichat?      @relation(fields: [omnichatId], references: [id])
   createdAt       DateTime       @default(now())
-  line_text       String         @db.Text
+  line_text       String
   omnichatId      Int?
   author          String?
-  chat_type       String?
-  omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
   omnichat_userId Int?
+  chat_type       String?
+  omnichat        omnichat?      @relation(fields: [omnichatId], references: [id])
+  omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
 }
 
 model zdconnector {
@@ -199,8 +191,8 @@ model zdconnector {
   suncoAppSecret String
   zdAPIToken     String
   resource       String?
-  clientId       clients? @relation(fields: [clientsId], references: [id])
   clientsId      Int?
+  clientId       clients? @relation(fields: [clientsId], references: [id])
 }
 
 model omnicrm {
@@ -215,34 +207,35 @@ model clients {
   id            Int             @id @default(autoincrement())
   name          String
   origin_id     String?         @unique
-  customers     customers[]
   channel       channel[]
-  products      products[]
-  orders        orders[]
-  omnichat_user omnichat_user[]
+  customers     customers[]
+  integration   integration[]
   omnichat      omnichat[]
+  omnichat_user omnichat_user[]
+  orders        orders[]
+  products      products[]
   zdconnector   zdconnector[]
   integration   integration[]
   store         store[]
-}
-
-model integration {
-  id        Int       @id @default(autoincrement())
-  name      String?
-  baseUrl   String?
-  clientId  clients?  @relation(fields: [clientsId], references: [id])
-  f_chat    Boolean?
-  f_review  Boolean?
-  f_cancel  Boolean?
-  f_rr      Boolean?
-  clientsId Int?
-  credent   credent[]
 }
 
 model credent {
   id            Int          @id @default(autoincrement())
   key           String?
   value         String?
-  integration   integration? @relation(fields: [integrationId], references: [id])
   integrationId Int?
+  integration   integration? @relation(fields: [integrationId], references: [id])
+}
+
+model integration {
+  id        Int       @id @default(autoincrement())
+  name      String?
+  baseUrl   String?
+  f_chat    Boolean?
+  f_review  Boolean?
+  f_cancel  Boolean?
+  f_rr      Boolean?
+  clientsId Int?
+  credent   credent[]
+  clients   clients?  @relation(fields: [clientsId], references: [id])
 }
