@@ -109,7 +109,7 @@ router.put('/order/:id', async function(req, res, next) {
             id: Number.parseInt(req.params.id)
         },
         include: {
-            order_items: true
+            order_items: true,
         }
     });
     let orderItemIds = [];

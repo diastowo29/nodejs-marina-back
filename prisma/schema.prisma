@@ -206,6 +206,7 @@ model omnicrm {
 model clients {
   id            Int             @id @default(autoincrement())
   name          String
+  origin_id     String?         @unique
   channel       channel[]
   customers     customers[]
   integration   integration[]

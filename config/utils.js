@@ -32,6 +32,8 @@ module.exports = {
     LAZADA_CHAT: 'lazadaChat',
     BLIBLI: 'blibli',
     BLIBLI_CHAT: 'blibliChat',
+    SHOPEE: 'shopee',
+    SHOPEE_CHAT: 'shopeeChat',
 
     CHAT_TEXT: 'TEXT',
     CHAT_PRODUCT: 'PRODUCT',
@@ -39,6 +41,11 @@ module.exports = {
     
     lazadaHost:'https://api.lazada.co.id/rest',
     lazadaAuthHost:'https://auth.lazada.com/rest',
+
+    SUN_APP_ID: 'SUNCO_APP_ID',
+    SUN_APP_KEY: 'SUNCO_APP_KEY',
+    SUN_APP_SECRET: 'SUNCO_APP_SECRET',
+    ZD_API_TOKEN: 'ZD_API_TOKEN',
 
     // lazGenToken: '/auth/token/create',
 
