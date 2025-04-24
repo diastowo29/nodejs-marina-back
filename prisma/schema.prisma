@@ -49,6 +49,7 @@ model store {
   secondary_refresh_token String?
   secondary_token         String?
   url                     String?
+  status String?
   omnichat                omnichat[]
   orders                  orders[]
   products                products[]

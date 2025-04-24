@@ -21,34 +21,35 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use((response) => response, async (error) => {
     const originalRequest = error.config;
-    if (error.response.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-        try {
-            // console.log(error.config);
-            const newToken = await generateTokpedToken();
-            originalRequest.headers['Authorization'] = `Bearer ${newToken.access_token}`;
-            if (originalRequest.url.includes('tokopedia')) {
-                prisma.store.update({
-                    where: {
-                        channelId: 1
-                    },
-                    data: {
-                        token: newToken.access_token
-                    }
-                })
+    
+    if (error.request.host != 'partner.test-stable.shopeemobile.com')  {
+        if (error.response.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                // console.log(error.config);
+                const newToken = await generateTokpedToken();
+                originalRequest.headers['Authorization'] = `Bearer ${newToken.access_token}`;
+                if (originalRequest.url.includes('tokopedia')) {
+                    prisma.store.update({
+                        where: {
+                            channelId: 1
+                        },
+                        data: {
+                            token: newToken.access_token
+                        }
+                    })
+                }
+                return api(originalRequest); // Retry the original request with the new token
+            } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+                // Redirect to login or handle the error as needed
+                return Promise.reject(refreshError);
             }
-            return api(originalRequest); // Retry the original request with the new token
-        } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError);
-            // Redirect to login or handle the error as needed
-            return Promise.reject(refreshError);
         }
-      }
-      return Promise.reject(error);
     }
-);
 
-// const axios = require('axios');
+    return Promise.reject(error);
+});
 
 async function generateTokpedToken () {
     let tokoToken = await axios({

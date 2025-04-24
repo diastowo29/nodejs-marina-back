@@ -7,8 +7,9 @@ var {
 var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
-const { api } = require('../../functions/axios/axioser');
+const { api } = require('../../functions/axios/Axioser');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_ORDER_DETAIL_PATH } = require('../../config/shopee_apis');
+const { SHOPEE } = require('../../config/utils');
 var env = process.env.NODE_ENV || 'development';
 
 // let test = require('dotenv').config()
@@ -17,6 +18,21 @@ const prisma = new PrismaClient();
 router.get('/webhook', async function (req, res, next) {
     res.status(200).send({});
 });
+
+router.get('/sync', async function(req, res, next) {
+    // console.log(JSON.stringify(req.body))
+    let taskPayload = {
+        channel: SHOPEE,
+        process: 'sync',
+        shop_id: 138335,
+        m_shop_id: 6,
+        token: '737541584b6c6b5a6d78794649627948',
+        refresh_token: '65456d42744d4b4857506b4451686662'
+    }
+    // console.log(taskPayload);
+    pushTask(env, taskPayload)
+    res.status(200).send({});
+})
 
 router.post('/webhook', async function (req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
@@ -68,6 +84,8 @@ router.post('/authorize', async function(req, res, next) {
     // if (sellerResponse.code != '0') {
     //     return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
     // }
+
+    // console.log(JSON.stringify(req.body));
   
     const ts = Math.floor(Date.now() / 1000);
     const PARTNER_ID = process.env.SHOPEE_PARTNER_ID;
@@ -99,7 +117,7 @@ router.post('/authorize', async function(req, res, next) {
             console.log(token.data);
             return res.status(400).send(token.data);
         }
-        // console.log(token.data);
+        console.log(token.data);
         shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
         sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
         const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
@@ -120,6 +138,7 @@ router.post('/authorize', async function(req, res, next) {
                     origin_id: req.body.shop_id.toString()
                 },
                 update: {
+                    status: 'ACTIVE',
                     token: token.data.access_token,
                     refresh_token: token.data.refresh_token
                 },
@@ -127,20 +146,38 @@ router.post('/authorize', async function(req, res, next) {
                     origin_id: req.body.shop_id.toString(),
                     name: shopInfo.data.shop_name,
                     token: token.data.access_token,
+                    status: 'ACTIVE',
                     refresh_token: token.data.refresh_token,
                     channel: {
                         connectOrCreate: {
                             where: {
-                                name: 'Shopee'
+                                name: SHOPEE
                             },
                             create: {
-                                name: 'Shopee'
+                                name: SHOPEE
                             }
                         }
                     }
                 }
+            }).catch(function (err) {
+                console.log(err);
+                return res.status(400).send({error: err});
             });
-            res.status(200).send(newStore);
+            console.log(newStore);
+            if (newStore) {
+                let taskPayload = {
+                    channel: SHOPEE,
+                    process: 'sync',
+                    shop_id: req.body.shop_id,
+                    token: token.data.access_token,
+                    refresh_token: token.data.refresh_token
+                }
+                // console.log(taskPayload);
+                pushTask(env, taskPayload)
+                res.status(200).send(newStore);
+            } else {
+                res.status(400).send(newStore);
+            }
         }
     }
 })
