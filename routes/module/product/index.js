@@ -12,9 +12,13 @@ router.get('/', async function(req, res, next) {
         include: {
             product_img: true,
             store: {
-                include: {
+                select: {
+                    id: true,
+                    name: true,
+                    status: true,
                     channel: true
                 }
+            
             }
         },
         ...(channel && {

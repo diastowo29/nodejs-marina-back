@@ -7,7 +7,6 @@ const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetai
 const { lazCall } = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
-var CryptoJS = require("crypto-js");
 
 const SunshineConversationsClient = require('sunshine-conversations-client');
 const messageApi = new SunshineConversationsClient.MessagesApi();
@@ -18,9 +17,9 @@ let suncoKeyId = process.env.SUNCO_KEY_ID
 let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 
 const express = require('express');
-const { GET_ORDER_DETAIL_PATH, GET_SHOPEE_PRODUCTS_LIST, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, PARTNER_ID, PARTNER_KEY, GET_SHOPEE_REFRESH_TOKEN } = require('./config/shopee_apis');
+const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/Axioser');
-const { default: axios } = require('axios');
+const { collectOrder, generateShopeeToken } = require('./functions/shopee/function');
 const app = express();
 if (env == 'production') {
     app.use(express.json());
@@ -390,89 +389,82 @@ async function processTokopediaChat(body, done) {
 async function processShopee(body, done) {
     console.log(body);
     /* WORKER PART */
-    let ts = Math.floor(Date.now() / 1000);
-    const PARTNER_ID = process.env.SHOPEE_PARTNER_ID;
-    const PARTNER_KEY = process.env.SHOPEE_PARTNER_KEY;
-
-    if (body.process != 'sync') {
-        const shopeeSignString = `${PARTNER_ID}${GET_ORDER_DETAIL_PATH}${ts}${body.token}${body.shop_id}`;
-        const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-        const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${body.token}&shop_id=${body.shop_id}&sign=${sign}&order_sn_list=${body.orderId}`;
-    
-        console.log(sign);
-        done(null, {response: 'testing'});
-    } else {
+    if (body.code == 3) {
+        /* ==== ORDERS ==== */
+        collectOrder(body, done);
+    } else if (body.code == 9999) {
         let accToken = body.token;
         let refToken = body.refresh_token
+        // console.log(accToken);
+        // console.log(GET_SHOPEE_PRODUCTS_LIST(accToken, body.shop_id));
         const products = await api.get(
             GET_SHOPEE_PRODUCTS_LIST(accToken, body.shop_id)
         ).catch(async function (err) {
             if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
                 console.log(`error status ${err.status} response ${err.response.data.error}`);
                 let newToken = await generateShopeeToken(body.shop_id, refToken);
+                accToken = newToken.access_token;
+                refToken = newToken.refresh_token;
+                console.log(newToken);
                 if (newToken.access_token) {
-                    console.log(newToken);
-                    accToken = newToken.access_token;
-                    refToken = newToken.refresh_token;
-                    // console.log(newToken);
                     return api.get(
                         GET_SHOPEE_PRODUCTS_LIST(newToken.access_token, body.shop_id)
                     );
-                } else {
-                    console.log('refresh token invalid');
-                    console.log(newToken);
-                    return;
                 }
             }
         });
-        if (!products) {
-            return done(new Error('products not found'));
-        }
-        let productIds = products.data.response.item.map(item => item.item_id);
-        console.log(GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id))
-        const productsInfo = await api.get(
-            GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id)
-        ).catch(function (err) {
-            console.log(err.response.data);
-            // return res.status(400).send({error: err.response.data});
-        })
-        if (productsInfo.data.response) {
-            prisma.products.createManyAndReturn({
-                skipDuplicates: true,
-                data: productsInfo.data.response.item_list.map(item => ({
-                    condition: item.condition=='NEW' ? 1 : 2,
-                    currency: item.price_info.currency,
-                    name: item.item_name,
-                    origin_id: item.item_id.toString(),
-                    category: item.category_id,
-                    desc: item.description_info.extended_description.field_list[0].text,
-                    price: item.price_info[0].original_price,
-                    sku: item.item_sku,
-                    status: item.item_status,
-                    stock: item.stock_info_v2.summary_info.total_available_stock,
-                    weight: Number.parseInt(item.weight),
-                    storeId: body.m_shop_id
-                }))
-            }).then(async (newProducts) => {
-                if (newProducts.length > 0) {
-                    await prisma.products_img.createManyAndReturn({
-                        skipDuplicates: true,
-                        data: productsInfo.data.response.item_list.map(item => ({
-                            filename: item.item_name,
-                            origin_id: item.image.image_id_list[0],
-                            originalUrl: item.image.image_url_list[0],
-                            productsId: newProducts.find(product => product.origin_id == item.item_id.toString()).id,
-                        }))
-                    });
-                }
-                done(null, {response: 'testing'});
-            }).catch((err) => {
-                console.log(err);
+        if ((!products) || (!products.data.error)) {
+            let productIds = products.data.response.item.map(item => item.item_id);
+            // console.log(GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id))
+            const productsInfo = await api.get(
+                GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id)
+            ).catch(function (err) {
+                console.log(err.response.data);
             });
-
+            if (productsInfo.data.response) {
+                prisma.products.createManyAndReturn({
+                    skipDuplicates: true,
+                    data: productsInfo.data.response.item_list.map(item => ({
+                        condition: (item.condition == 'NEW') ? 1 : 2,
+                        currency: item.price_info.currency,
+                        name: item.item_name,
+                        origin_id: item.item_id.toString(),
+                        category: item.category_id,
+                        desc: item.description_info.extended_description.field_list[0].text,
+                        price: item.price_info[0].original_price,
+                        sku: item.item_sku,
+                        status: item.item_status,
+                        stock: item.stock_info_v2.summary_info.total_available_stock,
+                        weight: Number.parseInt(item.weight),
+                        storeId: body.m_shop_id
+                    }))
+                }).then(async (newProducts) => {
+                    if (newProducts.length > 0) {
+                        await prisma.products_img.createManyAndReturn({
+                            skipDuplicates: true,
+                            data: productsInfo.data.response.item_list.map(item => ({
+                                filename: item.item_name,
+                                origin_id: item.image.image_id_list[0],
+                                originalUrl: item.image.image_url_list[0],
+                                productsId: newProducts.find(product => product.origin_id == item.item_id.toString()).id,
+                            }))
+                        });
+                    }
+                    done(null, {response: 'testing'});
+                }).catch((err) => {
+                    console.log(err);
+                });
+    
+            } else {
+                console.log(productsInfo.data);
+            }
         } else {
-            console.log(productsInfo.data)
+            console.log(products.data);
+            done(null, {response: 'testing'});
         }
+    } else {
+        console.log('shopee code not supported: ', body.code);
+        done(null, {response: 'testing'});
     }
 
     /* let orderDetail = await api.get(
@@ -631,23 +623,6 @@ async function processBlibli(body, done) {
     done(null, {
         response: 'testing'
     });
-}
-
-async function generateShopeeToken (shopId, refToken) {
-    let ts = Math.floor(Date.now() / 1000);
-    const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
-    const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-    // console.log('genereteshopeetoken', sign)
-    let token = await axios({
-        method: 'POST',
-        url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
-        data: {
-            refresh_token: refToken,
-            partner_id: Number.parseInt(PARTNER_ID),
-            shop_id: Number.parseInt(shopId),
-        },
-    });
-    return token.data;
 }
 
 function postMessage(conversationId, payload) {

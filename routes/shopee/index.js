@@ -1,19 +1,15 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient,
-    Prisma
-} = require('@prisma/client');
+var { PrismaClient, Prisma } = require('@prisma/client');
 var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
-const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_ORDER_DETAIL_PATH } = require('../../config/shopee_apis');
+const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST } = require('../../config/shopee_apis');
 const { SHOPEE } = require('../../config/utils');
 var env = process.env.NODE_ENV || 'development';
-
-// let test = require('dotenv').config()
 const prisma = new PrismaClient();
+
 /* GET home page. */
 router.get('/webhook', async function (req, res, next) {
     res.status(200).send({});
@@ -26,8 +22,9 @@ router.get('/sync', async function(req, res, next) {
         process: 'sync',
         shop_id: 138335,
         m_shop_id: 6,
-        token: '737541584b6c6b5a6d78794649627948',
-        refresh_token: '65456d42744d4b4857506b4451686662'
+        code: 9999,
+        token: '69484741526b704942426c55716d6873',
+        refresh_token: '6c4e6277496a61435948445950707255'
     }
     // console.log(taskPayload);
     pushTask(env, taskPayload)
@@ -38,13 +35,98 @@ router.post('/webhook', async function (req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     let jsonBody = req.body;
     
-    console.log(JSON.stringify(jsonBody))
+    console.log(JSON.stringify(jsonBody));
     let payloadCode = jsonBody.code;
     let response;
     switch (payloadCode) {
         case 3:
+            let newOrder = await prisma.orders.upsert({
+                where: {
+                    origin_id: jsonBody.data.ordersn
+                },
+                update: {
+                    status: jsonBody.data.status
+                },
+                create: {
+                    origin_id: jsonBody.data.ordersn,
+                    status: jsonBody.data.status,
+                    store: {
+                        connect: {
+                            // origin_id: jsonBody.shop_id.toString()
+                            origin_id: '138335'
+                        }
+                    }
+                },
+                include: {
+                    store: true,
+                    order_items: true
+                }
+            });
+            response = newOrder;
+            let taskPayload = {
+                channel: SHOPEE, 
+                order_id: jsonBody.data.ordersn,
+                id: newOrder.id,
+                token: newOrder.store.token,
+                code: payloadCode,
+                shop_id: jsonBody.shop_id,
+                refresh_token: newOrder.store.refresh_token
+            }
+            pushTask(env, taskPayload);
+            break;
+        case 10:
             response = {};
-            collectOrders(jsonBody);
+            if (jsonBody.data.type == 'message') {
+                let newMsg = await prisma.omnichat.upsert({
+                    create: {
+                        origin_id: jsonBody.data.content.conversation_id,
+                        last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                        last_messageId: jsonBody.data.content.message_id,
+                        store: {
+                            connect: {
+                                // origin_id: jsonBody.shop_id.toString()
+                                origin_id: '138335'
+                            }
+                        },
+                        omnichat_user: {
+                            connectOrCreate: {
+                                create: {
+                                    origin_id: jsonBody.data.content.from_id.toString(),
+                                    username: jsonBody.data.content.from_user_name,
+                                },
+                                where: {
+                                    origin_id: jsonBody.data.content.from_id.toString()
+                                }
+                            }
+                        },
+                        messages: {
+                            create: {
+                                line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                chat_type: jsonBody.data.content.message_type,
+                                origin_id: jsonBody.data.content.message_id,
+                                author: jsonBody.data.content.from_id.toString()
+                            }
+                        }
+                    },
+                    update: {
+                        last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                        last_messageId: jsonBody.data.content.message_id,
+                        messages: {
+                            create: {
+                                line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                chat_type: jsonBody.data.content.message_type,
+                                origin_id: jsonBody.data.content.message_id,
+                                author: jsonBody.data.content.from_id.toString()
+                            }
+                        }
+                    },
+                    where: {
+                        origin_id: jsonBody.data.content.conversation_id
+                    }
+                });
+                response = newMsg;
+                /* no need to push to worker */
+            }
             break;
         default:
             response = jsonBody.data;
@@ -53,6 +135,24 @@ router.post('/webhook', async function (req, res, next) {
     }    
     res.status(200).send(response);
 });
+
+function msgContainer (msgType, content) {
+    let msgContent;
+    switch (msgType) {
+        case 'text':
+            msgContent = content.text;
+            break;
+        case 'image':
+            msgContent = content.url;
+            break;
+        case 'video':
+            msgContent = content.video_url;
+            break;
+        default:
+            msgContent = content.text;
+    }
+    return msgContent;
+}
 
 router.post('/order', async function(req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);

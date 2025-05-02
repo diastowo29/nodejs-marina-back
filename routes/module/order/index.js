@@ -3,20 +3,9 @@ var router = express.Router();
 var {
     PrismaClient
 } = require('@prisma/client');
-// const { workQueue, jobOpts } = require('../../config/redis.config');
-// const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazGenToken, lazadaAuthHost, lazGetSellerInfo, lazadaHost } = require('../../config/utils');
-// const { lazParamz, lazCall } = require('../../functions/lazada/caller');
-
-let test = require('dotenv').config()
-
 const prisma = new PrismaClient();
-/* GET home page. */
 
 router.get('/', async function(req, res, next) {
-    // console.log(req.query)
-    // if (req.query.channel) {
-    //     console.log(req.query.channel);
-    // }
     let order = await prisma.orders.findMany({
         orderBy: [
             { updatedAt: 'desc' }
@@ -32,11 +21,16 @@ router.get('/', async function(req, res, next) {
                     origin_id: req.query.user || req.query.u
                 }
             } : {},
-            store : {
+            ...(req.query.store || req.query.s) ? {
+                store: {
+                    origin_id: req.query.store || req.query.s
+                }
+            } : {},
+            /* store : {
                 channel: {
                     name : req.query.channel || req.query.c
                 }
-            },
+            }, */
             order_items: {
                 some: {}
             },
@@ -67,27 +61,32 @@ router.get('/', async function(req, res, next) {
 })
 
 router.get('/:id', async function(req, res, next) {
-    if (req.params.id) {
-        console.log(req.params.id);
+    if (!req.params.id) {
+        return res.status(400).send({
+            error: 'id is required'
+        })
     }
     
     let order = await prisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
         },
-       include: {
-        order_items: {
-            include: {
-                products: true
-            }
-        },
-        store: {
-            include: {
-                channel: true
-            }
-        },
-        logistic: true
-       }
+        include: {
+            order_items: {
+                include: {
+                    products: true
+                }
+            },
+            store: {
+                select: {
+                    id: true,
+                    name: true,
+                    status: true,
+                    channel: true
+                }
+            },
+            logistic: true
+        }
     });
     res.status(200).send(order);
 })

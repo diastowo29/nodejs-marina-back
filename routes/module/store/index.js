@@ -5,11 +5,23 @@ var {
 } = require('@prisma/client');
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
 const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
-const { api } = require('../../../functions/axios/axioser');
+const { api } = require('../../../functions/axios/Axioser');
 
 const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
     let store = await prisma.store.findMany({
+        include: {
+            channel: true
+        }
+    })
+    res.status(200).send(store);
+})
+
+router.get('/:id', async function(req, res, next) {
+    let store = await prisma.store.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
         include: {
             channel: true
         }
@@ -86,6 +98,25 @@ router.get('/:id/products', async function(req, res, next) {
         }
     })
     res.status(200).send(products);
+})
+
+router.get('/:id/orders', async function(req, res, next) {
+    let orders = await prisma.orders.findMany({
+        where: {
+            storeId: Number.parseInt(req.params.id)
+        },
+        include: {
+            order_items: true,
+            store: {
+                select: {
+                    id: true,
+                    name: true,
+                    status: true
+                }
+            }
+        }
+    })
+    res.status(200).send(orders);
 })
 
 router.get('/products', async function(req, res, next) {
