@@ -36,7 +36,7 @@ function GET_SHOPEE_ORDER_DETAIL (accessToken, orderId, shopId) {
 function SHOPEE_CANCEL_ORDER (accessToken, orderId, shopId, reason) {
     const path = '/api/v2/order/cancel_order';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
-    return `${SHOPEE_HOST}${path}?${shopSignedParam}&order_sn=${orderId.toString()}&cancel_reason=${reason}`;
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}`;
 }
 
 function GET_SHOPEE_SHIP_PARAMS (accessToken, orderId, shopId) {

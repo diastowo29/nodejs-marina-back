@@ -88,6 +88,11 @@ router.get('/:id', async function(req, res, next) {
             logistic: true
         }
     });
+    if (!order) {
+        return res.status(404).send({
+            error: 'order not found'
+        });
+    }
     res.status(200).send(order);
 })
 

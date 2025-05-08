@@ -5,8 +5,9 @@ var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
-const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST } = require('../../config/shopee_apis');
+const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER } = require('../../config/shopee_apis');
 const { SHOPEE } = require('../../config/utils');
+const { generateShopeeToken } = require('../../functions/shopee/function');
 var env = process.env.NODE_ENV || 'development';
 const prisma = new PrismaClient();
 
@@ -59,7 +60,9 @@ router.post('/webhook', async function (req, res, next) {
                 },
                 include: {
                     store: true,
-                    order_items: true
+                    order_items: {
+                        select: { id: true }
+                    }
                 }
             });
             response = newOrder;
@@ -69,10 +72,13 @@ router.post('/webhook', async function (req, res, next) {
                 id: newOrder.id,
                 token: newOrder.store.token,
                 code: payloadCode,
+                m_shop_id: newOrder.store.id,
                 shop_id: jsonBody.shop_id,
                 refresh_token: newOrder.store.refresh_token
             }
-            pushTask(env, taskPayload);
+            if (newOrder.order_items.length == 0) {
+                pushTask(env, taskPayload);
+            }
             break;
         case 10:
             response = {};
@@ -161,14 +167,115 @@ router.post('/order', async function(req, res, next) {
     
 });
 
-router.put('/order/:id', async function(req, res, next) {
+router.post('/chat', async function(req, res, next) {
     res.status(200).send({});
 });
 
+router.put('/order/:id', async function(req, res, next) {
+    const orders = await prisma.orders.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
+        include: {
+            store: true,
+            order_items: {
+                select: { products: true }
+            }
+        }
+    });
+    if (!orders) {
+        return res.status(404).send({error: 'order not found'});
+    }
+    if (req.body.action == 'cancel') {
+        const cancelPayload = {
+            order_sn: orders.origin_id,
+            cancel_reason: req.body.cancel_reason,
+            ...(req.body.cancel_reason == 'OUT_OF_STOCK' && {
+                item_list: orders.order_items.map((item) => {
+                    return {
+                        item_id: Number.parseInt(item.products.origin_id.split('-')[0]),
+                        model_id: Number.parseInt(item.products.origin_id.split('-')[1])
+                    }
+                })
+            })
+        }
+        // console.log(SHOPEE_CANCEL_ORDER(orders.store.token, orders.origin_id, orders.store.origin_id, req.body.cancel_reason));
+        // console.log(JSON.stringify(cancelPayload));
+        const cancelOrder = await api.post(
+            SHOPEE_CANCEL_ORDER(orders.store.token, orders.origin_id, orders.store.origin_id, req.body.cancel_reason),
+            JSON.stringify(cancelPayload)).catch(async function (err) {
+            if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
+                console.log(`error status ${err.status} response ${err.response.data.error}`);
+                let newToken = await generateShopeeToken(orders.store.origin_id, orders.store.refresh_token);
+                if (newToken.access_token) {
+                    return api.post(
+                        SHOPEE_CANCEL_ORDER(newToken.access_token, orders.origin_id, orders.store.origin_id, req.body.cancel_reason),
+                        JSON.stringify(cancelPayload)
+                    );
+                }
+            } else {
+                console.log(err);
+                return res.status(400).send(err);
+            }
+        });
+        if (cancelOrder.data.error) {
+            return res.status(400).send(cancelOrder.data);
+        }
+        res.status(200).send(cancelPayload);
 
-router.post('/chat', async function(req, res, next) {
-    res.status(200).send({});
-    
+    } else {
+        let accessToken = orders.store.token
+        const shipParams = await api.get(
+            GET_SHOPEE_SHIP_PARAMS(accessToken, orders.origin_id, orders.store.origin_id)).catch(async function (err) {
+            if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
+                console.log(`error status ${err.status} response ${err.response.data.error}`);
+                let newToken = await generateShopeeToken(orders.store.origin_id, orders.store.refresh_token);
+                if (newToken.access_token) {
+                    accessToken = newToken.access_token;
+                    return api.get(
+                        GET_SHOPEE_SHIP_PARAMS(newToken.access_token, orders.origin_id, orders.store.origin_id)
+                    );
+                }
+            } else {
+                console.log(err);
+                return res.status(400).send(err);
+            }
+        });
+        if (shipParams.data.error) {
+            return res.status(400).send(shipParams.data);
+        }
+        // console.log(JSON.stringify(shipParams.data));
+        const shipmentPayload = {
+            order_sn: orders.origin_id,
+            pickup: {
+                address_id: 0
+            }
+        };
+        const shipArrangement = await api.post(
+            SHOPEE_SHIP_ORDER(accessToken, orders.store.origin_id),
+            JSON.stringify(shipmentPayload)).catch(async function(err) {
+                if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
+                    console.log(`error status ${err.status} response ${err.response.data.error}`);
+                    let newToken = await generateShopeeToken(orders.store.origin_id, orders.store.refresh_token);
+                    if (newToken.access_token) {
+                        accessToken = newToken.access_token;
+                        return api.get(
+                            SHOPEE_SHIP_ORDER(accessToken, orders.store.origin_id)
+                        );
+                    }
+                } else {
+                    console.log(err);
+                    return res.status(400).send(err);
+                }
+        });
+        if (shipArrangement.data.error) {
+            return res.status(400).send({
+                parameter: shipParams.data,
+                arrangement: shipArrangement.data
+            });
+        }
+        res.status(200).send(shipParams.data);
+    }
 })
 
 router.post('/authorize', async function(req, res, next) {
@@ -281,63 +388,5 @@ router.post('/authorize', async function(req, res, next) {
         }
     }
 })
-
-// function pushTask (env, taskPayload) {
-//     if (env == 'development') {
-//         workQueue.add(taskPayload, jobOpts);
-//     } else {
-//         addTask(taskPayload);
-//     }
-// }
-
-async function collectOrders (orders) {
-    // console.log(orders);
-    let storeId = orders.shop_id;
-    let orderId = orders.data.ordersn;
-    let orderStatus = orders.data.status;
-    try {
-         let newOrder = await prisma.orders.create({
-             data: {
-                 origin_id: orderId,
-                 storeId: storeId,
-                 status: orderStatus,
-             },
-             include: {
-                 store: true,
-             }
-         })
-         res.status(200).send(newOrder);
-    } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
-            if (err.code === 'P2002') {
-                let taskPayload = {
-                    channel: SHOPEE, 
-                    orderId: orderId, 
-                    orderStatus: orderStatus,
-                    new: false
-                }
-                pushTask(env, taskPayload);
-                res.status(200).send({});
-            } else {
-                res.status(400).send({err: err});
-            }
-        } else {
-            console.log(err);
-            res.status(400).send({err: err});
-        }
-    }
-
-    
-    let taskPayload = {
-        channel: SHOPEE, 
-        orderId: orderId, 
-        id: newOrder.id,
-        token: newOrder.store.token,
-        refresh_token: newOrder.store.refresh_token,
-        new: true,
-    }
-   pushTask(env, taskPayload)
-//    return newOrder;
-}
 
 module.exports = router;

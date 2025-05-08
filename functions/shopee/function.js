@@ -21,8 +21,9 @@ async function collectOrder (body, done) {
             console.log(err);
         }
     });
-    if (order.data.response.order_list.length === 0) {
-        console.log('order not found');
+    if ((order.data.error) || (order.data.response.order_list.length === 0)) {
+        console.log(order.data);
+        console.log('order error');
         done(null, {response: 'order not found'});
         return;
     }
@@ -64,6 +65,7 @@ async function collectOrder (body, done) {
             recp_phone: orderData.recipient_address.phone,
             shipping_price: orderData.estimated_shipping_fee,
             total_amount: orderData.total_amount,
+            status: orderData.order_status,
             order_items: {
                 create: order.data.response.order_list[0].item_list.map((item) => {
                     return {
@@ -73,11 +75,11 @@ async function collectOrder (body, done) {
                         products: {
                             connectOrCreate: {
                                 where: {
-                                    origin_id: item.item_id.toString()
+                                    origin_id: `${item.item_id}-${item.model_id}`
                                 },
                                 create: {
                                     name: (item.model_name == '') ? item.item_name : `${item.item_name} - ${item.model_name}`,
-                                    origin_id: item.item_id.toString(),
+                                    origin_id: `${item.item_id}-${item.model_id}`,
                                     price: item.model_original_price,
                                     sku: (item.item_sku == '') ? item.model_sku : item.item_sku,
                                     weight: Number.parseInt(item.weight),
@@ -93,7 +95,7 @@ async function collectOrder (body, done) {
             id: true
         }
     });
-    // console.log(orderUpdate);
+    console.log(orderUpdate);
     done(null, {response: 'testing'});
 }
 

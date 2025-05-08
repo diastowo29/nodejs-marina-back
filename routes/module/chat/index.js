@@ -6,7 +6,7 @@ var {
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
-const { api } = require('../../../functions/axios/axioser');
+const { api } = require('../../../functions/axios/Axioser');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
 const { route } = require('../order');
@@ -126,8 +126,12 @@ router.get('/:id/comments', async function(req, res, next) {
         include: {
             messages: true,
             store: {
-                include: {
-                    channel: true
+                select: {
+                    id: true,
+                    channel: true,
+                    name:true,
+                    origin_id: true,
+                    status: true
                 }
             }
         }
@@ -371,6 +375,7 @@ async function updateOmnichat (body, msgId) {
                 create: {
                     omnichat_user_id: body.omnichat_user_id,
                     line_text: body.line_text,
+                    chat_type: body.chat_type,
                     origin_id: msgId,
                     author: 'agent'
                 }
