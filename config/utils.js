@@ -26,6 +26,12 @@ function lazGetSellerInfo (appKey) {
 module.exports = {
     lazGetToken,
     lazGetSellerInfo,
+    PATH_WEBHOOK: '/webhook',
+    PATH_ORDER: '/order',
+    PATH_CANCELLATION: '/cancellation',
+    PATH_CHAT: '/chat',
+    PATH_AUTH: '/authorize',
+
     TOKOPEDIA: 'tokopedia',
     TOKOPEDIA_CHAT: 'tokopediaChat',
     LAZADA: 'lazada',
@@ -34,6 +40,8 @@ module.exports = {
     BLIBLI_CHAT: 'blibliChat',
     SHOPEE: 'shopee',
     SHOPEE_CHAT: 'shopeeChat',
+    TIKTOK: 'tiktok',
+    TIKTOK_CHAT: 'tiktokChat', 
 
     CHAT_TEXT: 'TEXT',
     CHAT_PRODUCT: 'PRODUCT',
@@ -68,7 +76,6 @@ module.exports = {
     //     appKey: appKeyCHAT,
     //     pos:1
     // },
-
     lazGetSessionDetail: {
         host: lazadaHost,
         endpoint: '/im/session/get',

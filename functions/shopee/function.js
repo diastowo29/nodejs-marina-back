@@ -4,8 +4,9 @@ const { api } = require("../axios/Axioser");
 const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
+const { TOKO_SHOPINFO } = require("../../config/toko_apis");
 
-async function collectOrder (body, done) {
+async function collectShopeeOrder (body, done) {
     const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
     ).catch(async function (err) {
@@ -136,7 +137,31 @@ async function generateShopeeToken (shop_id, refToken) {
     }
 }
 
+async function callShopee (method, url, body, token, refreshToken, shopId) {
+    return api({
+        method: method,
+        url: url,
+        data: (body) ? body : {}
+    }).catch(async function (err) {
+        console.log(err.response.data)
+        if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
+            let newToken = await generateShopeeToken(shopId, refreshToken);
+            if (!newToken.data.data.access_token) {
+                throw new Error('Failed to refresh token');
+            }
+            return api({
+                method: method,
+                url: url,
+                data: (body) ? body : {}
+            })
+        } else {
+            throw new Error(err.response.data);
+        }
+    });
+}
+
 module.exports = {
-    collectOrder,
-    generateShopeeToken
+    collectShopeeOrder,
+    generateShopeeToken,
+    callShopee
 }

@@ -23,7 +23,10 @@ api.interceptors.response.use((response) => response, async (error) => {
     const originalRequest = error.config;
     
     if (error.hostname != 'partner.test-stable.shopeemobile.com')  {
-        // console.log(error)
+        if (!error.response) {
+            console.error('Network error:', error);
+            return Promise.reject(new Error('Network error, please try again later.'));
+        }
         if (error.response.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             try {

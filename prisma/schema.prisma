@@ -49,7 +49,7 @@ model store {
   secondary_refresh_token String?
   secondary_token         String?
   url                     String?
-  status String?
+  status                  String?
   omnichat                omnichat[]
   orders                  orders[]
   products                products[]
@@ -79,17 +79,19 @@ model products {
 }
 
 model order_items {
-  id          Int       @id @default(autoincrement())
-  createdAt   DateTime  @default(now())
-  qty         Int
-  invoice     String?
-  total_price Int
-  notes       String?
-  ordersId    Int?
-  productsId  Int?
-  origin_id   String?   @unique
-  orders      orders?   @relation(fields: [ordersId], references: [id])
-  products    products? @relation(fields: [productsId], references: [id])
+  id               Int                @id @default(autoincrement())
+  createdAt        DateTime           @default(now())
+  qty              Int
+  package_id String?
+  invoice          String?
+  total_price      Int
+  notes            String?
+  ordersId         Int?
+  productsId       Int?
+  origin_id        String?            @unique
+  orders           orders?            @relation(fields: [ordersId], references: [id])
+  products         products?          @relation(fields: [productsId], references: [id])
+  return_line_item return_line_item[]
 }
 
 model logistic {
@@ -100,12 +102,14 @@ model logistic {
 }
 
 model orders {
-  id                    Int           @id @default(autoincrement())
-  createdAt             DateTime      @default(now())
+  id                    Int             @id @default(autoincrement())
+  createdAt             DateTime        @default(now())
   status                String?
   shop_id               String?
   payment_id            String?
-  origin_id             String?       @unique
+  temp_id               String?
+  origin_id             String?         @unique
+  package_id String?
   invoice               String?
   recp_name             String?
   recp_phone            String?
@@ -117,10 +121,12 @@ model orders {
   recp_addr_postal_code String?
   recp_addr_district_id String?
   recp_addr_city_id     String?
+  tracking_number String?
+  ship_document_url String?
   recp_addr_province_id String?
   recp_addr_geo         String?
   logistic_service      String?
-  origin_createdAt      DateTime      @default(now())
+  origin_createdAt      DateTime        @default(now())
   accept_partial        Boolean?
   device                String?
   storeId               Int?
@@ -129,13 +135,14 @@ model orders {
   total_product_price   Int?
   shipping_price        Int?
   total_amount          Int?
-  updatedAt             DateTime      @updatedAt
+  updatedAt             DateTime        @updatedAt
   clientsId             Int?
   order_items           order_items[]
-  clientId              clients?      @relation(fields: [clientsId], references: [id])
-  customers             customers?    @relation(fields: [customersId], references: [id])
-  logistic              logistic?     @relation(fields: [logisticId], references: [id])
-  store                 store?        @relation(fields: [storeId], references: [id])
+  clientId              clients?        @relation(fields: [clientsId], references: [id])
+  customers             customers?      @relation(fields: [customersId], references: [id])
+  logistic              logistic?       @relation(fields: [logisticId], references: [id])
+  store                 store?          @relation(fields: [storeId], references: [id])
+  return_refund         return_refund?
 }
 
 model omnichat_user {
@@ -237,4 +244,29 @@ model integration {
   clientsId Int?
   credent   credent[]
   clients   clients?  @relation(fields: [clientsId], references: [id])
+}
+
+model return_line_item {
+  id                 Int            @id @default(autoincrement())
+  origin_id          String?        @unique
+  item               order_items    @relation(fields: [order_itemsId], references: [id])
+  refund_service_fee Int
+  currency           String?
+  refund_subtotal    Int
+  refund_total       Int
+  order_itemsId      Int
+  return_refund      return_refund? @relation(fields: [return_refundId], references: [id])
+  return_refundId    Int?
+}
+
+model return_refund {
+  id            Int                @id @default(autoincrement())
+  origin_id     String?            @unique
+  status        String?
+  order         orders             @relation(fields: [ordersId], references: [id])
+  line_item     return_line_item[]
+  total_amount  Int
+  return_type   String?
+  return_reason String?
+  ordersId      Int @unique
 }

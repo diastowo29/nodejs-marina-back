@@ -6,15 +6,10 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER } = require('../../config/shopee_apis');
-const { SHOPEE } = require('../../config/utils');
+const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 var env = process.env.NODE_ENV || 'development';
 const prisma = new PrismaClient();
-
-/* GET home page. */
-router.get('/webhook', async function (req, res, next) {
-    res.status(200).send({});
-});
 
 router.get('/sync', async function(req, res, next) {
     // console.log(JSON.stringify(req.body))
@@ -32,7 +27,7 @@ router.get('/sync', async function(req, res, next) {
     res.status(200).send({});
 })
 
-router.post('/webhook', async function (req, res, next) {
+router.post(PATH_WEBHOOK, async function (req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     let jsonBody = req.body;
     
@@ -167,7 +162,7 @@ router.post('/order', async function(req, res, next) {
     
 });
 
-router.post('/chat', async function(req, res, next) {
+router.post(PATH_CHAT, async function(req, res, next) {
     res.status(200).send({});
 });
 
@@ -278,7 +273,7 @@ router.put('/order/:id', async function(req, res, next) {
     }
 })
 
-router.post('/authorize', async function(req, res, next) {
+router.post(PATH_AUTH, async function(req, res, next) {
     // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
     // let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);

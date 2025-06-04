@@ -10,6 +10,7 @@ var tokopediaRouter = require('./routes/tokopedia');
 var lazadaRouter = require('./routes/lazada');
 var blibliRouter = require('./routes/blibli');
 var shopeeRouter = require('./routes/shopee');
+var tiktokRouter = require('./routes/tiktok');
 
 var auth0Router = require('./routes/auth0');
 
@@ -20,8 +21,21 @@ var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
 // const { auth } = require('express-oauth2-jwt-bearer');
-
+// const bodyParser = require('body-parser');
+// const JSONbig = require('json-bigint')({ storeAsString: true });
 var app = express();
+// app.use(express.json({ 
+//   reviver: (key, value) => {
+//     // Custom JSON parsing to preserve large numbers
+//     if (typeof value === 'number' && value > Number.MAX_SAFE_INTEGER) {
+//       return value.toString();
+//     }
+//     return value;
+//   }
+// }));
+
+// app.use(bodyParser.json({ limit: '800mb' })); // Adjust limit as needed
+
 // require('dotenv').config()
 // var port = 3001;
 // const jwtCheck = auth({
@@ -29,6 +43,19 @@ var app = express();
 //   issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/',
 //   tokenSigningAlg: 'RS256'
 // });
+
+/* app.use(bodyParser.json({
+  verify: (req, res, buf, encoding) => {
+    if (buf && buf.length) {
+      try {
+        req.body = JSONbig.parse(buf.toString());
+      } catch (e) {
+        console.error("Error parsing JSON:", e);
+        res.status(400).send({ error: "Invalid JSON" });
+      }
+    }
+  }
+})); */
 
 // app.use(jwtCheck);
 // view engine setup
@@ -50,6 +77,7 @@ app.use('/api/v1/tokopedia', tokopediaRouter);
 app.use('/api/v1/lazada', lazadaRouter);
 app.use('/api/v1/blibli', blibliRouter);
 app.use('/api/v1/shopee', shopeeRouter);
+app.use('/api/v1/tiktok', tiktokRouter);
 app.use('/api/v1/auth0', auth0Router);
 
 app.use('/api/v1/orders', orderRouter);

@@ -3,10 +3,11 @@ let workers = process.env.WEB_CONCURRENCY || 2;
 let maxJobsPerWorker = 20;
 let { workQueue } = require('./config/redis.config');
 const { PrismaClient, Prisma } = require('@prisma/client');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE } = require('./config/utils');
+const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
+const fs = require('fs');
 
 const SunshineConversationsClient = require('sunshine-conversations-client');
 const messageApi = new SunshineConversationsClient.MessagesApi();
@@ -19,7 +20,9 @@ let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/Axioser');
-const { collectOrder, generateShopeeToken } = require('./functions/shopee/function');
+const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
+const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
+const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest } = require('./functions/tiktok/function');
 const app = express();
 if (env == 'production') {
     app.use(express.json());
@@ -84,8 +87,32 @@ async function processJob(jobData, done) {
         case SHOPEE:
             processShopee(jobData.data, done);
             break;
+        case TIKTOK:
+            processTiktok(jobData.data, done);
+            break;
+        case TIKTOK_CHAT:
+            break;
         default:
+            console.log(jobData.data);
+            const formData = new FormData();
+            formData.append('data', fs.createReadStream(jobData.data.files))
+
+            // const data = jobData.data.data.data.path;
+            try {
+                const uploaded = await api.post(UPLOAD_IMAGE(formData), formData, {
+                    headers: {
+                        'x-tts-access-token': 'ROW_V381WwAAAABLnq7xXOmscBX-2auOuaCindVaZtRIQ7EWKejWoQytgRvgHUK6PwUNZdE2MkJkyzWGC_oe0oI4AF3HgcWm8AFsTgtyi-SxPGonwyBLlXVpOBCfEXYi65wqB294knTTRfp9rm1B94T8tNCBijaGJf8V',
+                        'content-type': 'multipart/form-data'
+                    }
+                });
+                console.log(uploaded.data);
+                // res.status(200).send(uploaded.data);
+            } catch (err) {
+                console.log(err)
+                // res.status(500).send({err: err.message})
+            }
             console.log('channel not supported: ', jobData.data.channel);
+            done(null, {response: 'testing'});
             break;
     }
 }
@@ -391,7 +418,7 @@ async function processShopee(body, done) {
     /* WORKER PART */
     if (body.code == 3) {
         /* ==== ORDERS ==== */
-        collectOrder(body, done);
+        collectShopeeOrder(body, done);
     } else if (body.code == 9999) {
         let accToken = body.token;
         let refToken = body.refresh_token
@@ -541,6 +568,21 @@ async function processShopee(body, done) {
         })
     } */
     done(null, {response: 'testing'});
+}
+
+async function processTiktok(body, done) {
+    if (body.code == 1) {
+        /* ==== ORDERS UPDATE==== */
+        collectTiktokOrder(body, done);
+    } else if (body.code == 16) {
+        /* PRODUCT STATUS UPDATE */
+        collectTiktokProduct(body, done);
+    } else if (body.code == 2) {
+        collectReturnRequest(body, done)
+    } else {
+        console.log('code %s not implemented yet', body.code);
+        done(null, {response: 'testing'});
+    }
 }
 
 async function processBlibli(body, done) {
