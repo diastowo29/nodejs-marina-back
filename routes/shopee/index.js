@@ -28,8 +28,8 @@ router.get('/sync', async function(req, res, next) {
 })
 
 router.post(PATH_WEBHOOK, async function (req, res, next) {
-    // let jsonBody = gcpParser(req.body.message.data);
-    let jsonBody = req.body;
+    let jsonBody = gcpParser(req.body.message.data);
+    // let jsonBody = req.body;
     
     console.log(JSON.stringify(jsonBody));
     let payloadCode = jsonBody.code;

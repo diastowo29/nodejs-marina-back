@@ -17,8 +17,8 @@ router.post('/header', function(req, res, next) {
 });
 
 router.post(PATH_WEBHOOK, async function (req, res, next) {
-    // let jsonBody = gcpParser(req.body.message.data);
-    let jsonBody = req.body;
+    let jsonBody = gcpParser(req.body.message.data);
+    // let jsonBody = req.body;
     console.log(JSON.stringify(jsonBody))
     if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
         const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
