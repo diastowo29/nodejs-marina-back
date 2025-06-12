@@ -14,6 +14,7 @@ router.get('/', async function(req, res, next) {
             store: {
                 select: {
                     id: true,
+                    origin_id: true,
                     name: true,
                     status: true,
                     channel: true
@@ -36,28 +37,68 @@ router.get('/', async function(req, res, next) {
 
 router.get('/find', async function(req, res, next) {
     let queryName = req.query.skuname;
-    let storeId = Number.parseInt(req.query.storeId);
+    let storeId = req.query.store_id;
+    let mStoreId = Number.parseInt(req.query.m_store_id);
+    console.log(storeId);
     let products = await prisma.products.findMany({
         where: {
-            OR: [{
-                name: {
-                    contains: queryName,
-                    mode: 'insensitive'
-                }
-            },{
-                sku: {
-                    contains: queryName,
-                    mode: 'insensitive'
-                }
-            }],
-            AND:[
-                {
-                    storeId: storeId
-                }
-            ]
+            ...(queryName && {
+                OR: [{
+                    name: {
+                        contains: queryName,
+                        mode: 'insensitive'
+                    }
+                },{
+                    sku: {
+                        contains: queryName,
+                        mode: 'insensitive'
+                    }
+                }],
+                AND:[
+                    ...(!mStoreId && {
+                        store: {
+                            origin_id: storeId.toString()
+                        }
+                    }),
+                    ...(mStoreId && {
+                        store: {
+                            id: mStoreId
+                        }
+                    })
+                    /* {
+                        OR: [{
+                            store: {
+                                origin_id: storeId.toString()
+                            } 
+                        }, {
+                            store: {
+                                id: storeId
+                            }
+                        }]
+                    } */
+                ]  
+            }),
+            ...(!queryName && {
+                ...(!mStoreId && {
+                    store: {
+                        origin_id: storeId.toString()
+                    }
+                }),
+                ...(mStoreId && {
+                    store: {
+                        id: mStoreId
+                    }
+                })
+            })
         },
         include: {
-            product_img: true
+            product_img: true,
+            store: {
+                select: {
+                    id: true,
+                    origin_id: true
+                }
+            }
         }
     });
     res.status(200).send({

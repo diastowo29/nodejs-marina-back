@@ -1,4 +1,4 @@
-const SHOPEE_HOST = 'https://partner.test-stable.shopeemobile.com';
+const SHOPEE_HOST = process.env.SHOPEE_API_HOST || 'https://partner.test-stable.shopeemobile.com';
 const AUTH_ENDPOINT = '/api/v2/shop/auth_partner';
 const GET_ORDER_DETAIL_PATH = '/api/v2/order/get_order_detail';
 const GET_SHOPEE_SHOP_INFO_PATH = '/api/v2/shop/get_shop_info';
@@ -13,21 +13,21 @@ const GET_SHOPEE_REFRESH_TOKEN = '/api/v2/auth/access_token/get';
 // const GET_SHOPEE_PRODUCTS_INFO = '/api/v2/product/get_item_base_info';
 
 function GET_SHOPEE_PRODUCTS_LIST (accessToken, shopId) {
-    console.log('GET_SHOPEE_PRODUCTS_LIST');
+    // console.log('GET_SHOPEE_PRODUCTS_LIST');
     const path = '/api/v2/product/get_item_list';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
     return `${SHOPEE_HOST}${path}?${shopSignedParam}&offset=0&page_size=50&item_status=NORMAL`;
 }
 
 function GET_SHOPEE_PRODUCTS_INFO (accessToken, productIds, shopId) {
-    console.log('GET_SHOPEE_PRODUCTS_INFO');
+    // console.log('GET_SHOPEE_PRODUCTS_INFO');
     const path = '/api/v2/product/get_item_base_info';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
     return `${SHOPEE_HOST}${path}?${shopSignedParam}&item_id_list=${productIds.toString()}`;
 }
 
 function GET_SHOPEE_ORDER_DETAIL (accessToken, orderId, shopId) {
-    console.log('GET_SHOPEE_ORDER_DETAIL');
+    // console.log('GET_SHOPEE_ORDER_DETAIL');
     const path = '/api/v2/order/get_order_detail';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
     return `${SHOPEE_HOST}${path}?${shopSignedParam}&order_sn_list=${orderId.toString()}&response_optional_fields=buyer_user_id,buyer_username,estimated_shipping_fee,recipient_address,actual_shipping_fee ,goods_to_declare,note,note_update_time,item_list,pay_time,dropshipper, dropshipper_phone,split_up,buyer_cancel_reason,cancel_by,cancel_reason,actual_shipping_fee_confirmed,buyer_cpf_id,fulfillment_flag,pickup_done_time,package_list,shipping_carrier,payment_method,total_amount,buyer_username,invoice_data,order_chargeable_weight_gram,return_request_due_date,edt`;

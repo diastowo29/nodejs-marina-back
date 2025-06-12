@@ -32,12 +32,12 @@ router.get('/', async function(req, res, next) {
             } : {},
             ...(req.query.user || req.query.u) ? {
                 customers: {
-                    origin_id: req.query.user || req.query.u
+                    origin_id: req.query.user || req.query.user_id
                 }
             } : {},
             ...(req.query.store || req.query.s) ? {
                 store: {
-                    origin_id: req.query.store || req.query.s
+                    origin_id: req.query.store || req.query.store_id
                 }
             } : {},
             /* store : {
@@ -63,9 +63,16 @@ router.get('/', async function(req, res, next) {
             }
         },
         store: {
-            include: {
-                channel: true
+            select: {
+                id: true, 
+                origin_id: true,
+                channel: true,
+                name: true
             }
+
+            // include: {
+            //     channel: true
+            // }
         },
         logistic: true
        },

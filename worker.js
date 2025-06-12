@@ -26,16 +26,15 @@ const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest } = requi
 const app = express();
 if (env == 'production') {
     app.use(express.json());
-    // const PORT = process.env.PORT || 8080;
-    const PORT = 3003;
+    const PORT = process.env.PORT || 8080;
+    // const PORT = 3003;
     app.listen(PORT, () => {
+        console.log('db at ', process.env.DATABASE_URL);
         console.log(`Worker running on port ${PORT}`);
     });
     app.post('/doworker', async (req, res) => {
-        const data = req.body;
-        console.log('Processing task:', data);
         let job = await processJob({
-            data: data
+            data: req.body
         });
         res.status(200).send({
             job: job
@@ -65,7 +64,7 @@ function start() {
 async function processJob(jobData, done) {
     // let body = jobData.data.body;
     // console.log(jobData);
-    // console.log(body)
+    // console.log(JSON.stringify(body))
     // console.log(jobData.data.channel);
     // console.log(Buffer.from(body.message.data, 'base64').toString('ascii'));
     switch (jobData.data.channel) {
@@ -112,7 +111,9 @@ async function processJob(jobData, done) {
                 // res.status(500).send({err: err.message})
             }
             console.log('channel not supported: ', jobData.data.channel);
-            done(null, {response: 'testing'});
+            if (env !== 'production') {
+                done(null, {response: 'testing'});
+            }
             break;
     }
 }
@@ -185,9 +186,12 @@ async function processLazadaChat(body, done) {
     }
 
     let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
-    done(null, {
-        response: 'testing'
-    });
+    if (env !== 'production') {
+        
+        done(null, {
+            response: 'testing'
+        });
+    }
 
 }
 
@@ -343,7 +347,10 @@ async function processLazada(body, done) {
             });
         } catch (err) {
             console.log(err);
-            done(new Error(err));
+            if (env !== 'production') {
+
+                done(new Error(err));
+            }
         }
     } else {
         console.log('update order id: ', body.orderId);
@@ -356,21 +363,29 @@ async function processLazada(body, done) {
                     status: body.status
                 }
             });
-            done(null, {
-                response: 'testing'
-            });
+            if (env !== 'production') {
+                done(null, {
+                    response: 'testing'
+                });
+
+            }
         } catch (err) {
             console.log(err);
-            done(new Error(err));
+            if (env !== 'production') {
+                done(new Error(err));
+            }
         }
     }
 }
 
 async function processTokopedia(body, done) {
-    console.log(body);
-    done(null, {
-        response: 'testing'
-    });
+    console.log(JSON.stringify(body));
+    if (env !== 'production') {
+        done(null, {
+            response: 'testing'
+        });
+    }
+
 }
 
 async function processTokopediaChat(body, done) {
@@ -406,15 +421,19 @@ async function processTokopediaChat(body, done) {
     }
 
     let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
-    done(null, {
-        response: 'testing'
-    });
-    console.log(body);
-    done(null, {response: 'testing'});
+    // done(null, {
+    //     response: 'testing'
+    // });
+    console.log(JSON.stringify(body));
+    if (env !== 'production') {
+
+        done(null, {response: 'testing'});
+    }
+
 }
 
 async function processShopee(body, done) {
-    console.log(body);
+    console.log(JSON.stringify(body));
     /* WORKER PART */
     if (body.code == 3) {
         /* ==== ORDERS ==== */
@@ -477,7 +496,10 @@ async function processShopee(body, done) {
                             }))
                         });
                     }
-                    done(null, {response: 'testing'});
+                    if (env !== 'production') {
+                        done(null, {response: 'testing'});
+
+                    }
                 }).catch((err) => {
                     console.log(err);
                 });
@@ -487,11 +509,18 @@ async function processShopee(body, done) {
             }
         } else {
             console.log(products.data);
-            done(null, {response: 'testing'});
+    if (env !== 'production') {
+        done(null, {response: 'testing'});
+
+    }
         }
     } else {
         console.log('shopee code not supported: ', body.code);
+    if (env !== 'production') {
+
         done(null, {response: 'testing'});
+    }
+
     }
 
     /* let orderDetail = await api.get(
@@ -567,7 +596,10 @@ async function processShopee(body, done) {
             }
         })
     } */
-    done(null, {response: 'testing'});
+    if (env !== 'production') {
+        done(null, {response: 'testing'});
+    }
+
 }
 
 async function processTiktok(body, done) {
@@ -581,13 +613,16 @@ async function processTiktok(body, done) {
         collectReturnRequest(body, done)
     } else {
         console.log('code %s not implemented yet', body.code);
+    if (env !== 'production') {
         done(null, {response: 'testing'});
+    }
+
     }
 }
 
 async function processBlibli(body, done) {
     /* let orderItems = [];
-    // console.log(body);
+    // console.log(JSON.stringify(body));
     const payload = body;
     if (payload.orderId) {
         console.log('existing');
@@ -661,10 +696,13 @@ async function processBlibli(body, done) {
         console.log(err);
     } */
 
-    console.log(body);
-    done(null, {
-        response: 'testing'
-    });
+    console.log(JSON.stringify(body));
+    if (env !== 'production') {
+        done(null, {
+            response: 'testing'
+        });
+
+    }
 }
 
 function postMessage(conversationId, payload) {

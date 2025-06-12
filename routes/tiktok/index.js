@@ -7,6 +7,7 @@ const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, C
 const { api } = require('../../functions/axios/Axioser');
 const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
+const { gcpParser } = require('../../functions/gcpParser');
 const prisma = new PrismaClient();
 var env = process.env.NODE_ENV || 'development';
 
@@ -183,18 +184,18 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     }
 });
 
-router.post('/bigint', async function(req, res, next) {
+/* router.post('/bigint', async function(req, res, next) {
     res.status(200).send({
         body: req.body,
         product_id: (BigInt(req.body.data.product_id) - 76n).toString(),
     });  
-});
+}); */
 
 router.get('/order_detail', async function (req, res, next) {
-    let order = await api.get(GET_ORDER_API('580193227447438117', 'xxx--xxx'), {
+    let order = await api.get(GET_ORDER_API(req.query.order_id, req.query.cipher), {
         headers: {
             'content-type': 'application/json',
-            'x-tts-access-token': 'xxx-xxx'
+            'x-tts-access-token': req.query.token
         }
     });
     res.status(200).send(order.data);
@@ -202,12 +203,12 @@ router.get('/order_detail', async function (req, res, next) {
 
 router.get('/return_refund', async function (req, res, next) {
     const data = {
-        order_ids: ['580193227512843045']
+        order_ids: [req.query.order_id]
     };
-    let refund = await api.post(SEARCH_RETURN('xxx--xxx', data), data, {
+    let refund = await api.post(SEARCH_RETURN(req.query.cipher, data), data, {
         headers: {
             'content-type': 'application/json',
-            'x-tts-access-token': 'xxx-xxx'
+            'x-tts-access-token': req.query.token
         }
     });
     res.status(200).send(refund.data);
@@ -217,7 +218,7 @@ router.get('/cipher', async function(req, res, next) {
      api.get(GET_AUTHORIZED_SHOP(), {
         headers: {
             'content-type': 'application/json',
-            'x-tts-access-token': 'xxx-xxx-xxx-d1-xxx-xxx'
+            'x-tts-access-token': req.query.token
         }
     }).then(function(response) {
         res.status(200).send(response.data);

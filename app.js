@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var { PrismaClient } = require('@prisma/client');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -20,10 +21,13 @@ var chatRouter = require('./routes/module/chat');
 var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
+const prismaDb = require('./prisma-client');
+const tenantIdentifier = require('./middleware/tenantIdentifier');
 // const { auth } = require('express-oauth2-jwt-bearer');
 // const bodyParser = require('body-parser');
 // const JSONbig = require('json-bigint')({ storeAsString: true });
 var app = express();
+var prisma;
 // app.use(express.json({ 
 //   reviver: (key, value) => {
 //     // Custom JSON parsing to preserve large numbers
@@ -67,6 +71,7 @@ app.set('view engine', 'pug');
 
 app.use(logger('dev'));
 app.use(express.json());
+// app.use(tenantIdentifier);
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -91,6 +96,11 @@ app.use('/api/v1/crm', crmRouter);
 app.use(function(req, res, next) {
   next(createError(404));
 });
+
+// app.use(function(req, res, next) {
+//   console.log('middleware');
+//   next();
+// })
 
 // error handler
 app.use(function(err, req, res, next) {

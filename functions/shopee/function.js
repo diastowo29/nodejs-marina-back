@@ -25,10 +25,11 @@ async function collectShopeeOrder (body, done) {
     if ((order.data.error) || (order.data.response.order_list.length === 0)) {
         console.log(order.data);
         console.log('order error');
-        done(null, {response: 'order not found'});
+        // done(null, {response: 'order not found'});
         return;
     }
     let orderData = order.data.response.order_list[0];
+    console.log('GOT ORDER DETAILS');
     let orderUpdate = await prisma.orders.update({
         where: {
             origin_id: body.order_id.toString()
@@ -97,7 +98,7 @@ async function collectShopeeOrder (body, done) {
         }
     });
     console.log(orderUpdate);
-    done(null, {response: 'testing'});
+    // done(null, {response: 'testing'});
 }
 
 async function generateShopeeToken (shop_id, refToken) {
@@ -117,7 +118,7 @@ async function generateShopeeToken (shop_id, refToken) {
         return err.response.data;
     });
     if ((token.data) && (token.data.access_token)) {
-        prisma.store.update({
+        await prisma.store.update({
             where: {
                 origin_id: shop_id.toString()
             },

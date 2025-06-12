@@ -6,9 +6,13 @@ var {
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
 const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
 const { api } = require('../../../functions/axios/Axioser');
+const { marinaPrisma } = require('../../../prisma-client');
+const { getPrismaClient } = require('../../../services/prismaServices');
+// const prismaDb = require('../../../prisma-client');
 
 const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
+    // let prisma = getPrismaClient(req.tenantDB);
     let store = await prisma.store.findMany({
         include: {
             channel: true

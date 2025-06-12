@@ -5,7 +5,7 @@ var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/Axioser');
-const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER } = require('../../config/shopee_apis');
+const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL } = require('../../config/shopee_apis');
 const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 var env = process.env.NODE_ENV || 'development';
@@ -48,8 +48,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     status: jsonBody.data.status,
                     store: {
                         connect: {
-                            // origin_id: jsonBody.shop_id.toString()
-                            origin_id: '138335'
+                            origin_id: jsonBody.shop_id.toString()
+                            // origin_id: '138335'
                         }
                     }
                 },
@@ -85,8 +85,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         last_messageId: jsonBody.data.content.message_id,
                         store: {
                             connect: {
-                                // origin_id: jsonBody.shop_id.toString()
-                                origin_id: '138335'
+                                origin_id: jsonBody.shop_id.toString()
+                                // origin_id: '138335'
                             }
                         },
                         omnichat_user: {
@@ -159,7 +159,6 @@ router.post('/order', async function(req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
     res.status(200).send({});
-    
 });
 
 router.post(PATH_CHAT, async function(req, res, next) {
@@ -381,6 +380,29 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 res.status(400).send(newStore);
             }
         }
+    }
+})
+
+router.get('/order_detail', async function(req, res, next) {
+    let orderId = req.query.order_id;
+    let shopId = req.query.shop_id;
+    let token = req.query.token;
+
+    if (!orderId || !shopId || !token) {
+        return res.status(400).send({ error: 'Missing required parameters' });
+    }
+
+    try {
+        let order = await api.get(GET_SHOPEE_ORDER_DETAIL(token, orderId, shopId));
+
+        if (order.data) {
+            res.status(200).send(order.data);
+        } else {
+            res.status(404).send({ error: 'Order not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Internal server error' });
     }
 })
 

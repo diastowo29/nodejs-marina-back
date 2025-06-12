@@ -4,7 +4,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function collectTiktokOrder (body, done) {
-    console.log(body);
+    console.log(JSON.stringify(body));
 
     // -- UPDATE USING: callTiktok FUNCTION
     let tiktokOrder = await api.get(GET_ORDER_API(body.order_id, body.cipher), {
@@ -36,11 +36,12 @@ async function collectTiktokOrder (body, done) {
                 }
             })
         } else {
-            done(new Error(err.response.data));
+            // done(new Error(err.response.data));
         }
     })
     if (tiktokOrder) {
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
+        console.log('GOT ORDER DETAILS');
         prisma.orders.update({
             where: {
                 origin_id: tiktokOrderIdx.id
@@ -49,11 +50,11 @@ async function collectTiktokOrder (body, done) {
                 logistic: {  
                     connectOrCreate: {
                         create: {
-                            name: tiktokOrderIdx.shipping_provider,
+                            name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type,
                             type: tiktokOrderIdx.shipping_type
                         },
                         where: {
-                            name: tiktokOrderIdx.shipping_provider
+                            name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type
                         }
                     }
                 },
@@ -98,14 +99,14 @@ async function collectTiktokOrder (body, done) {
             }
         }).then(function(update) {
             console.log(update.id);
-            done(null, {response: 'testing'});
+            // done(null, {response: 'testing'});
         }).catch(function(err) {
             console.log(err);
-            done(new Error(err));
-        })
+            // done(new Error(err));
+        });
     } else {
         console.log('no order found');
-        done(new Error('no order found'));
+        // done(new Error('no order found'));
     }
 }
 
@@ -150,7 +151,7 @@ async function collectReturnRequest (body, done) {
         })
         console.log(returnRecords);       
     }
-    done(null, {response: 'testing'});
+    // done(null, {response: 'testing'});
 }
 
 async function collectTiktokProduct (body, done) {
@@ -198,15 +199,15 @@ async function collectTiktokProduct (body, done) {
                 }))
             }).then(function(newProduct) {
                 console.log(newProduct.count);
-                done(null, {response: 'testing'});
+                // done(null, {response: 'testing'});
             }).catch(function(err) {
                 console.log(err);
-                done(new Error(err));
+                // done(new Error(err));
             })
         }
     }).catch(function(err) {
         console.log(err)
-        done(new Error(err));
+        // done(new Error(err));
     })
 }
 
