@@ -172,8 +172,8 @@ router.post('/sunco/event', async function(req,res,next){
 
 async function sendMessageToBuyer(body) {
     console.log('sendMessageToBuyer', JSON.stringify(body))
+    let templateId;
     if (body.channel_name.toString().toLowerCase() === channelSource.LAZADA.toLowerCase()) {
-        let templateId;
         let contentType;
         let bodyChat = body.line_text;
         switch (body.chat_type) {
@@ -212,7 +212,6 @@ async function sendMessageToBuyer(body) {
         let token = await getToken(body.store_origin_id);
         // console.log(token);
         // console.log(TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId));
-        let templateId;
         switch (body.chat_type) {
             case chatContentType.IMAGE:
                 templateId = '2';

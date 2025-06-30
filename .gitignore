@@ -6,3 +6,5 @@ private.pem
 public.pub
 manual.txt
 *.bak
+public.key
+private.key

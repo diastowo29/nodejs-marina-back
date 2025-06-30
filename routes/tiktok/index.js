@@ -192,13 +192,17 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 }); */
 
 router.get('/order_detail', async function (req, res, next) {
-    let order = await api.get(GET_ORDER_API(req.query.order_id, req.query.cipher), {
-        headers: {
-            'content-type': 'application/json',
-            'x-tts-access-token': req.query.token
-        }
-    });
-    res.status(200).send(order.data);
+    try {
+        let order = await api.get(GET_ORDER_API(req.query.order_id, req.query.cipher), {
+            headers: {
+                'content-type': 'application/json',
+                'x-tts-access-token': req.query.token
+            }
+        });
+        res.status(200).send(order.data);
+    } catch (err) {
+        res.status(400).send(err.response.data);
+    }
 })
 
 router.get('/return_refund', async function (req, res, next) {

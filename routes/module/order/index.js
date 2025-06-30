@@ -50,7 +50,35 @@ router.get('/', async function(req, res, next) {
             },
             logistic: {
                 isNot: null
-            }
+            },
+            // JUST FOR REVIEW
+            /* OR: [
+                {
+                    status: 'SHIPPED'
+                },
+                {
+                    status: 'TO_CONFIRM_RECEIVE'
+                },
+                {
+                    status: 'READY_TO_SHIP'
+                },
+                {
+                    status: 'COMPLETED'
+                },
+                {
+                    status: 'IN_TRANSIT'
+                },
+                {
+                    status: 'CANCELLED'
+                },
+                {
+                    status: 'DELIVERED'
+                },
+                {
+                    status: 'COMPLETED'
+                }
+            ] */
+            // JUST FOR REVIEW
         },
        include: {
         order_items: {

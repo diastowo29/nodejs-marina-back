@@ -6,9 +6,10 @@ var {
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
 const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
 const { api } = require('../../../functions/axios/Axioser');
-const { marinaPrisma } = require('../../../prisma-client');
 const { getPrismaClient } = require('../../../services/prismaServices');
+const checkJwt = require('../../../middleware/auth');
 // const prismaDb = require('../../../prisma-client');
+const jwt = require('jsonwebtoken');
 
 const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
@@ -19,6 +20,42 @@ router.get('/', async function(req, res, next) {
         }
     })
     res.status(200).send(store);
+})
+
+// router.get('/jwt', checkJwt, function(req, res, next) {
+//     console.log(req.headers.authorization);
+//     console.log(req.auth.header)
+//     res.status(200).send({});
+// })
+
+router.get('/generate_jwt', function(req, res, next) {
+    const token = jwt.sign({
+        time: Date(),
+        userId: 12,
+    }, process.env.MARINA_SECRETZ);
+    res.status(200).send({token: token});
+})
+
+router.get('/jwts', checkJwt, function(req, res, next) {
+    console.log(req.auth);
+    // console.log(req.headers.authorization);
+    // console.log(req.auth.header)
+    // try {
+    //     // const token = req.header(tokenHeaderKey);
+    //     const token = req.headers.authorization.split(' ')[1];
+    //     const verified = jwt.verify(token, 'test123');
+    //     if (verified) {
+    //         return res.send("Successfully Verified");
+    //     } else {
+    //         // Access Denied
+    //         return res.status(401).send(error);
+    //     }
+    // } catch (error) {
+    //     // Access Denied
+    //     return res.status(400).send(error);
+    // }
+
+    res.status(200).send({});
 })
 
 router.get('/:id', async function(req, res, next) {

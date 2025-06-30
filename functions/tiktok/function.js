@@ -7,7 +7,8 @@ async function collectTiktokOrder (body, done) {
     console.log(JSON.stringify(body));
 
     // -- UPDATE USING: callTiktok FUNCTION
-    let tiktokOrder = await api.get(GET_ORDER_API(body.order_id, body.cipher), {
+    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id);
+    /* let tiktokOrder = await api.get(GET_ORDER_API(body.order_id, body.cipher), {
         headers: {
             'x-tts-access-token' : body.token,
             'content-type': 'application/json'
@@ -38,7 +39,7 @@ async function collectTiktokOrder (body, done) {
         } else {
             // done(new Error(err.response.data));
         }
-    })
+    }) */
     if (tiktokOrder) {
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
         console.log('GOT ORDER DETAILS');
@@ -102,6 +103,7 @@ async function collectTiktokOrder (body, done) {
             // done(null, {response: 'testing'});
         }).catch(function(err) {
             console.log(err);
+            console.log(JSON.stringify(tiktokOrderIdx));
             // done(new Error(err));
         });
     } else {

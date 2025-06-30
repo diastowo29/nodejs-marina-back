@@ -605,7 +605,9 @@ async function processShopee(body, done) {
 async function processTiktok(body, done) {
     if (body.code == 1) {
         /* ==== ORDERS UPDATE==== */
-        collectTiktokOrder(body, done);
+        if (body.status != 'UNPAID') {
+            collectTiktokOrder(body, done);
+        }
     } else if (body.code == 16) {
         /* PRODUCT STATUS UPDATE */
         collectTiktokProduct(body, done);

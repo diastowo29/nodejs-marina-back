@@ -11,7 +11,6 @@ const tenantIdentifier = (req, res, next) => {
   // - Header (X-Tenant-ID)
   // - JWT token
   // - Path parameter (/api/:tenantId/...)
-  
   const tenantId = req.headers['x-tenant-id'] || req.subdomains[0];
   
   if (!tenantId) {

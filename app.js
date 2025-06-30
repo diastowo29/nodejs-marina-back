@@ -22,47 +22,15 @@ var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
 const prismaDb = require('./prisma-client');
+const helmet = require('helmet');
+const checkJwt = require('./middleware/auth');
 const tenantIdentifier = require('./middleware/tenantIdentifier');
-// const { auth } = require('express-oauth2-jwt-bearer');
-// const bodyParser = require('body-parser');
-// const JSONbig = require('json-bigint')({ storeAsString: true });
+
 var app = express();
-var prisma;
-// app.use(express.json({ 
-//   reviver: (key, value) => {
-//     // Custom JSON parsing to preserve large numbers
-//     if (typeof value === 'number' && value > Number.MAX_SAFE_INTEGER) {
-//       return value.toString();
-//     }
-//     return value;
-//   }
-// }));
-
-// app.use(bodyParser.json({ limit: '800mb' })); // Adjust limit as needed
-
-// require('dotenv').config()
-// var port = 3001;
-// const jwtCheck = auth({
-//   audience: 'http://localhost:3002/',
-//   issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/',
-//   tokenSigningAlg: 'RS256'
-// });
-
-/* app.use(bodyParser.json({
-  verify: (req, res, buf, encoding) => {
-    if (buf && buf.length) {
-      try {
-        req.body = JSONbig.parse(buf.toString());
-      } catch (e) {
-        console.error("Error parsing JSON:", e);
-        res.status(400).send({ error: "Invalid JSON" });
-      }
-    }
-  }
-})); */
-
 // app.use(jwtCheck);
+app.use(checkJwt); //// <<================= ENABLE THIS
 // view engine setup
+app.use(helmet());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 // app.listen(port, function () {
@@ -71,7 +39,7 @@ app.set('view engine', 'pug');
 
 app.use(logger('dev'));
 app.use(express.json());
-// app.use(tenantIdentifier);
+// app.use(tenantIdentifier); //// <<================= ENABLE THIS
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -94,7 +62,8 @@ app.use('/api/v1/crm', crmRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  next(createError(404));
+  // next(createError(404));
+  res.status(404).send({status: 404, message: 'Are you lost? This page does not exist.'});
 });
 
 // app.use(function(req, res, next) {

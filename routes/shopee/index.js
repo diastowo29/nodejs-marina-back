@@ -402,7 +402,7 @@ router.get('/order_detail', async function(req, res, next) {
         }
     } catch (error) {
         console.error(error);
-        res.status(500).send({ error: 'Internal server error' });
+        res.status(400).send(err.response.data);
     }
 })
 
