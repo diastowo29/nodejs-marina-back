@@ -21,6 +21,7 @@ async function addTask (payload) {
 
 function pushTask (env, payload) {
     if (env == 'development') {
+        console.log('job added')
         workQueue.add(payload, jobOpts);
     } else {
         addTask(payload);

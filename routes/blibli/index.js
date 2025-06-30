@@ -9,15 +9,15 @@ const { auth } = require('express-oauth2-jwt-bearer');
 
 const prisma = new PrismaClient();
 
-const jwtCheck = auth({
+/* const jwtCheck = auth({
     audience: process.env.AUTH0_AUDIENCE,
     issuerBaseURL: process.env.AUTH0_BASEURL,
     tokenSigningAlg: process.env.SIGN_ALG
-});
+}); */
     
   
 /* GET home page. */
-router.get('/webhook', jwtCheck, async function (req, res, next) {
+router.get('/webhook', /* jwtCheck, */ async function (req, res, next) {
     console.log(req.auth)
     console.log(req.headers)
     res

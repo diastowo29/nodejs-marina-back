@@ -12,9 +12,14 @@ router.get('/', async function(req, res, next) {
         include: {
             product_img: true,
             store: {
-                include: {
+                select: {
+                    id: true,
+                    origin_id: true,
+                    name: true,
+                    status: true,
                     channel: true
                 }
+            
             }
         },
         ...(channel && {
@@ -32,34 +37,68 @@ router.get('/', async function(req, res, next) {
 
 router.get('/find', async function(req, res, next) {
     let queryName = req.query.skuname;
-    let storeId = Number.parseInt(req.query.storeId);
-    let products = await prisma.products.findMany({
-        where: {
-            OR: [{
-                name: {
-                    contains: queryName,
-                    mode: 'insensitive'
+    let storeId = req.query.store_id;
+    let mStoreId = Number.parseInt(req.query.m_store_id);
+    // console.log(storeId);
+    console.log(req.query)
+    try {
+        let products = await prisma.products.findMany({
+            where: {
+                ...(queryName && {
+                    OR: [{
+                        name: {
+                            contains: queryName,
+                            mode: 'insensitive'
+                        }
+                    },{
+                        sku: {
+                            contains: queryName,
+                            mode: 'insensitive'
+                        }
+                    }]
+                }),
+                ...(storeId && {
+                    store: {
+                        origin_id: storeId.toString()
+                    }
+                }),
+                ...(mStoreId && {
+                    store: {
+                        id: mStoreId
+                    }
+                }),
+                ...(!queryName && {
+                    ...(storeId && {
+                        store: {
+                            origin_id: storeId.toString()
+                        }
+                    }),
+                    ...(mStoreId && {
+                        store: {
+                            id: mStoreId
+                        }
+                    })
+                })
+            },
+            include: {
+                product_img: true,
+                store: {
+                    select: {
+                        id: true,
+                        origin_id: true
+                    }
                 }
-            },{
-                sku: {
-                    contains: queryName,
-                    mode: 'insensitive'
-                }
-            }],
-            AND:[
-                {
-                    storeId: storeId
-                }
-            ]
-        },
-        include: {
-            product_img: true
-        }
-    });
-    res.status(200).send({
-        query: queryName,
-        result: products
-    });
+            }
+        });
+        res.status(200).send({
+            query: queryName,
+            result: products
+        });
+    } catch (err) {
+        res.status(500).send({
+            error: 'Internal server error', message: err.message
+        });
+    }
 })
 
 module.exports = router;

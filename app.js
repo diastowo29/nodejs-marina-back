@@ -3,12 +3,15 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var { PrismaClient } = require('@prisma/client');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var tokopediaRouter = require('./routes/tokopedia');
 var lazadaRouter = require('./routes/lazada');
 var blibliRouter = require('./routes/blibli');
+var shopeeRouter = require('./routes/shopee');
+var tiktokRouter = require('./routes/tiktok');
 
 var auth0Router = require('./routes/auth0');
 
@@ -18,19 +21,16 @@ var chatRouter = require('./routes/module/chat');
 var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
-// const { auth } = require('express-oauth2-jwt-bearer');
+const prismaDb = require('./prisma-client');
+const helmet = require('helmet');
+const checkJwt = require('./middleware/auth');
+const tenantIdentifier = require('./middleware/tenantIdentifier');
 
 var app = express();
-// require('dotenv').config()
-// var port = 3001;
-// const jwtCheck = auth({
-//   audience: 'http://localhost:3002/',
-//   issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/',
-//   tokenSigningAlg: 'RS256'
-// });
-
 // app.use(jwtCheck);
+app.use(checkJwt); //// <<================= ENABLE THIS
 // view engine setup
+app.use(helmet());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 // app.listen(port, function () {
@@ -39,6 +39,7 @@ app.set('view engine', 'pug');
 
 app.use(logger('dev'));
 app.use(express.json());
+// app.use(tenantIdentifier); //// <<================= ENABLE THIS
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -48,6 +49,8 @@ app.use('/users', usersRouter);
 app.use('/api/v1/tokopedia', tokopediaRouter);
 app.use('/api/v1/lazada', lazadaRouter);
 app.use('/api/v1/blibli', blibliRouter);
+app.use('/api/v1/shopee', shopeeRouter);
+app.use('/api/v1/tiktok', tiktokRouter);
 app.use('/api/v1/auth0', auth0Router);
 
 app.use('/api/v1/orders', orderRouter);
@@ -59,8 +62,14 @@ app.use('/api/v1/crm', crmRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  next(createError(404));
+  // next(createError(404));
+  res.status(404).send({status: 404, message: 'Are you lost? This page does not exist.'});
 });
+
+// app.use(function(req, res, next) {
+//   console.log('middleware');
+//   next();
+// })
 
 // error handler
 app.use(function(err, req, res, next) {

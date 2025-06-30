@@ -1,4 +1,5 @@
 var express = require('express');
+const SunshineConversationsClient = require('sunshine-conversations-client');
 var router = express.Router();
 var {
     PrismaClient,
@@ -197,18 +198,35 @@ router.get('/event/test', async function(req, res, next) {
     res.status(200).send({});
 })
 
+// message dari user
 router.post('/chat', async function(req, res, next) {
-    console.log(req.body.message.data);
+    console.log('chat lazada',req.body.message.data);
     let jsonBody = gcpParser(req.body.message.data);
+    console.log('chat request body', jsonBody);
+
     if (jsonBody.message_type != 2) {
         res.status(200).send({});
         return;
     };
-    // console.log(jsonBody);
+
+    if (jsonBody.data.from_account_type == 2 && !jsonBody.data.process_msg) {
+        res.status(200).send({});
+        return;
+    };
+
     let bodyData = jsonBody.data;
     let sessionId = bodyData.session_id;
     let userId = bodyData.from_user_id;
     let messageId = bodyData.message_id;
+    let userExternalId = `${userId}-${messageId}-${jsonBody.seller_id}`
+    console.log('sessionId', sessionId)
+    console.log('userExternalId', userExternalId)
+
+    // sunco hardcode part
+    let suncoAppId = process.env.SUNCO_APP_ID
+    let suncoKeyId = process.env.SUNCO_KEY_ID
+    let suncoKeySecret = process.env.SUNCO_KEY_SECRET
+    
     try {
         let conversation = await prisma.omnichat.upsert({
             include: {
@@ -259,6 +277,9 @@ router.post('/chat', async function(req, res, next) {
                 }
             }
         });
+
+        console.log('lazada conversation', JSON.stringify(conversation))
+
         let sseEventPayload = {
             user_id: userId,
             message: JSON.parse(bodyData.content),
@@ -267,14 +288,61 @@ router.post('/chat', async function(req, res, next) {
         clients.forEach(client => {
             client.res.write(`data: ${JSON.stringify(sseEventPayload)}\n\n`);
         });
+
+        if(!conversation.externalId){
+            let defaultClient = SunshineConversationsClient.ApiClient.instance
+            let basicAuth = defaultClient.authentications['basicAuth']
+            basicAuth.username = suncoKeyId
+            basicAuth.password = suncoKeySecret
+            
+            // create sunco user
+            let suncoUser = await createSuncoUser(userExternalId, `LazUser-${jsonBody.data.from_user_id}`, suncoAppId)
+            let conversationBody = suncoUser
+            conversationBody.metadata = {
+                'dataCapture.ticketField.44421785876377': userId,
+                'dataCapture.ticketField.44415748503577': messageId,
+                'dataCapture.ticketField.44414210097049': jsonBody.seller_id,
+                'dataCapture.ticketField.44413794291993': 'lazada',
+                'lazada_origin_id': conversation.origin_id
+            }
+            // create sunco conversation
+            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+            
+            // update omnichat set externalId
+            conversation =  await prisma.omnichat.update({
+                where:{
+                    id: conversation.id
+                },
+                data:{
+                    externalId: suncoConversation.conversation.id
+                }
+            })
+            
+            // update omnichatUser set external id
+            await prisma.omnichat_user.update({
+                where:{
+                    id: conversation.omnichat_userId
+                },
+                data:{
+                    externalId: userExternalId
+                }
+            })
+        }else{
+            userExternalId = conversation?.omnichat_user?.externalId
+        }
+
         let taskPayload = {
             channel: LAZADA_CHAT, 
             sessionId: sessionId, 
             id: conversation.id,
             token: conversation.store.token,
             refresh_token: conversation.store.refresh_token,
-            ...((conversation.omnichat_user.username == null) ? {new: true} : {new:false})
+            ...((conversation.omnichat_user?.username == null) ? {new: true} : {new:false}),
+            user_external_id: userExternalId,
+            message_external_id: conversation.externalId,
+            body: jsonBody
         }
+
         pushTask(env, taskPayload);
         res.status(200).send(conversation);
     } catch (err) {
@@ -353,6 +421,84 @@ const sample = {
     },
     timestamp: 1733388276,
     site: 'lazada_sg'
+}
+
+
+
+function createSuncoUser(userExternalId, username, appId){
+    let baseLog = 'createSuncoUser()'
+    let usersApi = new SunshineConversationsClient.UsersApi()
+    let userCreateBody = new SunshineConversationsClient.UserCreateBody()
+  
+    userCreateBody.externalId = userExternalId
+    userCreateBody.profile = {
+        givenName: username
+    }
+  
+    return usersApi.createUser(appId, userCreateBody).then(function(suncoUser) {
+        console.log(`${baseLog} - user #${suncoUser.user.externalId} created as ${username}`)
+        return {
+            type: 'personal',
+            participants: [{
+                userExternalId: suncoUser.user.externalId,
+                subscribeSDKClient: false
+            }]
+        }
+    }, function(error) {
+        if(error.status == 429){
+            console.log(`${baseLog} - create user #${userExternalId} error: ${error.response.text}`)
+            return {
+                status: error.status,
+                body:{
+                    errors:[
+                        {
+                            title: error.response.text,
+                            data: error.response.req.data
+                        }
+                    ]
+                },
+                error:{
+                    title: error.response.text,
+                    data: error.response.req.data
+                }
+            }
+        }
+    
+        console.log(`${baseLog} - create user #${userExternalId} error: ${error.body.errors[0].title}`)
+        return error
+    })
+}
+
+function createSuncoConversation(appId, conversationCreateBody){
+    let baseLog = 'createSuncoConversation()'
+    let conversationsApi = new SunshineConversationsClient.ConversationsApi()
+    
+    return conversationsApi.createConversation(appId, conversationCreateBody).then(function(conv) {
+        console.log(baseLog, `conversation for user #${conversationCreateBody.participants[0].userExternalId} created: #${conv.conversation.id}`)
+        return conv
+    }, function(error) {
+        if(error.status == 429){
+            console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.response.text}`)
+            return {
+                status: error.status,
+                body:{
+                errors:[
+                    {
+                        title: error.response.text,
+                        data: error.response.req.data
+                    }
+                ]
+                },
+                error:{
+                    title: error.response.text,
+                    data: error.response.req.data
+                }
+            }
+        }
+
+        console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.body.errors[0].title}`)
+        return error
+    })
 }
 
 module.exports = router;

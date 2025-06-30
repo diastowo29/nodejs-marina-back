@@ -3,16 +3,24 @@ var router = express.Router();
 var {
     PrismaClient
 } = require('@prisma/client');
+// const { auth } = require('express-oauth2-jwt-bearer');
+// const checkJwt = require('../../../middleware/auth');
 // const { workQueue, jobOpts } = require('../../config/redis.config');
 // const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazGenToken, lazadaAuthHost, lazGetSellerInfo, lazadaHost } = require('../../config/utils');
 // const { lazParamz, lazCall } = require('../../functions/lazada/caller');
 
-let test = require('dotenv').config()
+// let test = require('dotenv').config()
 
 const prisma = new PrismaClient();
 /* GET home page. */
 
+// const checJwt = auth({
+//     audience: 'marina-be-id',
+//     issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/'
+// })
+
 router.get('/', async function(req, res, next) {
+    console.log('auth', req.auth);
     let channels = await prisma.channel.findMany({ })
     res.status(200).send(channels);
 })
