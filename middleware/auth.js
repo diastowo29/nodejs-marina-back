@@ -19,6 +19,7 @@ const checkJwt = async (req, res, next) => {
       auth({
         audience: 'marina-be-id',
         issuerBaseURL: process.env.AUTH0_BASEURL,
+        tokenSigningAlg: 'RS256'
       })
     );
     await tokenValidator(req, res);
