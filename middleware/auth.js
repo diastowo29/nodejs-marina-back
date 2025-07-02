@@ -13,6 +13,7 @@ const checkJwt = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({ error: 'Access token is missing' });
   }
+  console.log('Token:', token);
   try {
     const tokenValidator = promisify(
       auth({
@@ -23,7 +24,7 @@ const checkJwt = async (req, res, next) => {
     await tokenValidator(req, res);
     next();
   } catch (error) {
-    // console.log(error);
+    console.log(error);
     return res.status(401).json({ error: 'Invalid access token' });
   }
 }
