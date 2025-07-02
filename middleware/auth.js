@@ -5,9 +5,8 @@ const { auth } = require('express-oauth2-jwt-bearer');
 const { promisify } = require('util');
 
 const checkJwt = async (req, res, next) => {
-  // console.log(req.headers);
-  // exclude webhook route
-  if (req.path.startsWith('/api/v1/webhook')) {
+  const exludedPath = ['/api/v1/blibli/webhook', '/api/v1/lazada/webhook', '/api/v1/shopee/webhook', '/api/v1/tiktok/webhook'];
+  if (exludedPath.includes(req.path)) {
     return next();
   }
   const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
@@ -15,16 +14,16 @@ const checkJwt = async (req, res, next) => {
     return res.status(401).json({ error: 'Access token is missing' });
   }
   try {
-    // const decoded = jwt.verify(token, privateKey, {algorithms: ['RS256']});
     const tokenValidator = promisify(
       auth({
         audience: 'marina-be-id',
-        issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/'
+        issuerBaseURL: process.env.AUTH0_BASEURL,
       })
     );
     await tokenValidator(req, res);
     next();
   } catch (error) {
+    // console.log(error);
     return res.status(401).json({ error: 'Invalid access token' });
   }
 }
