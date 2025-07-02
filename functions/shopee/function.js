@@ -1,6 +1,6 @@
 const { PrismaClient, Prisma } = require("@prisma/client");
 const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST } = require("../../config/shopee_apis");
-const { api } = require("../axios/Axioser");
+const { api } = require("../axios/interceptor");
 const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");

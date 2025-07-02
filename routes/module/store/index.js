@@ -5,7 +5,7 @@ var {
 } = require('@prisma/client');
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
 const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
-const { api } = require('../../../functions/axios/Axioser');
+const { api } = require('../../../functions/axios/interceptor');
 const { getPrismaClient } = require('../../../services/prismaServices');
 const checkJwt = require('../../../middleware/auth');
 // const prismaDb = require('../../../prisma-client');

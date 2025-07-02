@@ -19,7 +19,7 @@ let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL } = require('./config/shopee_apis');
-const { api } = require('./functions/axios/Axioser');
+const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest } = require('./functions/tiktok/function');

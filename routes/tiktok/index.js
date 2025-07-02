@@ -4,7 +4,7 @@ var {
     PrismaClient
 } = require('@prisma/client');
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
-const { api } = require('../../functions/axios/Axioser');
+const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
@@ -326,12 +326,12 @@ router.post(PATH_CHAT, async function (req, res, next) {
 })
 
 router.post(PATH_AUTH, async function(req, res, next) {
-    console.log(GET_TOKEN_API(req.body.auth_code));
+    // console.log(GET_TOKEN_API(req.body.auth_code));
     let token = await api.get(GET_TOKEN_API(req.body.auth_code)).catch(function (err) {
         res.status(400).send({error: err.response.data});
     });
     if (token.data.code == 0) {
-        console.log(token.data);
+        // console.log(token.data);
         let accessToken = token.data.data.access_token;
         try {
             let shops = await api.get(GET_AUTHORIZED_SHOP(), {

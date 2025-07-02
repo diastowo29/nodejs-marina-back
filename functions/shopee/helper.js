@@ -1,11 +1,11 @@
 var crypto = require('crypto');
 const { AUTH_ENDPOINT } = require('../../config/shopee_apis');
 
-let host = process.env.SHOPEE_API_HOST;
-let partnerId = process.env.SHOPEE_PARTNER_ID;
+// let host = process.env.SHOPEE_API_HOST;
+// let partnerId = process.env.SHOPEE_PARTNER_ID;
 let partnerKey = process.env.SHOPEE_PARTNER_KEY;
-let redirectUrl = process.env.SHOPEE_REDIRECT_URL;
-let authEndpoint = AUTH_ENDPOINT;
+// let redirectUrl = process.env.SHOPEE_REDIRECT_URL;
+// let authEndpoint = AUTH_ENDPOINT;
 
 function doSign (commonParams) {
     // let ts = new Date().getTime() / 1000;

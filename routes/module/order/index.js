@@ -4,7 +4,7 @@ var {
     PrismaClient
 } = require('@prisma/client');
 const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
-const { api } = require('../../../functions/axios/Axioser');
+const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND } = require('../../../config/tiktok_apis');
 const prisma = new PrismaClient();
 const multer = require('multer');

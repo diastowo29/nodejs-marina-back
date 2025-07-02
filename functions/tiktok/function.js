@@ -1,5 +1,5 @@
 const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS } = require("../../config/tiktok_apis");
-const { api } = require("../axios/Axioser");
+const { api } = require("../axios/interceptor");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
