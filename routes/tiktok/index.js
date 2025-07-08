@@ -11,16 +11,14 @@ const { gcpParser } = require('../../functions/gcpParser');
 const prisma = new PrismaClient();
 var env = process.env.NODE_ENV || 'development';
 
-router.post('/header', function(req, res, next) {
-    console.log(req.body);
-    console.log(req.headers);
-    res.status(200).send(req.body)
-});
-
 router.post(PATH_WEBHOOK, async function (req, res, next) {
-    let jsonBody = gcpParser(req.body.message.data);
-    // let jsonBody = req.body;
-    console.log(JSON.stringify(jsonBody))
+    let jsonBody = {};
+    if (process.env.NODE_ENV == 'production') {
+        jsonBody = gcpParser(req.body.message.data);
+    } else {
+        jsonBody = req.body;
+    }
+    console.log(jsonBody)
     if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
         const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
         let newOrder = await prisma.orders.upsert({
@@ -191,7 +189,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     });  
 }); */
 
-router.get('/order_detail', async function (req, res, next) {
+/* router.get('/order_detail', async function (req, res, next) {
     try {
         let order = await api.get(GET_ORDER_API(req.query.order_id, req.query.cipher), {
             headers: {
@@ -203,7 +201,7 @@ router.get('/order_detail', async function (req, res, next) {
     } catch (err) {
         res.status(400).send(err.response.data);
     }
-})
+}) */
 
 router.get('/return_refund', async function (req, res, next) {
     const data = {
@@ -218,7 +216,7 @@ router.get('/return_refund', async function (req, res, next) {
     res.status(200).send(refund.data);
 })
 
-router.get('/cipher', async function(req, res, next) {
+/* router.get('/cipher', async function(req, res, next) {
      api.get(GET_AUTHORIZED_SHOP(), {
         headers: {
             'content-type': 'application/json',
@@ -230,7 +228,7 @@ router.get('/cipher', async function(req, res, next) {
         console.log(err);
         res.status(400).send(err.response.data);
     })
-});
+}); */
 
 router.post(PATH_ORDER, async function(req, res, next) {
     let orderId = req.body.order.id;
@@ -321,9 +319,9 @@ router.get(PATH_CANCELLATION, async function (req, res, next) {
     })
 })
 
-router.post(PATH_CHAT, async function (req, res, next) {
+/* router.post(PATH_CHAT, async function (req, res, next) {
     res.status(200).send();
-})
+}) */
 
 router.post(PATH_AUTH, async function(req, res, next) {
     // console.log(GET_TOKEN_API(req.body.auth_code));
@@ -356,6 +354,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     name: token.data.data.seller_name,
                     token: token.data.data.access_token,
                     refresh_token: token.data.data.refresh_token,
+                    secondary_token: shops.data.data.shops[0].cipher,
                     status: 'ACTIVE',
                     channel: {
                         connectOrCreate: {

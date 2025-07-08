@@ -134,15 +134,15 @@ function CANCEL_ORDER (cipher, body) {
     return `${OPEN_HOST}${endpoint}?sign=${signed}&timestamp=${ts}&app_key=${APP_KEY}&shop_cipher=${cipher}`;
 }
 
-function SHIP_PACKAGE (packageId, cipher) {
-    const endpoint = `/fulfillment/${apiVersion}/packages/${packageId}/ship`;
+function SHIP_PACKAGE (cipher, body) {
+    const endpoint = `/fulfillment/${apiVersion}/packages/ship`;
     const ts = Math.floor(Date.now()/1000);
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
         shop_cipher: cipher,
     };
-    const signed = getSigned(endpoint, params, {});
+    const signed = getSigned(endpoint, params, body);
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
 }
 

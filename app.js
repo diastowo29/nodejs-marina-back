@@ -1,9 +1,7 @@
-var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var { PrismaClient } = require('@prisma/client');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -21,16 +19,16 @@ var chatRouter = require('./routes/module/chat');
 var productRouter = require('./routes/module/product');
 var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
-const prismaDb = require('./prisma-client');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
 const tenantIdentifier = require('./middleware/tenantIdentifier');
 
 var app = express();
-// app.use(jwtCheck);
-app.use(checkJwt); //// <<================= ENABLE THIS
-// view engine setup
-app.use(helmet());
+if (process.env.NODE_ENV === 'production') {
+  app.use(checkJwt);
+  app.use(helmet());
+}
+
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 // app.listen(port, function () {

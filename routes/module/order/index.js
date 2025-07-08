@@ -174,7 +174,7 @@ router.get('/ship/test', async function (req, res, next) {
     let cipher = '';
     let token = '';
     try {
-        let shipped = await api.post(SHIP_PACKAGE(packageId, cipher), {}, {
+        let shipped = await api.post(SHIP_PACKAGE(cipher), {}, {
             headers: {
                 'x-tts-access-token': token,
                 'content-type': 'application/json'
@@ -225,6 +225,7 @@ router.put('/:id', async function(req, res, next) {
             order_items: {
                 select: {
                     origin_id: true,
+                    package_id: true,
                     qty: true,
                     products: {
                         select: {
@@ -284,7 +285,17 @@ router.put('/:id', async function(req, res, next) {
                 data = { reject_reason: req.body.cancel_reason }
                 completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'process') {
-                
+                let packagesArray = [];
+                order.order_items.forEach(element => {
+                    packagesArray.push({
+                        id: element.package_id
+                    });
+                });
+                data = {
+                    packages: packagesArray
+                }
+                completeUrl = SHIP_PACKAGE(order.store.secondary_token, data);
+                // goto line 172
             } else if (action == 'approve') {
                 completeUrl = APPROVE_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'approve_refund') {
@@ -299,7 +310,10 @@ router.put('/:id', async function(req, res, next) {
             if (!completeUrl) {
                 return res.status(400).send({
                     error: 'Invalid action or missing data',
-                    order: order
+                    order: {
+                        id: order.id,
+                        origin_id: order.origin_id
+                    }
                 });
             }
             try {

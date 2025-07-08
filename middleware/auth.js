@@ -1,6 +1,3 @@
-// const jwt = require('jsonwebtoken');
-// const fs = require('fs');
-// const privateKey = fs.readFileSync('./private.key');
 const { auth } = require('express-oauth2-jwt-bearer');
 const { promisify } = require('util');
 
@@ -13,7 +10,6 @@ const checkJwt = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({ error: 'Access token is missing' });
   }
-  console.log('Token:', token);
   try {
     const tokenValidator = promisify(
       auth({
