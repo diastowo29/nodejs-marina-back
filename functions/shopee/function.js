@@ -14,10 +14,12 @@ async function collectShopeeOrder (body, done) {
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
             console.log(`error status ${err.status} response ${err.response.data.error}`);
             let newToken = await generateShopeeToken(body.shop_id, body.refresh_token);
-            if (newToken.access_token) {
-                return api.get(
-                    GET_SHOPEE_ORDER_DETAIL(newToken.access_token, body.order_id, body.shop_id)
-                );
+            if (newToken) {
+                if (newToken.access_token) {
+                    return api.get(
+                        GET_SHOPEE_ORDER_DETAIL(newToken.access_token, body.order_id, body.shop_id)
+                    );
+                }
             }
         } else {
             console.log(err);
