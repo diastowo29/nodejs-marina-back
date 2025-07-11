@@ -126,5 +126,12 @@ module.exports = {
         TIKTOK: 'Tiktok'
     },
 
+    storeStatuses: {
+        ACTIVE: 'Active',
+        EXPIRED: 'Expired',
+        INACTIVE: 'Inactive',
+        DISCONNECTED: 'Disconnected'
+    },
+
     sampleLazOMSToken: '50000701b25svjsdYGEQ3sz1GIDxI0DwxIGyD10be5dc5xufRtaUOv2vjFYPmCZm'
 };

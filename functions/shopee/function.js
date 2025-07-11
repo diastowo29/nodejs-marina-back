@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
 const { TOKO_SHOPINFO } = require("../../config/toko_apis");
+const { storeStatuses } = require("../../config/utils");
 
 async function collectShopeeOrder (body, done) {
     const order = await api.get(
@@ -113,8 +114,18 @@ async function generateShopeeToken (shop_id, refToken) {
             partner_id: Number.parseInt(PARTNER_ID),
             shop_id: Number.parseInt(shop_id),
         },
-    }).catch(function (err) {
-        console.log(err);
+    }).catch(async function (err) {
+        console.log(err.response.data);
+        if (err.response.data.error == 'shop_access_expired') {
+            await prisma.store.update({
+                where: {
+                    origin_id: shop_id.toString()
+                },
+                data: {
+                    status: storeStatuses.EXPIRED
+                }
+            })
+        }
         return err.response.data;
     });
     if ((token.data) && (token.data.access_token)) {
@@ -133,7 +144,7 @@ async function generateShopeeToken (shop_id, refToken) {
         return token.data;
     } else {
         console.log('refresh token invalid');
-        console.log(token.response.data);
+        console.log(token);
         return;
     }
 }

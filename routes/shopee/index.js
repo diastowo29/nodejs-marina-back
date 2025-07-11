@@ -6,7 +6,7 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/interceptor');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL } = require('../../config/shopee_apis');
-const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK } = require('../../config/utils');
+const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 var env = process.env.NODE_ENV || 'development';
 const prisma = new PrismaClient();
@@ -72,7 +72,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 refresh_token: newOrder.store.refresh_token
             }
             if (newOrder.order_items.length == 0) {
-                pushTask(env, taskPayload);
+                if (newOrder.store.status != storeStatuses.EXPIRED) {
+                    pushTask(env, taskPayload);
+                } else {
+                    console.log('Store %s Expired', newOrder.store.id);
+                }
             }
             break;
         case 10:
