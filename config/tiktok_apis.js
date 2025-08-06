@@ -171,7 +171,7 @@ function GET_PRODUCT (productId, cipher) {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
 }
 
-function SEND_MESSAGE (convId, body) {
+function SEND_MESSAGE (convId, body, cipher) {
     const endpoint = `/customer_service/${apiVersion}/conversations/${convId}/messages`;
     const ts = Math.floor(Date.now()/1000);
     const params = {

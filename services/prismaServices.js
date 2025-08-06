@@ -1,21 +1,14 @@
-// services/prismaService.js
-const { PrismaClient } = require('@prisma/client');
-
-const prismaClients = new Map();
+const { PrismaClient } = require('../prisma/generated/client')
 
 const getPrismaClient = (tenantConfig) => {
-    console.log(tenantConfig)
-    const key = tenantConfig.url;
-    
-    if (!prismaClients.has(key)) {
-        prismaClients.set(key, new PrismaClient({
+    const prisma = new PrismaClient({
         datasources: {
-            db: tenantConfig
+            db: {
+                url: (tenantConfig.url) ? tenantConfig.url : tenantConfig
+            }
         }
-        }));
-    }
-    
-    return prismaClients.get(key);
+    })
+    return prisma;
 };
 
 module.exports = { getPrismaClient };

@@ -2,8 +2,13 @@ const { auth } = require('express-oauth2-jwt-bearer');
 const { promisify } = require('util');
 
 const checkJwt = async (req, res, next) => {
-  const exludedPath = ['/api/v1/blibli/webhook', '/api/v1/lazada/webhook', '/api/v1/shopee/webhook', '/api/v1/tiktok/webhook'];
-  if (exludedPath.includes(req.path)) {
+  const excludedPath = [
+    '/api/v1/blibli/webhook', 
+    '/api/v1/lazada/webhook', 
+    '/api/v1/shopee/webhook', 
+    '/api/v1/tiktok/webhook',
+  ];
+  if (excludedPath.includes(req.path)) {
     return next();
   }
   const token = req.headers.authorization && req.headers.authorization.split(' ')[1];

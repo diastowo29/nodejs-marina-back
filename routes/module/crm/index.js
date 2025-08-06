@@ -1,63 +1,156 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
 const { SUN_APP_ID, SUN_APP_KEY, SUN_APP_SECRET, ZD_API_TOKEN } = require('../../../config/utils');
+const { getPrismaClient } = require('../../../services/prismaServices');
+const { encryptData } = require('../../../functions/encryption');
+const { api } = require('../../../functions/axios/interceptor');
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
-    let crm = await Promise.all([
-        prisma.zdconnector.findMany()
-    ]);
-    let crmObj = {
-        ...(crm[0].length > 0) ? {zendesk:crm[0]} : {}
+    const prisma = getPrismaClient(req.tenantDB);
+    try {
+        let integration = await prisma.integration.findMany({
+            include: {
+                credent: true
+            }
+        });
+        res.status(200).send(integration);
+    } catch (err) {
+        res.status(500).send({
+            status: 500,
+            message: 'Internal Server Error',
+            error: err.message
+        });
     }
-    res.status(200).send(crmObj);
+})
+
+router.delete('/:id', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
+    try {
+        let credent = prisma.credent.deleteMany({
+            where: {
+                integrationId: parseInt(req.params.id)
+            }
+        })
+        let integration = prisma.integration.delete({
+            where: {
+                id: parseInt(req.params.id)
+            }
+        });
+        const deletedIntegration = await prisma.$transaction([credent, integration]);
+        console.log(deletedIntegration)
+        res.status(200).send({success: true, delteted: deletedIntegration});
+    } catch (err) {
+        console.log(err);
+        res.status(400).send({failed: err});
+    }
 })
 
 router.post('/', async function(req, res, next) {
-    console.log(req);
+    const prisma = getPrismaClient(req.tenantDB);
+    // console.log(req);
     if (req.body.crm == 'zendesk') {
         try {
-            let integration = await prisma.integration.create({
+            const zdConfig = await Promise.all([
+                api({
+                    method: 'POST',
+                    url: `${req.body.host}/api/v2/ticket_fields.json`,
+                    headers: {
+                        'Authorization': `Basic ${req.body.apiToken}`
+                    },
+                    data: JSON.stringify({
+                        ticket_field: {
+                            type: "text",
+                            title: "MM_USER_ID"
+                        }
+                    })
+                }),
+                api({
+                    method: 'POST',
+                    url: `${req.body.host}/api/v2/ticket_fields.json`,
+                    headers: {
+                        'Authorization': `Basic ${req.body.apiToken}`
+                    },
+                    data: JSON.stringify({
+                        ticket_field: {
+                            type: "text",
+                            title: "MM_MSG_ID"
+                        }
+                    })
+                }),
+                api({
+                    method: 'POST',
+                    url: `${req.body.host}/api/v2/ticket_fields.json`,
+                    headers: {
+                        'Authorization': `Basic ${req.body.apiToken}`
+                    },
+                    data: JSON.stringify({
+                        ticket_field: {
+                            type: "text",
+                            title: "MM_SHOP_ID"
+                        }
+                    })
+                }),
+                api({
+                    method: 'POST',
+                    url: `${req.body.host}/api/v2/ticket_fields.json`,
+                    headers: {
+                        'Authorization': `Basic ${req.body.apiToken}`
+                    },
+                    data: JSON.stringify({
+                        ticket_field: {
+                            type: "text",
+                            title: "MM_CHANNEL"
+                        }
+                    })
+                })
+            ]);
+            const integration = await prisma.integration.create({
                 data: {
                     baseUrl: req.body.host,
                     name: req.body.name,
+                    notes: `${zdConfig[0].data.ticket_field.id}-${zdConfig[1].data.ticket_field.id}-${zdConfig[2].data.ticket_field.id}-${zdConfig[3].data.ticket_field.id}`,
+                    clients: {
+                        connectOrCreate: {
+                            where: {
+                                origin_id: req.auth.payload.org_id
+                            },
+                            create: {
+                                name: req.auth.payload.org_id,
+                                origin_id: req.auth.payload.org_id
+                            }
+                        }
+                    },
                     credent: {
-                        createMany: [
-                            {key: SUN_APP_ID, value: req.body.suncoAppId},
-                            {key: SUN_APP_KEY, value: req.body.suncoAppKey},
-                            {key: SUN_APP_SECRET, value: req.body.suncoAppSecret},
-                            {key: ZD_API_TOKEN, value: req.body.apiToken}
-                        ]
+                        createMany: {
+                            data: [
+                                {key: SUN_APP_ID, value: req.body.suncoAppId},
+                                {key: SUN_APP_KEY, value: encryptData(req.body.suncoAppKey)},
+                                {key: SUN_APP_SECRET, value: encryptData(req.body.suncoAppSecret)},
+                                {key: ZD_API_TOKEN, value: encryptData(req.body.apiToken)}
+                            ]
+                        }
                     }
                 }
-            })
-            // let zdCrm = await prisma.zdconnector.create({
-            //     data: {
-            //         host: req.body.host,
-            //         name: req.body.name,
-            //         suncoAppId: req.body.suncoAppId,
-            //         suncoAppKey: req.body.suncoAppKey,
-            //         suncoAppSecret: req.body.suncoAppSecret,
-            //         zdAPIToken: req.body.apiToken,
-            //         resource: req.body.resource
-            //     }
-            // })
-            res.status(200).send(integration);
+            });
+            res.status(200).send({
+                crm: {
+                    id: integration.id,
+                    name: integration.name
+                }
+            });
         } catch (err) {
-            res.status(400).send({failed: err})
+            console.log(err)
+            res.status(400).send({failed: err});
         }
     } else {   
         res.status(400).send({error: `crm: ${req.body.crm} not implemented yet`});
     }
 })
 
-
-
 router.get('/products', async function(req, res, next) {
-    let channels = await prisma.store.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let channels = await mPrisma.store.findMany({
         include : { products: true }
     })
     res.status(200).send(channels);

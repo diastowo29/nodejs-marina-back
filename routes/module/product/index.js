@@ -1,14 +1,11 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const { getPrismaClient } = require('../../../services/prismaServices');
 
 router.get('/', async function(req, res, next) {
     let channel = req.query.c;
-    let products = await prisma.products.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let products = await mPrisma.products.findMany({
         include: {
             product_img: true,
             store: {
@@ -40,9 +37,10 @@ router.get('/find', async function(req, res, next) {
     let storeId = req.query.store_id;
     let mStoreId = Number.parseInt(req.query.m_store_id);
     // console.log(storeId);
+    const mPrisma = getPrismaClient(req.tenantDB);
     console.log(req.query)
     try {
-        let products = await prisma.products.findMany({
+        let products = await mPrisma.products.findMany({
             where: {
                 ...(queryName && {
                     OR: [{

@@ -1,18 +1,28 @@
 const getTenantDB = (tenantId) => {
-  console.log('tenantID: ',tenantId);
+  const dbUser = process.env.DB_USER;
+  const dbPassword = process.env.DB_PASSWORD;
+  const dbHost = process.env.DB_HOST;
+  const dbParams = process.env.DB_PARAMS;
+  if (tenantId == 'org_SdVZvtRmlurL47iY') {
+    tenantId = 'realco_db';
+  }
   return {
-    url: `postgresql://user:password@localhost:5432/${tenantId}?schema=public`
+    url: `postgresql://${dbUser}:${dbPassword}@${dbHost}/${tenantId}?${dbParams}`
   };
 };
 
 const tenantIdentifier = (req, res, next) => {
-  // Get tenant ID from:
-  // - Subdomain (client1.yourdomain.com)
-  // - Header (X-Tenant-ID)
-  // - JWT token
-  // - Path parameter (/api/:tenantId/...)
-  const tenantId = req.headers['x-tenant-id'] || req.subdomains[0];
-  
+  const excludedPath = [
+    '/api/v1/blibli/webhook', 
+    '/api/v1/lazada/webhook', 
+    '/api/v1/shopee/webhook', 
+    '/api/v1/tiktok/webhook'
+  ];
+  if (excludedPath.includes(req.path)) {
+    return next();
+  }
+  // console.log(req.auth)
+  const tenantId = req.headers['x-tenant-id'] || req.auth.payload.org_id;  
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
@@ -21,4 +31,4 @@ const tenantIdentifier = (req, res, next) => {
   next();
 };
 
-module.exports = tenantIdentifier;
+module.exports = {tenantIdentifier, getTenantDB};

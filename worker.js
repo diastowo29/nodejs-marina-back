@@ -2,10 +2,10 @@ let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 2;
 let maxJobsPerWorker = 20;
 let { workQueue } = require('./config/redis.config');
-const { PrismaClient, Prisma } = require('@prisma/client');
+// const { PrismaClient, Prisma } = require('@prisma/client');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
 const fs = require('fs');
 
@@ -22,7 +22,9 @@ const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DET
 const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
-const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest } = require('./functions/tiktok/function');
+const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
+const { getPrismaClient } = require('./services/prismaServices');
+const { Prisma } = require('./prisma/generated/baseClient');
 const app = express();
 if (env == 'production') {
     app.use(express.json());
@@ -121,6 +123,7 @@ async function processJob(jobData, done) {
 async function processLazadaChat(body, done) {
     let refresh_token = 'refToken';
     let token = body.token.split('~')[lazGetSessionDetail.pos];
+    const prisma = getPrismaClient(body.tenantDB);
     try {
         let apiParams = `session_id=${body.sessionId}`;
         if (body.new) {
@@ -199,6 +202,7 @@ async function processLazada(body, done) {
     let addParams = `order_id=${body.orderId}`;
     let refresh_token = 'refToken';
     // let refresh_token = body.refresh_token.split('~')[lazGetOrderDetail.pos];
+    const prisma = getPrismaClient(body.tenantDB);
 
     if (body.new) {
         console.log('create order id: ', body.orderId);
@@ -435,6 +439,7 @@ async function processTokopediaChat(body, done) {
 async function processShopee(body, done) {
     console.log(JSON.stringify(body));
     /* WORKER PART */
+    const prisma = getPrismaClient(body.tenantDB);
     if (body.code == 3) {
         /* ==== ORDERS ==== */
         collectShopeeOrder(body, done);
@@ -612,13 +617,14 @@ async function processTiktok(body, done) {
         /* PRODUCT STATUS UPDATE */
         collectTiktokProduct(body, done);
     } else if (body.code == 2) {
-        collectReturnRequest(body, done)
+        collectReturnRequest(body, done);
+    } else if (body.code == 14) {
+        forwardConversation(body, done);
     } else {
         console.log('code %s not implemented yet', body.code);
-    if (env !== 'production') {
-        done(null, {response: 'testing'});
-    }
-
+        if (env !== 'production') {
+            done(null, {response: 'testing'});
+        }
     }
 }
 

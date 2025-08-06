@@ -1,21 +1,24 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
+// var {
+//     PrismaClient
+// } = require('@prisma/client');
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/interceptor');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
-const { route } = require('../order');
+const { getPrismaClient } = require('../../../services/prismaServices');
+const { callTiktok } = require('../../../functions/tiktok/function');
+const { SEND_MESSAGE } = require('../../../config/tiktok_apis');
 
 const tokoAppId = process.env.TOKO_APP_ID;
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
-    let chat = await prisma.omnichat.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let chat = await mPrisma.omnichat.findMany({
         include: {
             omnichat_user: true,
             store: {
@@ -32,7 +35,8 @@ router.get('/', async function(req, res, next) {
 });
 
 router.get('/comments', async function(req, res, next) {
-    let comments = await prisma.omnichat_line.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let comments = await mPrisma.omnichat_line.findMany({
         select: {
             chat_type: true
         }
@@ -45,8 +49,9 @@ router.post('/initiate', async function(req, res, next) {
     const customerId = '';
     const storeId = req.body.store_id;
     const channel = req.body.channel;
+    const mPrisma = getPrismaClient(req.tenantDB);
 
-    let store = await prisma.store.findUnique({
+    let store = await mPrisma.store.findUnique({
         where: {
             origin_id: storeId
         }
@@ -60,7 +65,7 @@ router.post('/initiate', async function(req, res, next) {
                 Authorization: `Bearer ${store.token}`
             }
         });
-        let chatDb = await prisma.omnichat.upsert({
+        let chatDb = await mPrisma.omnichat.upsert({
             where: {
                 origin_id: '',
             },
@@ -107,10 +112,8 @@ router.post('/initiate', async function(req, res, next) {
 
 // sent chat from marina ui
 router.post('/', async function(req, res, next) {
-    console.log('modul/chat', req.body);
     let body = req.body;
-    let sendMessage =  await sendMessageToBuyer(body)
-
+    let sendMessage =  await sendMessageToBuyer(body, req.tenantDB)
     if(sendMessage.success){
         res.status(200).send(sendMessage.chat)
     }else{
@@ -119,7 +122,8 @@ router.post('/', async function(req, res, next) {
 })
 
 router.get('/:id/comments', async function(req, res, next) {
-    let chat = await prisma.omnichat.findUnique({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let chat = await mPrisma.omnichat.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
         },
@@ -156,7 +160,7 @@ router.post('/sunco/event', async function(req,res,next){
         return
       }
   
-      let body = await suncoAgentMessage(payload)
+      let body = await suncoAgentMessage(payload, req.tenantDB)
       let sendMessage =  await sendMessageToBuyer(body)
   
       if(sendMessage.success){
@@ -170,7 +174,7 @@ router.post('/sunco/event', async function(req,res,next){
     res.send('ok')
 })
 
-async function sendMessageToBuyer(body) {
+async function sendMessageToBuyer(body, tenantDB) {
     console.log('sendMessageToBuyer', JSON.stringify(body))
     let templateId;
     if (body.channel_name.toString().toLowerCase() === channelSource.LAZADA.toLowerCase()) {
@@ -209,7 +213,7 @@ async function sendMessageToBuyer(body) {
         // res.status(200).send(chat);
         return {success: true, chat: chat}
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TOKOPEDIA.toLowerCase()) {
-        let token = await getToken(body.store_origin_id);
+        let token = await getToken(body.store_origin_id); // <<==== NEED TO CHECK!!! ASAP!!!
         // console.log(token);
         // console.log(TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId));
         switch (body.chat_type) {
@@ -264,7 +268,7 @@ async function sendMessageToBuyer(body) {
             if(!chatReply.data){
                 return {success: false, error: chatReply.header.reason}
             }
-            let chat = await updateOmnichat(body, chatReply.data.msg_id);
+            let chat = await updateOmnichat(body, chatReply.data.msg_id, tenantDB);
             // res.status(200).send(chat);
             return {success: true, chat: chat}
         } catch (err) {
@@ -272,12 +276,39 @@ async function sendMessageToBuyer(body) {
             // res.status(400).send({error: err});
             return {success: false, error: err}
         }
+    } else if (body.channel_name.toString().toLowerCase() === channelSource.TIKTOK.toLowerCase()) {
+        const mPrisma = getPrismaClient(tenantDB);
+        let mStore = await mPrisma.store.findUnique({
+            where: {
+                origin_id: body.store_origin_id.toString()
+            }
+        })
+        let contentChat = {
+            ...(body.chat_type === chatContentType.TEXT ? { content: body.line_text} : {}),
+            ...(body.chat_type === chatContentType.IMAGE ? { url: '', width: '', height: ''} : {}),
+            ...(body.chat_type === chatContentType.PRODUCT ? { product_id: ''} : {}),
+            ...(body.chat_type === chatContentType.INVOICE ? { order_id: ''} : {}),
+        }
+        let contentType = (body.chat_type === chatContentType.PRODUCT) ? 'PRODUCT_CARD' : (body.chat_type === chatContentType.INVOICE) ? 'ORDER_CARD' : body.chat_type.toString().toUpperCase();
+        let chatBody = {
+            type: contentType,
+            content: JSON.stringify(contentChat)
+        }
+        if (body.chat_type === chatContentType.TEXT) {
+            let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token);
+            if (sendChat.data.code != 0) {
+                return {success: false, error: sendChat.data.message}
+            }
+            return {success: true, chat: sendChat.data};
+        } else {
+            return {success: false, error: 'only "text" supported for now'}
+        }
     } else {
         // res.status(400).send({error: 'Not implemented'});
         return {success: false, error: 'Not implemented'}
     }
 }
-async function suncoAgentMessage(payload){
+async function suncoAgentMessage(payload, tenantDB){
     let channelName = payload.conversation.metadata["dataCapture.ticketField.44413794291993"].toString()
     let lineText = payload.message.content?.text ? payload.message.content.text:''
     let chatType = payload.message.content.type
@@ -294,8 +325,9 @@ async function suncoAgentMessage(payload){
     if(chatType == 'image') param.file_path = payload.message.content.mediaUrl
 
     if(channelName == 'lazada'){
+        const mPrisma = getPrismaClient(tenantDB);
         let originId = payload.conversation.metadata['lazada_origin_id']
-        let message = await prisma.omnichat.findUnique({
+        let message = await mPrisma.omnichat.findUnique({
             where:{
                 origin_id: originId
             }
@@ -361,8 +393,9 @@ async function suncoAgentMessage(payload){
     return param
 }
 
-async function updateOmnichat (body, msgId) {
-    let chat = await prisma.omnichat.update({
+async function updateOmnichat (body, msgId, tenantDB) {
+    const mPrisma = getPrismaClient(tenantDB);
+    let chat = await mPrisma.omnichat.update({
         where: {
             origin_id: body.omnichat_origin_id
         },

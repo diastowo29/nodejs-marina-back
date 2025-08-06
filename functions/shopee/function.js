@@ -1,19 +1,20 @@
-const { PrismaClient, Prisma } = require("@prisma/client");
+// const { PrismaClient, Prisma } = require("@prisma/client");
 const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST } = require("../../config/shopee_apis");
 const { api } = require("../axios/interceptor");
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
-const { TOKO_SHOPINFO } = require("../../config/toko_apis");
+// const { TOKO_SHOPINFO } = require("../../config/toko_apis");
 const { storeStatuses } = require("../../config/utils");
 
 async function collectShopeeOrder (body, done) {
+    const prisma = getPrismaClient(body.tenantDB);
     const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
     ).catch(async function (err) {
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
             console.log(`error status ${err.status} response ${err.response.data.error}`);
-            let newToken = await generateShopeeToken(body.shop_id, body.refresh_token);
+            let newToken = await generateShopeeToken(body.shop_id, body.refresh_token, body.tenantDB);
             if (newToken) {
                 if (newToken.access_token) {
                     return api.get(
@@ -104,7 +105,8 @@ async function collectShopeeOrder (body, done) {
     // done(null, {response: 'testing'});
 }
 
-async function generateShopeeToken (shop_id, refToken) {
+async function generateShopeeToken (shop_id, refToken, tenantDB) {
+    const prisma = getPrismaClient(tenantDB);
     let ts = Math.floor(Date.now() / 1000);
     const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
     const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);

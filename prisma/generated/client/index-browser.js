@@ -1,0 +1,399 @@
+
+Object.defineProperty(exports, "__esModule", { value: true });
+
+const {
+  Decimal,
+  objectEnumValues,
+  makeStrictEnum,
+  Public,
+  getRuntime,
+  skip
+} = require('./runtime/index-browser.js')
+
+
+const Prisma = {}
+
+exports.Prisma = Prisma
+exports.$Enums = {}
+
+/**
+ * Prisma Client JS version: 6.0.1
+ * Query Engine version: 5dbef10bdbfb579e07d35cc85fb1518d357cb99e
+ */
+Prisma.prismaVersion = {
+  client: "6.0.1",
+  engine: "5dbef10bdbfb579e07d35cc85fb1518d357cb99e"
+}
+
+Prisma.PrismaClientKnownRequestError = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`PrismaClientKnownRequestError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)};
+Prisma.PrismaClientUnknownRequestError = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`PrismaClientUnknownRequestError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.PrismaClientRustPanicError = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`PrismaClientRustPanicError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.PrismaClientInitializationError = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`PrismaClientInitializationError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.PrismaClientValidationError = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`PrismaClientValidationError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.Decimal = Decimal
+
+/**
+ * Re-export of sql-template-tag
+ */
+Prisma.sql = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`sqltag is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.empty = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`empty is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.join = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`join is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.raw = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`raw is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.validator = Public.validator
+
+/**
+* Extensions
+*/
+Prisma.getExtensionContext = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`Extensions.getExtensionContext is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+Prisma.defineExtension = () => {
+  const runtimeName = getRuntime().prettyName;
+  throw new Error(`Extensions.defineExtension is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`,
+)}
+
+/**
+ * Shorthand utilities for JSON filtering
+ */
+Prisma.DbNull = objectEnumValues.instances.DbNull
+Prisma.JsonNull = objectEnumValues.instances.JsonNull
+Prisma.AnyNull = objectEnumValues.instances.AnyNull
+
+Prisma.NullTypes = {
+  DbNull: objectEnumValues.classes.DbNull,
+  JsonNull: objectEnumValues.classes.JsonNull,
+  AnyNull: objectEnumValues.classes.AnyNull
+}
+
+
+
+/**
+ * Enums
+ */
+
+exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
+  ReadUncommitted: 'ReadUncommitted',
+  ReadCommitted: 'ReadCommitted',
+  RepeatableRead: 'RepeatableRead',
+  Serializable: 'Serializable'
+});
+
+exports.Prisma.CustomersScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  origin_id: 'origin_id',
+  phone: 'phone',
+  email: 'email'
+};
+
+exports.Prisma.Products_imgScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  filename: 'filename',
+  status: 'status',
+  width: 'width',
+  height: 'height',
+  originalUrl: 'originalUrl',
+  thumbnailUrl: 'thumbnailUrl',
+  productsId: 'productsId'
+};
+
+exports.Prisma.ChannelScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  clientsId: 'clientsId'
+};
+
+exports.Prisma.StoreScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  origin_id: 'origin_id',
+  channelId: 'channelId',
+  refresh_token: 'refresh_token',
+  token: 'token',
+  secondary_refresh_token: 'secondary_refresh_token',
+  secondary_token: 'secondary_token',
+  url: 'url',
+  status: 'status'
+};
+
+exports.Prisma.ProductsScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  status: 'status',
+  name: 'name',
+  condition: 'condition',
+  desc: 'desc',
+  category: 'category',
+  price: 'price',
+  currency: 'currency',
+  createdAt: 'createdAt',
+  weight: 'weight',
+  stock: 'stock',
+  sku: 'sku',
+  storeId: 'storeId'
+};
+
+exports.Prisma.Order_itemsScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  qty: 'qty',
+  package_id: 'package_id',
+  invoice: 'invoice',
+  total_price: 'total_price',
+  notes: 'notes',
+  ordersId: 'ordersId',
+  productsId: 'productsId',
+  origin_id: 'origin_id'
+};
+
+exports.Prisma.LogisticScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  type: 'type'
+};
+
+exports.Prisma.OrdersScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  status: 'status',
+  shop_id: 'shop_id',
+  payment_id: 'payment_id',
+  temp_id: 'temp_id',
+  origin_id: 'origin_id',
+  package_id: 'package_id',
+  invoice: 'invoice',
+  recp_name: 'recp_name',
+  recp_phone: 'recp_phone',
+  recp_addr_full: 'recp_addr_full',
+  recp_addr_district: 'recp_addr_district',
+  recp_addr_city: 'recp_addr_city',
+  recp_addr_province: 'recp_addr_province',
+  recp_addr_country: 'recp_addr_country',
+  recp_addr_postal_code: 'recp_addr_postal_code',
+  recp_addr_district_id: 'recp_addr_district_id',
+  recp_addr_city_id: 'recp_addr_city_id',
+  tracking_number: 'tracking_number',
+  ship_document_url: 'ship_document_url',
+  recp_addr_province_id: 'recp_addr_province_id',
+  recp_addr_geo: 'recp_addr_geo',
+  logistic_service: 'logistic_service',
+  origin_createdAt: 'origin_createdAt',
+  accept_partial: 'accept_partial',
+  device: 'device',
+  storeId: 'storeId',
+  customersId: 'customersId',
+  logisticId: 'logisticId',
+  total_product_price: 'total_product_price',
+  shipping_price: 'shipping_price',
+  total_amount: 'total_amount',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.Omnichat_userScalarFieldEnum = {
+  id: 'id',
+  username: 'username',
+  thumbnailUrl: 'thumbnailUrl',
+  origin_id: 'origin_id',
+  createdAt: 'createdAt',
+  externalId: 'externalId'
+};
+
+exports.Prisma.OmnichatScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  last_message: 'last_message',
+  last_messageId: 'last_messageId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  storeId: 'storeId',
+  omnichat_userId: 'omnichat_userId',
+  externalId: 'externalId'
+};
+
+exports.Prisma.Omnichat_lineScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  createdAt: 'createdAt',
+  line_text: 'line_text',
+  omnichatId: 'omnichatId',
+  author: 'author',
+  omnichat_userId: 'omnichat_userId',
+  chat_type: 'chat_type'
+};
+
+exports.Prisma.ZdconnectorScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  host: 'host',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  suncoAppId: 'suncoAppId',
+  suncoAppKey: 'suncoAppKey',
+  suncoAppSecret: 'suncoAppSecret',
+  zdAPIToken: 'zdAPIToken',
+  resource: 'resource',
+  clientsId: 'clientsId'
+};
+
+exports.Prisma.OmnicrmScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  name: 'name',
+  type: 'type'
+};
+
+exports.Prisma.ClientsScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  origin_id: 'origin_id'
+};
+
+exports.Prisma.CredentScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  value: 'value',
+  integrationId: 'integrationId'
+};
+
+exports.Prisma.IntegrationScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  baseUrl: 'baseUrl',
+  f_chat: 'f_chat',
+  f_review: 'f_review',
+  f_cancel: 'f_cancel',
+  f_rr: 'f_rr',
+  status: 'status',
+  notes: 'notes',
+  clientsId: 'clientsId'
+};
+
+exports.Prisma.Return_line_itemScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  refund_service_fee: 'refund_service_fee',
+  currency: 'currency',
+  refund_subtotal: 'refund_subtotal',
+  refund_total: 'refund_total',
+  order_itemsId: 'order_itemsId',
+  return_refundId: 'return_refundId'
+};
+
+exports.Prisma.Return_refundScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  status: 'status',
+  total_amount: 'total_amount',
+  return_type: 'return_type',
+  return_reason: 'return_reason',
+  ordersId: 'ordersId'
+};
+
+exports.Prisma.SortOrder = {
+  asc: 'asc',
+  desc: 'desc'
+};
+
+exports.Prisma.QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+};
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
+
+exports.Prisma.ModelName = {
+  customers: 'customers',
+  products_img: 'products_img',
+  channel: 'channel',
+  store: 'store',
+  products: 'products',
+  order_items: 'order_items',
+  logistic: 'logistic',
+  orders: 'orders',
+  omnichat_user: 'omnichat_user',
+  omnichat: 'omnichat',
+  omnichat_line: 'omnichat_line',
+  zdconnector: 'zdconnector',
+  omnicrm: 'omnicrm',
+  clients: 'clients',
+  credent: 'credent',
+  integration: 'integration',
+  return_line_item: 'return_line_item',
+  return_refund: 'return_refund'
+};
+
+/**
+ * This is a stub Prisma Client that will error at runtime if called.
+ */
+class PrismaClient {
+  constructor() {
+    return new Proxy(this, {
+      get(target, prop) {
+        let message
+        const runtime = getRuntime()
+        if (runtime.isEdge) {
+          message = `PrismaClient is not configured to run in ${runtime.prettyName}. In order to run Prisma Client on edge runtime, either:
+- Use Prisma Accelerate: https://pris.ly/d/accelerate
+- Use Driver Adapters: https://pris.ly/d/driver-adapters
+`;
+        } else {
+          message = 'PrismaClient is unable to run in this browser environment, or has been bundled for the browser (running in `' + runtime.prettyName + '`).'
+        }
+        
+        message += `
+If this is unexpected, please open an issue: https://pris.ly/prisma-prisma-bug-report`
+
+        throw new Error(message)
+      }
+    })
+  }
+}
+
+exports.PrismaClient = PrismaClient
+
+Object.assign(exports, Prisma)

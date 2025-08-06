@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model customers {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  origin_id String?  @unique
+  phone     String?
+  email     String?
+  orders    orders[]
+}
+
+model products_img {
+  id           Int       @id @default(autoincrement())
+  origin_id    String?   @unique
+  filename     String?
+  status       String?
+  width        Int?
+  height       Int?
+  originalUrl  String?
+  thumbnailUrl String?
+  productsId   Int?
+  products     products? @relation(fields: [productsId], references: [id])
+}
+
+model channel {
+  id        Int      @id @default(autoincrement())
+  name      String?  @unique
+  clientsId Int?
+  client    clients? @relation(fields: [clientsId], references: [id])
+  store     store[]
+}
+
+model store {
+  id                      Int        @id @default(autoincrement())
+  name                    String?
+  origin_id               String?    @unique
+  channelId               Int?
+  refresh_token           String?
+  token                   String?
+  secondary_refresh_token String?
+  secondary_token         String?
+  url                     String?
+  status                  String?
+  omnichat                omnichat[]
+  orders                  orders[]
+  products                products[]
+  channel                 channel?   @relation(fields: [channelId], references: [id])
+}
+
+model products {
+  id          Int            @id @default(autoincrement())
+  origin_id   String?        @unique
+  status      String?
+  name        String?
+  condition   Int?
+  desc        String?
+  category    Int?
+  price       Int?
+  currency    String?
+  createdAt   DateTime       @default(now())
+  weight      Int?
+  stock       Int?
+  sku         String?
+  storeId     Int?
+  order_items order_items[]
+  store       store?         @relation(fields: [storeId], references: [id])
+  product_img products_img[]
+}
+
+model order_items {
+  id               Int                @id @default(autoincrement())
+  createdAt        DateTime           @default(now())
+  qty              Int
+  package_id       String?
+  invoice          String?
+  total_price      Int
+  notes            String?
+  ordersId         Int?
+  productsId       Int?
+  origin_id        String?            @unique
+  orders           orders?            @relation(fields: [ordersId], references: [id])
+  products         products?          @relation(fields: [productsId], references: [id])
+  return_line_item return_line_item[]
+}
+
+model logistic {
+  id     Int      @id @default(autoincrement())
+  name   String?  @unique
+  type   String?
+  orders orders[]
+}
+
+model orders {
+  id                    Int            @id @default(autoincrement())
+  createdAt             DateTime       @default(now())
+  status                String?
+  shop_id               String?
+  payment_id            String?
+  temp_id               String?
+  origin_id             String?        @unique
+  package_id            String?
+  invoice               String?
+  recp_name             String?
+  recp_phone            String?
+  recp_addr_full        String?
+  recp_addr_district    String?
+  recp_addr_city        String?
+  recp_addr_province    String?
+  recp_addr_country     String?
+  recp_addr_postal_code String?
+  recp_addr_district_id String?
+  recp_addr_city_id     String?
+  tracking_number       String?
+  ship_document_url     String?
+  recp_addr_province_id String?
+  recp_addr_geo         String?
+  logistic_service      String?
+  origin_createdAt      DateTime       @default(now())
+  accept_partial        Boolean?
+  device                String?
+  storeId               Int?
+  customersId           Int?
+  logisticId            Int?
+  total_product_price   Int?
+  shipping_price        Int?
+  total_amount          Int?
+  updatedAt             DateTime       @updatedAt
+  order_items           order_items[]
+  customers             customers?     @relation(fields: [customersId], references: [id])
+  logistic              logistic?      @relation(fields: [logisticId], references: [id])
+  store                 store?         @relation(fields: [storeId], references: [id])
+  return_refund         return_refund?
+}
+
+model omnichat_user {
+  id            Int             @id @default(autoincrement())
+  username      String?
+  thumbnailUrl  String?
+  origin_id     String?         @unique
+  createdAt     DateTime        @default(now())
+  externalId    String?
+  omnichat      omnichat[]
+  omnichat_line omnichat_line[]
+}
+
+model omnichat {
+  id              Int             @id @default(autoincrement())
+  origin_id       String?         @unique
+  last_message    String
+  last_messageId  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now())
+  storeId         Int?
+  omnichat_userId Int?
+  externalId      String?
+  omnichat_user   omnichat_user?  @relation(fields: [omnichat_userId], references: [id])
+  store           store?          @relation(fields: [storeId], references: [id])
+  messages        omnichat_line[]
+}
+
+model omnichat_line {
+  id              Int            @id @default(autoincrement())
+  origin_id       String?        @unique
+  createdAt       DateTime       @default(now())
+  line_text       String
+  omnichatId      Int?
+  author          String?
+  omnichat_userId Int?
+  chat_type       String?
+  omnichat        omnichat?      @relation(fields: [omnichatId], references: [id])
+  omnichat_user   omnichat_user? @relation(fields: [omnichat_userId], references: [id])
+}
+
+model zdconnector {
+  id             Int      @id @default(autoincrement())
+  name           String
+  host           String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  suncoAppId     String
+  suncoAppKey    String
+  suncoAppSecret String
+  zdAPIToken     String
+  resource       String?
+  clientsId      Int?
+}
+
+model omnicrm {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  name      String?
+  type      String?
+}
+
+model clients {
+  id          Int           @id @default(autoincrement())
+  name        String
+  origin_id   String?       @unique
+  channel     channel[]
+  integration integration[]
+}
+
+model credent {
+  id            Int          @id @default(autoincrement())
+  key           String?
+  value         String?
+  integrationId Int?
+  integration   integration? @relation(fields: [integrationId], references: [id])
+}
+
+model integration {
+  id        Int       @id @default(autoincrement())
+  name      String?
+  baseUrl   String?   @unique
+  f_chat    Boolean?
+  f_review  Boolean?
+  f_cancel  Boolean?
+  f_rr      Boolean?
+  status    String?
+  notes     String?
+  clientsId Int?
+  credent   credent[]
+  clients   clients?  @relation(fields: [clientsId], references: [id])
+}
+
+model return_line_item {
+  id                 Int            @id @default(autoincrement())
+  origin_id          String?        @unique
+  item               order_items    @relation(fields: [order_itemsId], references: [id])
+  refund_service_fee Int
+  currency           String?
+  refund_subtotal    Int
+  refund_total       Int
+  order_itemsId      Int
+  return_refund      return_refund? @relation(fields: [return_refundId], references: [id])
+  return_refundId    Int?
+}
+
+model return_refund {
+  id            Int                @id @default(autoincrement())
+  origin_id     String?            @unique
+  status        String?
+  order         orders             @relation(fields: [ordersId], references: [id])
+  line_item     return_line_item[]
+  total_amount  Int
+  return_type   String?
+  return_reason String?
+  ordersId      Int                @unique
+}

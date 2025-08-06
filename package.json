@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "prisma": "prisma generate",
+    "prisma": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:base": "prisma generate --schema=prisma/schemaBase.prisma",
     "watch": "nodemon ./start.js"
   },
   "dependencies": {

@@ -1,26 +1,31 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
+// var {
+//     PrismaClient
+// } = require('@prisma/client');
 const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND } = require('../../../config/tiktok_apis');
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 const multer = require('multer');
-const fs = require('fs');
-const { pushTask } = require('../../../functions/queue/task');
-const { Blob } = require('buffer');
+// const fs = require('fs');
+// const { pushTask } = require('../../../functions/queue/task');
+// const { Blob } = require('buffer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
 const { ConversationListResponse } = require('sunshine-conversations-client');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
+// const checkJwt = require('../../../middleware/auth');
+const { getPrismaClient } = require('../../../services/prismaServices');
+// const { tenantIdentifier } = require('../../../middleware/tenantIdentifier');
 var env = process.env.NODE_ENV || 'development';
 
 // const upload = multer({ dest: 'uploads/' });
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', async function(req, res, next) {
-    let order = await prisma.orders.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+
+    let order = await mPrisma.orders.findMany({
         orderBy: [
             { updatedAt: 'desc' }
         ],
@@ -133,43 +138,53 @@ router.get('/', async function(req, res, next) {
 }) */
 
 router.get('/:id', async function(req, res, next) {
+    const mPrisma = getPrismaClient(req.tenantDB);
     if (!req.params.id) {
         return res.status(400).send({
             error: 'id is required'
         })
     }
-    
-    let order = await prisma.orders.findUnique({
-        where: {
-            id: Number.parseInt(req.params.id)
-        },
-        include: {
-            order_items: {
-                include: {
-                    products: true
-                }
-            },
-            return_refund: true,
-            store: {
-                select: {
-                    id: true,
-                    name: true,
-                    status: true,
-                    channel: true
-                }
-            },
-            logistic: true
-        }
-    });
-    if (!order) {
-        return res.status(404).send({
-            error: 'order not found'
-        });
-    }
-    res.status(200).send(order);
+    try {
+         let order = await mPrisma.orders.findUnique({
+             where: {
+                 id: Number.parseInt(req.params.id)
+             },
+             include: {
+                 order_items: {
+                     include: {
+                         products: true
+                     }
+                 },
+                 return_refund: true,
+                 store: {
+                     select: {
+                         id: true,
+                         name: true,
+                         status: true,
+                         channel: true
+                     }
+                 },
+                 logistic: true
+             }
+         });
+         if (!order) {
+             return res.status(404).send({
+                 error: 'order not found'
+             });
+         }
+         res.status(200).send(order);
+     } catch (err) {
+            console.log(err);
+            if (err.response) {
+                return res.status(err.status).send(err.response.data);
+            } else {
+                console.log(err);
+                return res.status(500).send({ error: err.message });
+            }
+     }
 });
 
-router.get('/ship/test', async function (req, res, next) {
+/* router.get('/ship/test', async function (req, res, next) {
     let packageId = '1162095699976882981';
     let cipher = '';
     let token = '';
@@ -207,9 +222,10 @@ router.get('/ship/test', async function (req, res, next) {
             return res.status(500).send({ error: err.message });
         }
     }
-})
+}) */
 
 router.put('/:id', async function(req, res, next) {
+    const mPrisma = getPrismaClient(req.tenantDB);
     console.log(req.body)
     const action = req.body.action;
     if (!action) {
@@ -217,7 +233,7 @@ router.put('/:id', async function(req, res, next) {
             error: 'action is required'
         });
     }
-    let order = await prisma.orders.findUnique({
+    let order = await mPrisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
         },
@@ -327,7 +343,7 @@ router.put('/:id', async function(req, res, next) {
                 responseCode = tiktokResponse.data.code;
                 responseData = tiktokResponse.data;
                 if (action == 'approve_refund') {
-                    await prisma.return_refund.update({
+                    await mPrisma.return_refund.update({
                         data: {
                             status: 'success'
                         },

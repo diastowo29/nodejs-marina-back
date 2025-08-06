@@ -1,32 +1,25 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
-// const { auth } = require('express-oauth2-jwt-bearer');
-// const checkJwt = require('../../../middleware/auth');
-// const { workQueue, jobOpts } = require('../../config/redis.config');
-// const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazGenToken, lazadaAuthHost, lazGetSellerInfo, lazadaHost } = require('../../config/utils');
-// const { lazParamz, lazCall } = require('../../functions/lazada/caller');
-
-// let test = require('dotenv').config()
-
-const prisma = new PrismaClient();
-/* GET home page. */
-
-// const checJwt = auth({
-//     audience: 'marina-be-id',
-//     issuerBaseURL: 'https://dev-krdctdtgreltnipy.us.auth0.com/'
-// })
+const { getPrismaClient } = require('../../../services/prismaServices');
 
 router.get('/', async function(req, res, next) {
-    console.log('auth', req.auth);
-    let channels = await prisma.channel.findMany({ })
-    res.status(200).send(channels);
+    const mPrisma = getPrismaClient(req.tenantDB);
+    try {
+        let channels = await mPrisma.channel.findMany({});
+        res.status(200).send(channels);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({
+            status: 500,
+            message: 'Error fetching channels',
+            error: err.message
+        })
+    }
 })
 
 router.get('/stores', async function(req, res, next) {
-    let channels = await prisma.channel.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let channels = await mPrisma.channel.findMany({
         include: {
             store: true
         }
@@ -35,7 +28,8 @@ router.get('/stores', async function(req, res, next) {
 })
 
 router.get('/products', async function(req, res, next) {
-    let channels = await prisma.channel.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let channels = await mPrisma.channel.findMany({
         include : {
             store : {
                 include: {

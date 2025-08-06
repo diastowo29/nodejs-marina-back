@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
-var { PrismaClient, Prisma } = require('@prisma/client');
+const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
+// var { PrismaClient, Prisma } = require('@prisma/client');
 var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
@@ -8,8 +9,11 @@ const { api } = require('../../functions/axios/interceptor');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL } = require('../../config/shopee_apis');
 const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
+const { getPrismaClient } = require('../../services/prismaServices');
 var env = process.env.NODE_ENV || 'development';
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
+const basePrisma = new prismaBaseClient();
+
 
 router.get('/sync', async function(req, res, next) {
     // console.log(JSON.stringify(req.body))
@@ -28,117 +32,134 @@ router.get('/sync', async function(req, res, next) {
 })
 
 router.post(PATH_WEBHOOK, async function (req, res, next) {
-    let jsonBody = gcpParser(req.body.message.data);
-    // let jsonBody = req.body;
-    
-    console.log(JSON.stringify(jsonBody));
-    let payloadCode = jsonBody.code;
-    let response;
-    switch (payloadCode) {
-        case 3:
-            let newOrder = await prisma.orders.upsert({
-                where: {
-                    origin_id: jsonBody.data.ordersn
-                },
-                update: {
-                    status: jsonBody.data.status
-                },
-                create: {
-                    origin_id: jsonBody.data.ordersn,
-                    status: jsonBody.data.status,
-                    store: {
-                        connect: {
-                            origin_id: jsonBody.shop_id.toString()
-                            // origin_id: '138335'
-                        }
-                    }
-                },
-                include: {
-                    store: true,
-                    order_items: {
-                        select: { id: true }
-                    }
-                }
-            });
-            response = newOrder;
-            let taskPayload = {
-                channel: SHOPEE, 
-                order_id: jsonBody.data.ordersn,
-                id: newOrder.id,
-                token: newOrder.store.token,
-                code: payloadCode,
-                m_shop_id: newOrder.store.id,
-                shop_id: jsonBody.shop_id,
-                refresh_token: newOrder.store.refresh_token
-            }
-            if (newOrder.order_items.length == 0) {
-                if (newOrder.store.status != storeStatuses.EXPIRED) {
-                    pushTask(env, taskPayload);
-                } else {
-                    console.log('Store %s Expired', newOrder.store.id);
-                }
-            }
-            break;
-        case 10:
-            response = {};
-            if (jsonBody.data.type == 'message') {
-                let newMsg = await prisma.omnichat.upsert({
+    let jsonBody = {};
+    if (process.env.NODE_ENV == 'production') {
+        jsonBody = gcpParser(req.body.message.data);
+    } else {
+        jsonBody = req.body;
+    }
+    basePrisma.stores.findUnique({
+        where: {
+            origin_id: jsonBody.shop_id.toString()
+        },
+        include: {
+            clients: true
+        }
+    }).then(async (mBase) => {
+        const prisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        console.log(JSON.stringify(jsonBody));
+        let payloadCode = jsonBody.code;
+        let response;
+        switch (payloadCode) {
+            case 3:
+                let newOrder = await prisma.orders.upsert({
+                    where: {
+                        origin_id: jsonBody.data.ordersn
+                    },
+                    update: {
+                        status: jsonBody.data.status
+                    },
                     create: {
-                        origin_id: jsonBody.data.content.conversation_id,
-                        last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                        last_messageId: jsonBody.data.content.message_id,
+                        origin_id: jsonBody.data.ordersn,
+                        status: jsonBody.data.status,
                         store: {
                             connect: {
                                 origin_id: jsonBody.shop_id.toString()
                                 // origin_id: '138335'
                             }
-                        },
-                        omnichat_user: {
-                            connectOrCreate: {
+                        }
+                    },
+                    include: {
+                        store: true,
+                        order_items: {
+                            select: { id: true }
+                        }
+                    }
+                });
+                response = newOrder;
+                let taskPayload = {
+                    channel: SHOPEE, 
+                    order_id: jsonBody.data.ordersn,
+                    id: newOrder.id,
+                    token: newOrder.store.token,
+                    code: payloadCode,
+                    m_shop_id: newOrder.store.id,
+                    shop_id: jsonBody.shop_id,
+                    refresh_token: newOrder.store.refresh_token
+                }
+                if (newOrder.order_items.length == 0) {
+                    if (newOrder.store.status != storeStatuses.EXPIRED) {
+                        pushTask(env, taskPayload);
+                    } else {
+                        console.log('Store %s Expired', newOrder.store.id);
+                    }
+                }
+                break;
+            case 10:
+                response = {};
+                if (jsonBody.data.type == 'message') {
+                    let newMsg = await prisma.omnichat.upsert({
+                        create: {
+                            origin_id: jsonBody.data.content.conversation_id,
+                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                            last_messageId: jsonBody.data.content.message_id,
+                            store: {
+                                connect: {
+                                    origin_id: jsonBody.shop_id.toString()
+                                    // origin_id: '138335'
+                                }
+                            },
+                            omnichat_user: {
+                                connectOrCreate: {
+                                    create: {
+                                        origin_id: jsonBody.data.content.from_id.toString(),
+                                        username: jsonBody.data.content.from_user_name,
+                                    },
+                                    where: {
+                                        origin_id: jsonBody.data.content.from_id.toString()
+                                    }
+                                }
+                            },
+                            messages: {
                                 create: {
-                                    origin_id: jsonBody.data.content.from_id.toString(),
-                                    username: jsonBody.data.content.from_user_name,
-                                },
-                                where: {
-                                    origin_id: jsonBody.data.content.from_id.toString()
+                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                    chat_type: jsonBody.data.content.message_type,
+                                    origin_id: jsonBody.data.content.message_id,
+                                    author: jsonBody.data.content.from_id.toString()
                                 }
                             }
                         },
-                        messages: {
-                            create: {
-                                line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                chat_type: jsonBody.data.content.message_type,
-                                origin_id: jsonBody.data.content.message_id,
-                                author: jsonBody.data.content.from_id.toString()
+                        update: {
+                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                            last_messageId: jsonBody.data.content.message_id,
+                            messages: {
+                                create: {
+                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                    chat_type: jsonBody.data.content.message_type,
+                                    origin_id: jsonBody.data.content.message_id,
+                                    author: jsonBody.data.content.from_id.toString()
+                                }
                             }
+                        },
+                        where: {
+                            origin_id: jsonBody.data.content.conversation_id
                         }
-                    },
-                    update: {
-                        last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                        last_messageId: jsonBody.data.content.message_id,
-                        messages: {
-                            create: {
-                                line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                chat_type: jsonBody.data.content.message_type,
-                                origin_id: jsonBody.data.content.message_id,
-                                author: jsonBody.data.content.from_id.toString()
-                            }
-                        }
-                    },
-                    where: {
-                        origin_id: jsonBody.data.content.conversation_id
-                    }
-                });
-                response = newMsg;
-                /* no need to push to worker */
-            }
-            break;
-        default:
-            response = jsonBody.data;
-            console.log('CODE: %s Not implemented yet!', payloadCode);
-            break;
-    }    
-    res.status(200).send(response);
+                    });
+                    response = newMsg;
+                    /* no need to push to worker */
+                }
+                break;
+            default:
+                response = jsonBody.data;
+                console.log('CODE: %s Not implemented yet!', payloadCode);
+                break;
+        }    
+        res.status(200).send(response);
+        
+    }).catch((err) => {
+        console.log('Error fetching store: ', err);
+        return res.status(500).send({ error: 'Internal Server Error' });
+    })
 });
 
 function msgContainer (msgType, content) {
@@ -170,6 +191,7 @@ router.post(PATH_CHAT, async function(req, res, next) {
 });
 
 router.put('/order/:id', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     const orders = await prisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -277,6 +299,7 @@ router.put('/order/:id', async function(req, res, next) {
 })
 
 router.post(PATH_AUTH, async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
     // let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);

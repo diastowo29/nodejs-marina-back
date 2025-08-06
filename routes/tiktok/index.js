@@ -1,15 +1,24 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
+// var {
+//     PrismaClient
+// } = require('@prisma/client');
+const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
+
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
-const prisma = new PrismaClient();
+const { getPrismaClient } = require('../../services/prismaServices');
+const { getTenantDB } = require('../../middleware/tenantIdentifier');
+const { encryptData } = require('../../functions/encryption');
+const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
+
+router.get(PATH_WEBHOOK, function (req, res, next) {
+    res.status(200).send({})
+})
 
 router.post(PATH_WEBHOOK, async function (req, res, next) {
     let jsonBody = {};
@@ -18,168 +27,241 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     } else {
         jsonBody = req.body;
     }
-    console.log(jsonBody)
-    if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
-        const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
-        let newOrder = await prisma.orders.upsert({
-            where: {
-                origin_id: jsonBody.data.order_id
-            },
-            update: {
-                temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
-                status: orderStatus
-            },
-            create: {
-                origin_id: jsonBody.data.order_id,
-                status: orderStatus,
-                store: {
-                    connect: {
-                        origin_id: jsonBody.shop_id
-                    }
-                }
-            },
-            include: {
-                return_refund: {
-                    select: {
-                        id: true
-                    }
-                },
-                order_items: {
-                    select: {
-                        id: true
-                    }
-                },
-                store: {
-                    select: {
-                        token: true,
-                        secondary_token: true,
-                        refresh_token: true,
-                        id: true,
-                        origin_id: true,
-                    }
-                }
-            }
-        });
-        let taskPayload = {
-            channel: TIKTOK, 
-            order_id: jsonBody.data.order_id,
-            id: newOrder.id,
-            token: newOrder.store.token,
-            code: jsonBody.type,
-            m_shop_id: newOrder.store.id,
-            shop_id: jsonBody.shop_id,
-            status: newOrder.status,
-            cipher: newOrder.store.secondary_token,
-            refresh_token: newOrder.store.refresh_token,
-            returnId: newOrder.temp_id
-        }
-        if (jsonBody.type == 2) {
-            taskPayload = {
-                channel: TIKTOK,
-                token: newOrder.store.token,
-                refresh_token: newOrder.store.refresh_token,
-                order_id: jsonBody.data.order_id,
-                cipher: newOrder.store.secondary_token,
-                m_shop_id: newOrder.store.id,
-                returnId: newOrder.temp_id
+    if (jsonBody.type == 2) {
+        if (jsonBody.data.reverse_event_type) {
+            if (jsonBody.data.reverse_event_type == 'UNSUPPORTED') {
+                return res.status(200).send({message: 'Unsupported reverse event type, ignoring'});
             }
         }
-        if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND')) {
-            pushTask(env, taskPayload);
+    }
+    if (jsonBody.type == 1) {
+        if (jsonBody.data.order_status) {
+            if (jsonBody.data.order_status == 'UNPAID') {
+                return res.status(200).send({message: 'Order is unpaid, ignoring'});
+            }
         }
-        res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
-    } else if (jsonBody.type == 16) {
-        let taskPayload = {
-            channel: TIKTOK,
-            code: jsonBody.type,
-            product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
-            shop_id: jsonBody.shop_id
+    }
+    basePrisma.stores.findUnique({
+        where: {
+            origin_id: jsonBody.shop_id
+        },
+        include: {
+            clients: true
         }
-        pushTask(env, taskPayload);
-        res.status(200).send({})
-        // console.log(Number.parseFloat(jsonBody.data.product_id));
-        // let store = await prisma.store.findUnique({
-        //     where: {
-        //         origin_id: jsonBody.shop_id
-        //     }
-        // });
-        // api.get(GET_PRODUCT(jsonBody.data.product_id, store.secondary_token), {
-        //     headers: {
-        //         'x-tts-access-token' : store.token,
-        //         'content-type': 'application/json'
-        //     }
-        // }).then(function(response) {
-        //     // console.log(JSON.stringify(response.data));
-        //     /* if (response.data.data) {
-        //         prisma.products.create({
-        //             data: {
-        //                 origin_id: 
-        //             }
-        //         })
-        //     } */
-        //     // done(null, {response: 'testing'});
-        //     res.status(200).send({request: req.body, response: response.data, url: GET_PRODUCT(jsonBody.data.product_id, store.secondary_token)});
-        // }).catch(function(err) {
-        //     console.log(err)
-        //     res.status(400).send({error: err});
-        // })
-    } else if (jsonBody.type == 14) {
-        try {
-            let newMessage = await prisma.omnichat.upsert({
+    }).then(async (mBase) => {
+        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
+            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
+            let newOrder = await mPrisma.orders.upsert({
                 where: {
-                    origin_id: jsonBody.data.conversation_id
+                    origin_id: jsonBody.data.order_id
                 },
                 update: {
-                    last_message: jsonBody.data.content,
-                    last_messageId: jsonBody.data.message_id,
-                    messages: {
-                        create: {
-                            line_text: jsonBody.data.content,
-                            origin_id: jsonBody.data.message_id,
-                            author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                            chat_type: jsonBody.data.type,
-                        }
-                    },
+                    temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
+                    status: orderStatus
                 },
                 create: {
-                    last_message: jsonBody.data.content,
-                    last_messageId: jsonBody.data.message_id,
-                    origin_id: jsonBody.data.conversation_id,
+                    origin_id: jsonBody.data.order_id,
+                    status: orderStatus,
                     store: {
                         connect: {
                             origin_id: jsonBody.shop_id
                         }
-                    },
-                    messages: {
-                        create: {
-                            line_text: jsonBody.data.content,
-                            origin_id: jsonBody.data.message_id,
-                            author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                            chat_type: jsonBody.data.type,
+                    }
+                },
+                include: {
+                    return_refund: {
+                        select: {
+                            id: true
                         }
                     },
-                    omnichat_user: {
-                        connectOrCreate: {
+                    order_items: {
+                        select: {
+                            id: true
+                        }
+                    },
+                    store: {
+                        select: {
+                            token: true,
+                            secondary_token: true,
+                            refresh_token: true,
+                            id: true,
+                            origin_id: true,
+                        }
+                    }
+                }
+            });
+            let taskPayload = {
+                channel: TIKTOK, 
+                order_id: jsonBody.data.order_id,
+                id: newOrder.id,
+                token: newOrder.store.token,
+                code: jsonBody.type,
+                m_shop_id: newOrder.store.id,
+                shop_id: jsonBody.shop_id,
+                status: newOrder.status,
+                cipher: newOrder.store.secondary_token,
+                refresh_token: newOrder.store.refresh_token,
+                returnId: newOrder.temp_id,
+                tenantDB: getTenantDB(mBase.clients.org_id),
+            }
+            if (jsonBody.type == 2) {
+                taskPayload = {
+                    tenantDB: getTenantDB(mBase.clients.org_id),
+                    channel: TIKTOK,
+                    token: newOrder.store.token,
+                    refresh_token: newOrder.store.refresh_token,
+                    order_id: jsonBody.data.order_id,
+                    cipher: newOrder.store.secondary_token,
+                    m_shop_id: newOrder.store.id,
+                    returnId: newOrder.temp_id
+                }
+            }
+            if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND')) {
+                pushTask(env, taskPayload);
+            }
+            res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
+        } else if (jsonBody.type == 16) {
+            let taskPayload = {
+                tenantDB: getTenantDB(mBase.clients.org_id),
+                channel: TIKTOK,
+                code: jsonBody.type,
+                product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
+                shop_id: jsonBody.shop_id
+            }
+            pushTask(env, taskPayload);
+            res.status(200).send({})
+        } else if (jsonBody.type == 14) {
+            console.log(JSON.stringify(jsonBody));
+            if (jsonBody.data.sender.role == 'SYSTEM') {
+                console.log('system message, ignoring');
+                return res.status(200).send({message: 'system message, ignoring'});
+            }
+            try {
+                const userExternalId = `${jsonBody.data.sender.im_user_id}-${jsonBody.data.conversation_id}-${jsonBody.shop_id}`
+                const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                let upsertMessage = await mPrisma.omnichat.upsert({
+                    where: {
+                        origin_id: jsonBody.data.conversation_id
+                    },
+                    update: {
+                        last_message: jsonBody.data.content,
+                        last_messageId: jsonBody.data.message_id,
+                        messages: {
+                            connectOrCreate: {
+                                where: {
+                                    origin_id: jsonBody.data.message_id
+                                },
+                                create: {
+                                    line_text: jsonBody.data.content,
+                                    origin_id: jsonBody.data.message_id,
+                                    author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
+                                    chat_type: jsonBody.data.type,
+                                }
+                            }
+                        },
+                    },
+                    create: {
+                        last_message: jsonBody.data.content,
+                        last_messageId: jsonBody.data.message_id,
+                        origin_id: jsonBody.data.conversation_id,
+                        store: {
+                            connect: {
+                                origin_id: jsonBody.shop_id
+                            }
+                        },
+                        messages: {
                             create: {
-                                origin_id: jsonBody.data.sender.im_user_id
-                            },
-                            where: {
-                                origin_id: jsonBody.data.sender.im_user_id
+                                line_text: jsonBody.data.content,
+                                origin_id: jsonBody.data.message_id,
+                                author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
+                                chat_type: jsonBody.data.type,
+                            }
+                        },
+                        omnichat_user: {
+                            connectOrCreate: {
+                                create: {
+                                    username: userName,
+                                    origin_id: jsonBody.data.sender.im_user_id
+                                },
+                                where: {
+                                    origin_id: jsonBody.data.sender.im_user_id
+                                }
+                            }
+                        }
+                    },
+                    select: {
+                        id: true,
+                        origin_id: true,
+                        externalId: true,
+                        omnichat_user: {
+                            select: {
+                                id: true, 
+                                origin_id: true
+                            }
+                        },
+                        store: {
+                            select: {
+                                name: true,
+                                id: true,
+                                origin_id: true,
+                                channel: {
+                                    select: {
+                                        client: {
+                                            select: {
+                                                integration: {
+                                                    select: {
+                                                        name: true,
+                                                        notes: true,
+                                                        id: true,
+                                                        credent: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-
+                });
+                console.log(JSON.stringify(upsertMessage));
+                if (upsertMessage.store.channel.client.integration.length > 0) {
+                    let taskPayload = {
+                        tenantDB: getTenantDB(mBase.clients.org_id),
+                        channel: TIKTOK,
+                        code: jsonBody.type,
+                        // shop_id: jsonBody.shop_id,
+                        message: upsertMessage,
+                        userExternalId: userExternalId,
+                        userName: userName,
+                        message_content: jsonBody.data.content
+                    }
+                    pushTask(env, taskPayload);
                 }
-            });
-            res.status(200).send({message: newMessage});
-        } catch (err) {
-            console.log(err);
-            res.status(400).send({error: err});
+                res.status(200).send({message: {id: upsertMessage.id}});
+            } catch (err) {
+                console.log(err);
+                res.status(400).send({error: err});
+            }
+        } else if (jsonBody.type == 6) {
+            const _store = await mPrisma.store.update({
+                where: {
+                    origin_id: jsonBody.shop_id.toString()
+                },
+                data: {
+                    status: 'INACTIVE'
+                }
+            })
+            res.status(200).send({});
+        } else {
+            console.log('code type not supported: %s', jsonBody.type)
+            res.status(200).send({error: 'code type not supported'});
         }
-    } else {
-        console.log('code type not supported: %s', jsonBody.type)
-        res.status(200).send({error: 'code type not supported'});
-    }
+    }).catch((err) => {
+        console.log(err);
+        res.status(400).send({error: err});
+    })
 });
 
 /* router.post('/bigint', async function(req, res, next) {
@@ -231,8 +313,9 @@ router.get('/return_refund', async function (req, res, next) {
 }); */
 
 router.post(PATH_ORDER, async function(req, res, next) {
+    const mPrisma = getPrismaClient(req.tenantDB);
     let orderId = req.body.order.id;
-    let order = await prisma.orders.findUnique({
+    let order = await mPrisma.orders.findUnique({
         where: {
             id: orderId
         },
@@ -277,7 +360,8 @@ router.post(PATH_ORDER, async function(req, res, next) {
 })
 
 router.get(PATH_CANCELLATION, async function (req, res, next) {
-    prisma.orders.findUnique({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma.orders.findUnique({
         where: {
             id: req.body.order.id
         },
@@ -324,6 +408,7 @@ router.get(PATH_CANCELLATION, async function (req, res, next) {
 }) */
 
 router.post(PATH_AUTH, async function(req, res, next) {
+    const mPrisma = getPrismaClient(req.tenantDB);
     // console.log(GET_TOKEN_API(req.body.auth_code));
     let token = await api.get(GET_TOKEN_API(req.body.auth_code)).catch(function (err) {
         res.status(400).send({error: err.response.data});
@@ -345,6 +430,108 @@ router.post(PATH_AUTH, async function(req, res, next) {
             if ((!storeFound)) {
                 return res.status(400).send({error: 'No shop found'});
             }
+
+            let clientStored = await Promise.all([
+                basePrisma.stores.upsert({
+                    where: {
+                        origin_id: storeFound.id
+                    },
+                    create: {
+                        origin_id: storeFound.id,
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: req.auth.payload.org_id
+                                }, 
+                                create: {
+                                    org_id: req.auth.payload.org_id
+                                }
+                            }
+                        }
+                    },
+                    update: {}
+                }),
+                mPrisma.store.upsert({
+                    where: {
+                        origin_id: storeFound.id
+                    },
+                    create: {
+                        origin_id: storeFound.id,
+                        name: token.data.data.seller_name,
+                        token: encryptData(token.data.data.access_token),
+                        refresh_token: encryptData(token.data.data.refresh_token),
+                        secondary_token: encryptData(shops.data.data.shops[0].cipher),
+                        status: 'ACTIVE',
+                        channel: {
+                            connectOrCreate: {
+                                where: {
+                                    name: 'tiktok'
+                                },
+                                create: {
+                                    name: 'tiktok',
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                 origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    update: {
+                        token: encryptData(token.data.data.access_token),
+                        refresh_token: encryptData(token.data.data.refresh_token),
+                        status: 'ACTIVE',
+                        channel: {
+                            upsert: {
+                                where: {
+                                    name: 'tiktok'
+                                },
+                                create: {
+                                    name: 'tiktok'
+                                },
+                                update: {
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                 origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            ])
+            /* let baseClient = await basePrisma.stores.upsert({
+                where: {
+                    origin_id: storeFound.id
+                },
+                create: {
+                    origin_id: storeFound.id,
+                    clients: {
+                        connectOrCreate: {
+                            where: {
+                                org_id: req.auth.payload.org_id
+                            }, 
+                            create: {
+                                org_id: req.auth.payload.org_id
+                            }
+                        }
+                    }
+                }
+            })
             let store = await prisma.store.upsert({
                 where: {
                     origin_id: storeFound.id
@@ -372,8 +559,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     refresh_token: token.data.data.refresh_token,
                     status: 'ACTIVE'
                 }
-            });
-            res.status(200).send(store);
+            }); */
+            res.status(200).send(clientStored);
         } catch (err) {
             console.log(err);
             res.status(400).send({error: err})

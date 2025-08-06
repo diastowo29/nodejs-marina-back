@@ -3,10 +3,7 @@ const { TOKO_GETTOKEN } = require("../../config/toko_apis");
 let tokoClientId = process.env.TOKO_CLIENT_ID;
 let tokoClientSecret = process.env.TOKO_CLIENT_SECRET;
 let genAuthToken = Buffer.from(`${tokoClientId}:${tokoClientSecret}`).toString('base64');
-
-var { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
+const { getPrismaClient } = require("../../services/prismaServices");
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
@@ -34,6 +31,7 @@ api.interceptors.response.use((response) => response, async (error) => {
                 const newToken = await generateTokpedToken();
                 originalRequest.headers['Authorization'] = `Bearer ${newToken.access_token}`;
                 if (originalRequest.url.includes('tokopedia')) {
+                    const prisma = getPrismaClient(originalRequest.headers['X-Org-Id']);
                     prisma.store.update({
                         where: {
                             channelId: 1
@@ -67,5 +65,6 @@ async function generateTokpedToken () {
 }
 
 module.exports = {
-    api
+    api,
+    generateTokpedToken
 }

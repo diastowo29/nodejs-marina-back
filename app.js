@@ -21,13 +21,11 @@ var storeRouter = require('./routes/module/store');
 var crmRouter = require('./routes/module/crm');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
-const tenantIdentifier = require('./middleware/tenantIdentifier');
+const { tenantIdentifier } = require('./middleware/tenantIdentifier');
 
 var app = express();
-if (process.env.NODE_ENV === 'production') {
-  app.use(checkJwt);
-  app.use(helmet());
-}
+app.use(checkJwt);
+app.use(helmet());
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
@@ -37,7 +35,7 @@ app.set('view engine', 'pug');
 
 app.use(logger('dev'));
 app.use(express.json());
-// app.use(tenantIdentifier); //// <<================= ENABLE THIS
+app.use(tenantIdentifier); //// <<================= ENABLE THIS
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
@@ -13,8 +14,6 @@ model customers {
   origin_id String?  @unique
   phone     String?
   email     String?
-  clientsId Int?
-  clientId  clients? @relation(fields: [clientsId], references: [id])
   orders    orders[]
 }
 
@@ -35,7 +34,7 @@ model channel {
   id        Int      @id @default(autoincrement())
   name      String?  @unique
   clientsId Int?
-  clientId  clients? @relation(fields: [clientsId], references: [id])
+  client    clients? @relation(fields: [clientsId], references: [id])
   store     store[]
 }
 
@@ -71,9 +70,7 @@ model products {
   stock       Int?
   sku         String?
   storeId     Int?
-  clientsId   Int?
   order_items order_items[]
-  clientId    clients?       @relation(fields: [clientsId], references: [id])
   store       store?         @relation(fields: [storeId], references: [id])
   product_img products_img[]
 }
@@ -82,7 +79,7 @@ model order_items {
   id               Int                @id @default(autoincrement())
   createdAt        DateTime           @default(now())
   qty              Int
-  package_id String?
+  package_id       String?
   invoice          String?
   total_price      Int
   notes            String?
@@ -102,14 +99,14 @@ model logistic {
 }
 
 model orders {
-  id                    Int             @id @default(autoincrement())
-  createdAt             DateTime        @default(now())
+  id                    Int            @id @default(autoincrement())
+  createdAt             DateTime       @default(now())
   status                String?
   shop_id               String?
   payment_id            String?
   temp_id               String?
-  origin_id             String?         @unique
-  package_id String?
+  origin_id             String?        @unique
+  package_id            String?
   invoice               String?
   recp_name             String?
   recp_phone            String?
@@ -121,12 +118,12 @@ model orders {
   recp_addr_postal_code String?
   recp_addr_district_id String?
   recp_addr_city_id     String?
-  tracking_number String?
-  ship_document_url String?
+  tracking_number       String?
+  ship_document_url     String?
   recp_addr_province_id String?
   recp_addr_geo         String?
   logistic_service      String?
-  origin_createdAt      DateTime        @default(now())
+  origin_createdAt      DateTime       @default(now())
   accept_partial        Boolean?
   device                String?
   storeId               Int?
@@ -135,13 +132,11 @@ model orders {
   total_product_price   Int?
   shipping_price        Int?
   total_amount          Int?
-  updatedAt             DateTime        @updatedAt
-  clientsId             Int?
+  updatedAt             DateTime       @updatedAt
   order_items           order_items[]
-  clientId              clients?        @relation(fields: [clientsId], references: [id])
-  customers             customers?      @relation(fields: [customersId], references: [id])
-  logistic              logistic?       @relation(fields: [logisticId], references: [id])
-  store                 store?          @relation(fields: [storeId], references: [id])
+  customers             customers?     @relation(fields: [customersId], references: [id])
+  logistic              logistic?      @relation(fields: [logisticId], references: [id])
+  store                 store?         @relation(fields: [storeId], references: [id])
   return_refund         return_refund?
 }
 
@@ -151,11 +146,9 @@ model omnichat_user {
   thumbnailUrl  String?
   origin_id     String?         @unique
   createdAt     DateTime        @default(now())
-  clientsId     Int?
   externalId    String?
   omnichat      omnichat[]
   omnichat_line omnichat_line[]
-  clientId      clients?        @relation(fields: [clientsId], references: [id])
 }
 
 model omnichat {
@@ -167,9 +160,7 @@ model omnichat {
   updatedAt       DateTime        @default(now())
   storeId         Int?
   omnichat_userId Int?
-  clientsId       Int?
   externalId      String?
-  clientId        clients?        @relation(fields: [clientsId], references: [id])
   omnichat_user   omnichat_user?  @relation(fields: [omnichat_userId], references: [id])
   store           store?          @relation(fields: [storeId], references: [id])
   messages        omnichat_line[]
@@ -200,7 +191,6 @@ model zdconnector {
   zdAPIToken     String
   resource       String?
   clientsId      Int?
-  clientId       clients? @relation(fields: [clientsId], references: [id])
 }
 
 model omnicrm {
@@ -212,17 +202,11 @@ model omnicrm {
 }
 
 model clients {
-  id            Int             @id @default(autoincrement())
-  name          String
-  origin_id     String?         @unique
-  channel       channel[]
-  customers     customers[]
-  integration   integration[]
-  omnichat      omnichat[]
-  omnichat_user omnichat_user[]
-  orders        orders[]
-  products      products[]
-  zdconnector   zdconnector[]
+  id          Int           @id @default(autoincrement())
+  name        String
+  origin_id   String?       @unique
+  channel     channel[]
+  integration integration[]
 }
 
 model credent {
@@ -236,11 +220,13 @@ model credent {
 model integration {
   id        Int       @id @default(autoincrement())
   name      String?
-  baseUrl   String?
+  baseUrl   String?   @unique
   f_chat    Boolean?
   f_review  Boolean?
   f_cancel  Boolean?
   f_rr      Boolean?
+  status String?
+  notes String?
   clientsId Int?
   credent   credent[]
   clients   clients?  @relation(fields: [clientsId], references: [id])
@@ -268,5 +254,5 @@ model return_refund {
   total_amount  Int
   return_type   String?
   return_reason String?
-  ordersId      Int @unique
+  ordersId      Int                @unique
 }

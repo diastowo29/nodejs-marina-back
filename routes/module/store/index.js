@@ -1,20 +1,20 @@
 var express = require('express');
 var router = express.Router();
-var {
-    PrismaClient
-} = require('@prisma/client');
+// var {
+//     PrismaClient
+// } = require('@prisma/client');
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
-const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
-const { api } = require('../../../functions/axios/interceptor');
+// const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
+// const { api } = require('../../../functions/axios/interceptor');
 const { getPrismaClient } = require('../../../services/prismaServices');
 const checkJwt = require('../../../middleware/auth');
 // const prismaDb = require('../../../prisma-client');
 const jwt = require('jsonwebtoken');
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
-    // let prisma = getPrismaClient(req.tenantDB);
-    let store = await prisma.store.findMany({
+    const mPrisma = getPrismaClient(req.tenantDB);
+    let store = await mPrisma.store.findMany({
         include: {
             channel: true
         }
@@ -59,6 +59,7 @@ router.get('/jwts', checkJwt, function(req, res, next) {
 })
 
 router.get('/:id', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let store = await prisma.store.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -71,15 +72,16 @@ router.get('/:id', async function(req, res, next) {
 })
 
 router.get('/connect/test', async function(req, res, next) {
-    api.get(TOKO_SHOPINFO(18242), {headers: {Authorization: 'Bearer test123'}}).then(function(result) {
+    /* api.get(TOKO_SHOPINFO(18242), {headers: {Authorization: 'Bearer test123'}}).then(function(result) {
         res.status(200).send(result.data)
     }).catch(function(err) {
         console.log(err)
         res.status(500).send(err.response.data);
-    });
+    }); */
 })
 
 router.post('/connect/toko', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let storeId = req.body.store_id;
     try {
         let tokoToken = await generateTokpedToken();
@@ -112,6 +114,7 @@ router.post('/connect/toko', async function(req, res, next) {
 })
 
 router.post('/', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let channel = req.body.channel;
     // console.log(req.body)
     let storeCreate = await prisma.store.create({
@@ -130,6 +133,7 @@ router.post('/', async function(req, res, next) {
 })
 
 router.get('/:id/products', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let products = await prisma.products.findMany({
         where: {
             storeId: Number.parseInt(req.params.id)
@@ -142,6 +146,7 @@ router.get('/:id/products', async function(req, res, next) {
 })
 
 router.get('/:id/orders', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let orders = await prisma.orders.findMany({
         where: {
             storeId: Number.parseInt(req.params.id)
@@ -161,6 +166,7 @@ router.get('/:id/orders', async function(req, res, next) {
 })
 
 router.get('/products', async function(req, res, next) {
+    const prisma = getPrismaClient(req.tenantDB);
     let channels = await prisma.store.findMany({
         include : {
             products: true
