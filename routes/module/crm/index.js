@@ -52,64 +52,20 @@ router.post('/', async function(req, res, next) {
     if (req.body.crm == 'zendesk') {
         try {
             const zdConfig = await Promise.all([
-                api({
-                    method: 'POST',
-                    url: `${req.body.host}/api/v2/ticket_fields.json`,
-                    headers: {
-                        'Authorization': `Basic ${req.body.apiToken}`
-                    },
-                    data: JSON.stringify({
-                        ticket_field: {
-                            type: "text",
-                            title: "MM_USER_ID"
-                        }
-                    })
-                }),
-                api({
-                    method: 'POST',
-                    url: `${req.body.host}/api/v2/ticket_fields.json`,
-                    headers: {
-                        'Authorization': `Basic ${req.body.apiToken}`
-                    },
-                    data: JSON.stringify({
-                        ticket_field: {
-                            type: "text",
-                            title: "MM_MSG_ID"
-                        }
-                    })
-                }),
-                api({
-                    method: 'POST',
-                    url: `${req.body.host}/api/v2/ticket_fields.json`,
-                    headers: {
-                        'Authorization': `Basic ${req.body.apiToken}`
-                    },
-                    data: JSON.stringify({
-                        ticket_field: {
-                            type: "text",
-                            title: "MM_SHOP_ID"
-                        }
-                    })
-                }),
-                api({
-                    method: 'POST',
-                    url: `${req.body.host}/api/v2/ticket_fields.json`,
-                    headers: {
-                        'Authorization': `Basic ${req.body.apiToken}`
-                    },
-                    data: JSON.stringify({
-                        ticket_field: {
-                            type: "text",
-                            title: "MM_CHANNEL"
-                        }
-                    })
-                })
+                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_USER_ID')),
+                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
+                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
+                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL'))
             ]);
             const integration = await prisma.integration.create({
                 data: {
                     baseUrl: req.body.host,
                     name: req.body.name,
                     notes: `${zdConfig[0].data.ticket_field.id}-${zdConfig[1].data.ticket_field.id}-${zdConfig[2].data.ticket_field.id}-${zdConfig[3].data.ticket_field.id}`,
+                    f_chat: req.body.resource.include('chat'),
+                    f_review: req.body.resource.include('review'),
+                    f_rr: req.body.resource.include('return') || reqreq.body.resource.include('refund'),
+                    f_cancel: req.body.resource.include('cancel'),
                     clients: {
                         connectOrCreate: {
                             where: {
@@ -147,6 +103,22 @@ router.post('/', async function(req, res, next) {
         res.status(400).send({error: `crm: ${req.body.crm} not implemented yet`});
     }
 })
+
+function zdApiConfig (host, token, tFieldsTitle) {
+    return {
+        method: 'POST',
+        url: `${host}/api/v2/ticket_fields.json`,
+        headers: {
+            'Authorization': `Basic ${token}`
+        },
+        data: JSON.stringify({
+            ticket_field: {
+                type: "text",
+                title: tFieldsTitle
+            }
+        })
+    }
+}
 
 router.get('/products', async function(req, res, next) {
     const mPrisma = getPrismaClient(req.tenantDB);
