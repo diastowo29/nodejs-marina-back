@@ -3,7 +3,7 @@ var router = express.Router();
 const { SUN_APP_ID, SUN_APP_KEY, SUN_APP_SECRET, ZD_API_TOKEN } = require('../../../config/utils');
 const { getPrismaClient } = require('../../../services/prismaServices');
 const { encryptData } = require('../../../functions/encryption');
-const { api } = require('../../../functions/axios/interceptor');
+const { default: axios } = require('axios');
 
 // const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
@@ -26,6 +26,7 @@ router.get('/', async function(req, res, next) {
 
 router.delete('/:id', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
+    /* SHOULD DELETE ALL EXTERNAL ID FROM OMNICHAT AND WEBHOOK */
     try {
         let credent = prisma.credent.deleteMany({
             where: {
@@ -48,24 +49,20 @@ router.delete('/:id', async function(req, res, next) {
 
 router.post('/', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
-    // console.log(req);
     if (req.body.crm == 'zendesk') {
         try {
             const zdConfig = await Promise.all([
-                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_USER_ID')),
-                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
-                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
-                api(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL'))
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_USER_ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL')),
+                axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
             const integration = await prisma.integration.create({
                 data: {
                     baseUrl: req.body.host,
                     name: req.body.name,
                     notes: `${zdConfig[0].data.ticket_field.id}-${zdConfig[1].data.ticket_field.id}-${zdConfig[2].data.ticket_field.id}-${zdConfig[3].data.ticket_field.id}`,
-                    f_chat: req.body.resource.include('chat'),
-                    f_review: req.body.resource.include('review'),
-                    f_rr: req.body.resource.include('return') || reqreq.body.resource.include('refund'),
-                    f_cancel: req.body.resource.include('cancel'),
                     clients: {
                         connectOrCreate: {
                             where: {
@@ -96,8 +93,14 @@ router.post('/', async function(req, res, next) {
                 }
             });
         } catch (err) {
-            console.log(err)
-            res.status(400).send({failed: err});
+            if (err.response) {
+                console.log((err.response));
+                console.log(JSON.stringify(err.response.data));
+                res.status(400).send({failed: err.response.data});
+            } else {
+                console.log(err);
+                res.status(500).send({failed: err});
+            }
         }
     } else {   
         res.status(400).send({error: `crm: ${req.body.crm} not implemented yet`});
@@ -111,12 +114,34 @@ function zdApiConfig (host, token, tFieldsTitle) {
         headers: {
             'Authorization': `Basic ${token}`
         },
-        data: JSON.stringify({
+        data: {
             ticket_field: {
                 type: "text",
                 title: tFieldsTitle
             }
-        })
+        }
+    }
+}
+
+function suncoApiConfig (appId, token) {
+    return {
+        method: 'POST',
+        url: `https://api.smooch.io/v2/apps/${appId}/integrations`,
+        headers: { 'Authorization': `Basic ${token}` },
+        data: {
+            displayName: 'Marina Webhook',
+            type: "custom",
+            status: "active",
+            webhooks: [{
+                target: "https://55df5b89d466.ngrok-free.app/api/v1/chats/sunco/event",
+                triggers: [
+                    "conversation:message"
+                ],
+                version: "v2",
+                includeFullUser: false,
+                includeFullSource: true
+            }]
+        }
     }
 }
 

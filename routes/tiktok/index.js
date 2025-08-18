@@ -13,6 +13,7 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { getPrismaClient } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { encryptData } = require('../../functions/encryption');
+const { createTicket } = require('../../functions/zendesk/function');
 const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
 
@@ -80,6 +81,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             id: true
                         }
                     },
+                    customers: {
+                        select: {
+                            origin_id: true
+                        }
+                    },
                     store: {
                         select: {
                             token: true,
@@ -87,6 +93,22 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             refresh_token: true,
                             id: true,
                             origin_id: true,
+                            channel: {
+                                select: {
+                                    client: {
+                                        select: {
+                                            integration: {
+                                                select: {
+                                                    baseUrl: true,
+                                                    credent: true,
+                                                    name: true,
+                                                    notes: true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -114,10 +136,16 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     order_id: jsonBody.data.order_id,
                     cipher: newOrder.store.secondary_token,
                     m_shop_id: newOrder.store.id,
-                    returnId: newOrder.temp_id
+                    m_order_id: newOrder.id,
+                    returnId: newOrder.temp_id,
+                    status: orderStatus,
+                    code: jsonBody.type,
+                    customer_id: newOrder.customers.origin_id,
+                    shop_id: jsonBody.shop_id,
+                    integration: newOrder.store.channel.client.integration
                 }
             }
-            if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND')) {
+            if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND') || (orderStatus == 'ORDER_REQUEST_CANCEL')) {
                 pushTask(env, taskPayload);
             }
             res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
@@ -138,8 +166,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 return res.status(200).send({message: 'system message, ignoring'});
             }
             try {
-                const userExternalId = `${jsonBody.data.sender.im_user_id}-${jsonBody.data.conversation_id}-${jsonBody.shop_id}`
+                const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
                 const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
                 let upsertMessage = await mPrisma.omnichat.upsert({
                     where: {
                         origin_id: jsonBody.data.conversation_id
@@ -225,13 +254,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         }
                     }
                 });
-                console.log(JSON.stringify(upsertMessage));
                 if (upsertMessage.store.channel.client.integration.length > 0) {
                     let taskPayload = {
-                        tenantDB: getTenantDB(mBase.clients.org_id),
+                        org_id: mBase.clients.org_id,
                         channel: TIKTOK,
                         code: jsonBody.type,
-                        // shop_id: jsonBody.shop_id,
+                        chat_type: jsonBody.data.type,
                         message: upsertMessage,
                         userExternalId: userExternalId,
                         userName: userName,
@@ -245,15 +273,16 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 res.status(400).send({error: err});
             }
         } else if (jsonBody.type == 6) {
-            const _store = await mPrisma.store.update({
+            mPrisma.store.update({
                 where: {
                     origin_id: jsonBody.shop_id.toString()
                 },
                 data: {
                     status: 'INACTIVE'
                 }
+            }).then(() => {
+                res.status(200).send({});
             })
-            res.status(200).send({});
         } else {
             console.log('code type not supported: %s', jsonBody.type)
             res.status(200).send({error: 'code type not supported'});

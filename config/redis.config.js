@@ -5,7 +5,7 @@ var redisUrl = `redis://${redisHost}:${redisPort}`;
 // console.log(redisUrl);
 const setting = {
     settings: {
-        maxStalledCount: 3
+        maxStalledCount: 1
     }
 }
 

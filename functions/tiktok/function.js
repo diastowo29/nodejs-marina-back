@@ -1,9 +1,11 @@
-const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS } = require("../../config/tiktok_apis");
+const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION } = require("../../config/tiktok_apis");
 const { getPrismaClient } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
 const SunshineConversationsClient = require('sunshine-conversations-client');
 const { createSuncoUser, createSuncoConversation, postMessage } = require("../sunco/function");
+const { getTenantDB } = require("../../middleware/tenantIdentifier");
+const { createTicket } = require("../zendesk/function");
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
 
@@ -65,6 +67,17 @@ async function collectTiktokOrder (body, done) {
                             }
                         }
                     })
+                },
+                customers: {
+                    connectOrCreate: {
+                        where: {
+                            origin_id: tiktokOrderIdx.user_id.toString()
+                        },
+                        create: {
+                            origin_id: tiktokOrderIdx.user_id.toString(),
+
+                        }
+                    }
                 }
             }
         }).catch(function(err) {
@@ -81,45 +94,132 @@ async function collectTiktokOrder (body, done) {
 async function collectReturnRequest (body, done) {
     // console.log(body)
     const prisma = getPrismaClient(body.tenantDB);
-    const data = { order_ids: [body.order_id] };
-    let returnRefund = await Promise.all([
-        callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB),
-        callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB)
-    ]);
-    const returnData = returnRefund[0].data.data;
-    console.log(returnData);
-    if (returnData && returnData.return_orders.length > 0) {
-        const returnOrder = returnData.return_orders[0];
-        let returnRecords = await prisma.return_refund.create({
-            data: {
-                total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
-                order: {
-                    connect: {
-                        origin_id: returnOrder.order_id
+    var data = {}
+    var returnCancel = [];
+    if (body.status == 'ORDER_REFUND') {
+        data = { order_ids: [body.order_id] };
+        returnCancel = await Promise.all([
+            callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB),
+            callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB)
+        ]);
+    } else if (body.status == 'ORDER_REQUEST_CANCEL') {
+        data = { cancel_ids: [body.returnId] }
+        returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB);
+    }
+    const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
+    const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
+    // console.log(JSON.stringify(refundEvidence));
+    if (body.status == 'ORDER_REFUND') {
+        if (returnData && returnData.return_orders.length > 0) {
+            const returnOrder = returnData.return_orders[0];
+            await prisma.return_refund.create({
+                data: {
+                    total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
+                    ordersId: body.m_order_id,
+                    origin_id: returnOrder.return_id,
+                    status: returnOrder.return_status,
+                    return_type: returnOrder.return_type,
+                    return_reason: returnOrder.return_reason,
+                    line_item: {
+                        create: returnOrder.return_line_items.map(item => ({
+                            origin_id: item.return_line_item_id,
+                            currency: item.refund_amount.currency,
+                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
+                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
+                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            item: {
+                                connect: {
+                                    origin_id: item.order_line_item_id
+                                }
+                            }
+                        }))
                     }
-                },
-                origin_id: returnOrder.return_id,
-                status: returnOrder.return_status,
-                return_type: returnOrder.return_type,
-                return_reason: returnOrder.return_reason,
+                }
+            });    
+        }
+    } else {
+        await prisma.return_refund.upsert({
+            where: {
+                ordersId: body.m_order_id
+            },
+            create: {
+                ordersId: body.m_order_id,
+                origin_id: body.returnId,
+                status: returnData.cancellations[0].cancel_status,
+                return_type: returnData.cancellations[0].cancel_type,
+                return_reason: returnData.cancellations[0].cancel_reason_text,
+                total_amount: Number.parseInt(returnData.cancellations[0].refund_amount.refund_total),
                 line_item: {
-                    create: returnOrder.return_line_items.map(item => ({
-                        origin_id: item.return_line_item_id,
-                        currency: item.refund_amount.currency,
-                        refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                        refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                        refund_total: Number.parseInt(item.refund_amount.refund_total),
-                        item: {
-                            connect: {
-                                origin_id: item.order_line_item_id
+                    create: returnData.cancellations[0].cancel_line_items.map(item => ({
+                            origin_id: item.cancel_line_item_id,
+                            currency: item.refund_amount.currency,
+                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
+                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
+                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            item: {
+                                connect: {
+                                    origin_id: item.order_line_item_id
+                                }
                             }
                         }
-                    }))
+                    ))
+                }
+            },
+            update: {
+                status: returnData.cancellations[0].cancel_status
+            }
+        }).then(() => {
+            console.log('cancellation created')
+        })
+    }
+
+    let subject = '';
+    let comment = '';
+    if ((body.status == 'ORDER_REQUEST_CANCEL')) {
+        subject = 'Cancellation Request: ' + body.order_id;
+        comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
+    } else {
+        subject = 'Refund Request: ' + body.order_id;
+        comment = `User request a refund to order: ${body.order_id}
+        Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+        Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+    }
+
+    //create ticket on zendesk
+    if (body.integration.length > 0) {
+        const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
+        if (findZd) {
+            let ticketData = {
+                ticket: {
+                    subject: subject,
+                    comment: { body: comment },
+                    requester: { external_id: `6972710759960723714-7530485791072960776-7495813365286538189` },
+                    // requester: { external_id: `tiktok-${body.customer_id}-${body.shop_id}` },
+                    custom_fields: [
+                        {
+                            id: findZd.notes.split('-')[0],
+                            value: body.customer_id
+                        },{
+                            id: findZd.notes.split('-')[1],
+                            value: body.order_id
+                        },{
+                            id: findZd.notes.split('-')[2],
+                            value: body.shop_id
+                        },{
+                            id: findZd.notes.split('-')[3],
+                            value: 'tiktok'
+                        }
+                    ]
                 }
             }
-        })
-        console.log(returnRecords);       
+            createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
+                console.log('ticket created: ' + ticket.data.ticket.id);
+            }).catch((err) => {
+                console.log(err.response.data);
+            })
+        }
     }
+
     // done(null, {response: 'testing'});
 }
 
@@ -194,7 +294,8 @@ async function forwardConversation (body, done) {
             [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.omnichat_user.origin_id,
             [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
             [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel
+            [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
+            marina_org_id: body.org_id
         }
         let defaultClient = SunshineConversationsClient.ApiClient.instance
         let basicAuth = defaultClient.authentications['basicAuth']
@@ -202,54 +303,72 @@ async function forwardConversation (body, done) {
         basicAuth.password = decryptData(suncoAppSecret);
         let suncoConvId;
         if (!body.message.externalId) {
-            const prisma = getPrismaClient(body.tenantDB);
+            const prisma = getPrismaClient(getTenantDB(body.org_id));
             let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
             let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
             suncoConvId = suncoConversation.conversation.id;
-            let updateChat = await Promise.all([
-                prisma.omnichat.update({
+            // await Promise.all([
+                await prisma.omnichat.update({
                     where:{ id: body.message.id },
                     data:{ externalId: suncoConversation.conversation.id }
-                }),
-                prisma.omnichat_user.update({
+                })
+                /* prisma.omnichat_user.update({
                     where:{ id: body.message.omnichat_user.id },
                     data:{ externalId: body.userExternalId }
-                })
-            ])
+                }) */
+            // ])
         } else {
             suncoConvId = body.message.externalId;
         }
-        let messageContent = JSON.parse(body.message_content)
+        let messageContent = JSON.parse(body.message_content);
         let suncoMessagePayload = {
             author: {
                 type: 'user',
                 userExternalId: body.userExternalId
             }
+        }        
+        switch (body.chat_type) {
+            case "TEXT":
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: (messageContent.hasOwnProperty('content')) ? messageContent.content : '-- text sample -- '
+                }
+                break;
+            case "IMAGE":
+                suncoMessagePayload.content = {
+                    type: "image",
+                    mediaUrl: (messageContent.hasOwnProperty('url')) ? messageContent.url : '-- image sample -- ',
+                    text: 'unsupported media type'
+                }
+                break;
+            case "VIDEO":
+                suncoMessagePayload.content = {
+                    type: "image",
+                    mediaUrl: (messageContent.hasOwnProperty('url')) ? messageContent.url : '-- video sample -- ',
+                    text: 'unsupported media type'
+                }
+                break;
+            case "PRODUCT_CARD": 
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                }
+                break;
+            case "ORDER_CARD": 
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: (messageContent.hasOwnProperty('order_id')) ? `Order: ${messageContent.order_id}` : '-- order sample -- '
+                }
+                break;
+            default:
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: '-- default sample -- '
+                }
+                break;
         }
-        suncoMessagePayload.content = {
-            type: "text",
-            text: (messageContent.hasOwnProperty('content')) ? messageContent.content : '-- sample -- '
-        }
-
-        // /* if (body.body.data.template_id == 1) {
-        //     suncoMessagePayload.content = {
-        //         type: "text",
-        //         text: (body.body.data.hasOwnProperty('process_msg')) ? body.body.data.process_msg : messageContent.content
-        //     }
-        // } else if (body.body.data.template_id == 3 || body.body.data.template_id == 4) { // attachment or sticker
-        //     suncoMessagePayload.content = {
-        //         type: 'image',
-        //         mediaUrl: messageContent.imgUrl
-        //     }
-        // } else { // product attachment_type = 3
-        //     suncoMessagePayload.content = {
-        //         type: 'image',
-        //         text: `${messageContent.title}\n${messageContent.actionUrl}`,
-        //         mediaUrl: messageContent.pic
-        //     }
-        // } */
         await postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
     }
 

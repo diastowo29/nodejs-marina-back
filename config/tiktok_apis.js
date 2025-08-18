@@ -42,6 +42,20 @@ function GET_AUTHORIZED_SHOP () {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}`;
 }
 
+function SEARCH_CANCELLATION (cipher, body) {
+    const endpoint = `/return_refund/${apiVersion}/cancellations/search`;
+    const ts = Math.floor(Date.now()/1000);
+    // const uid = randomUUID();
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: cipher,
+        // idempotency_key: uid
+    };
+    const signed = getSigned(endpoint, params, body);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+}
+
 function APPROVE_CANCELLATION (cancelId, cipher, body) {
     const endpoint = `/return_refund/${apiVersion}/cancellations/${cancelId}/approve`;
     const ts = Math.floor(Date.now()/1000);
@@ -225,5 +239,6 @@ module.exports = {
     GET_RETURN_RECORDS,
     SEARCH_RETURN,
     APPROVE_REFUND,
-    REJECT_REFUND
+    REJECT_REFUND,
+    SEARCH_CANCELLATION
 }

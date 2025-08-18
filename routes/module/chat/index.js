@@ -3,6 +3,7 @@ var router = express.Router();
 // var {
 //     PrismaClient
 // } = require('@prisma/client');
+
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
@@ -12,6 +13,8 @@ const sendLazadaChat = require('../../../functions/lazada/function');
 const { getPrismaClient } = require('../../../services/prismaServices');
 const { callTiktok } = require('../../../functions/tiktok/function');
 const { SEND_MESSAGE } = require('../../../config/tiktok_apis');
+const { getTenantDB } = require('../../../middleware/tenantIdentifier');
+
 
 const tokoAppId = process.env.TOKO_APP_ID;
 // const prisma = new PrismaClient();
@@ -144,38 +147,36 @@ router.get('/:id/comments', async function(req, res, next) {
 });
 
 router.post('/sunco/event', async function(req,res,next){
-    // let trigger = req.body.events[0].type
-    let payload = req.body.events[0].payload
-    console.log(JSON.stringify(payload))
-    let sourceType = payload.message.source.type
-    let messageAuthor = payload.message.author.type
-    // let conversationId = payload.conversation.id
-  
-    if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
-      // SEND MESSAGE TO MARINA
-      console.log('message author is bussines')
-      if(payload.conversation?.metadata?.origin_source_integration){
-        console.log('message origin from registered channel')
-        res.send('ok')
-        return
-      }
-  
-      let body = await suncoAgentMessage(payload, req.tenantDB)
-      let sendMessage =  await sendMessageToBuyer(body)
-  
-      if(sendMessage.success){
-          res.status(200).send(sendMessage.chat)
-      }else{
-          res.status(400).send(sendMessage.error)
-      }
-      return
+    let payload = req.body.events[0].payload;
+    let sourceType = payload.message.source.type;
+    let messageAuthor = payload.message.author.type;
+
+    try {
+        if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
+            console.log('message author is bussines')
+          if (payload.conversation?.metadata?.origin_source_integration) {
+            return res.status(200).send({});
+          }
+
+          if (payload.conversation.metadata.marina_org_id) {
+            const org_id = payload.conversation.metadata.marina_org_id;
+            let body = await suncoAgentMessage(payload, org_id);
+            let sendMessage =  await sendMessageToBuyer(body, org_id);
+            return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
+          } else {
+            return res.status(200).send({});
+          }
+        }
+        res.status(200).send({});
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({error: err});
     }
   
-    res.send('ok')
 })
 
-async function sendMessageToBuyer(body, tenantDB) {
-    console.log('sendMessageToBuyer', JSON.stringify(body))
+async function sendMessageToBuyer(body, org_id) {
+    // console.log('sendMessageToBuyer', JSON.stringify(body))
     let templateId;
     if (body.channel_name.toString().toLowerCase() === channelSource.LAZADA.toLowerCase()) {
         let contentType;
@@ -193,10 +194,12 @@ async function sendMessageToBuyer(body, tenantDB) {
             case chatContentType.PRODUCT:
                 templateId = '10006';
                 contentType = 'item_id';
+                bodyChat = body.product_id;
                 break;
             case chatContentType.INVOICE:
                 templateId = '10007';
                 contentType = 'order_id';
+                bodyChat = body.order_id;
                 break;
             default:
                 break;
@@ -209,7 +212,7 @@ async function sendMessageToBuyer(body, tenantDB) {
             // return res.status(400).send({chat: chatReply});
             return {success: false, error: chatReply}
         }
-        let chat = await updateOmnichat(body, chatReply.data.message_id);
+        let chat = await updateOmnichat(body, chatReply.data.message_id); // <--- check
         // res.status(200).send(chat);
         return {success: true, chat: chat}
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TOKOPEDIA.toLowerCase()) {
@@ -250,8 +253,8 @@ async function sendMessageToBuyer(body, tenantDB) {
             } : {},
         };
 
-        console.log('replyPayload', JSON.stringify(replyPayload))
-        console.log('msg_id', body.last_messageId.split('-')[0])
+        // console.log('replyPayload', JSON.stringify(replyPayload))
+        // console.log('msg_id', body.last_messageId.split('-')[0])
         try {
             let chatReply = await api.post(
                 TOKO_REPLYCHAT(tokoAppId, body.last_messageId.split('-')[0]), 
@@ -268,7 +271,7 @@ async function sendMessageToBuyer(body, tenantDB) {
             if(!chatReply.data){
                 return {success: false, error: chatReply.header.reason}
             }
-            let chat = await updateOmnichat(body, chatReply.data.msg_id, tenantDB);
+            let chat = await updateOmnichat(body, chatReply.data.msg_id, org_id);
             // res.status(200).send(chat);
             return {success: true, chat: chat}
         } catch (err) {
@@ -277,68 +280,103 @@ async function sendMessageToBuyer(body, tenantDB) {
             return {success: false, error: err}
         }
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TIKTOK.toLowerCase()) {
-        const mPrisma = getPrismaClient(tenantDB);
-        let mStore = await mPrisma.store.findUnique({
-            where: {
-                origin_id: body.store_origin_id.toString()
-            }
-        })
+        let mStore = {};
+        if (!body.omnichat) {
+            console.log('== get omnichat ==')
+            const mPrisma = getPrismaClient(getTenantDB(org_id));
+            mStore = await mPrisma.store.findUnique({
+                where: {
+                    origin_id: body.store_origin_id.toString()
+                }
+            })
+        }
+        mStore = body.omnichat.store;
         let contentChat = {
-            ...(body.chat_type === chatContentType.TEXT ? { content: body.line_text} : {}),
-            ...(body.chat_type === chatContentType.IMAGE ? { url: '', width: '', height: ''} : {}),
-            ...(body.chat_type === chatContentType.PRODUCT ? { product_id: ''} : {}),
-            ...(body.chat_type === chatContentType.INVOICE ? { order_id: ''} : {}),
+            ...(body.chat_type === chatContentType.TEXT ? {content: body.line_text} : {}),
+            ...(body.chat_type === chatContentType.IMAGE ? {url: body.file_path, width: 1280, height: 720} : {}),
+            ...(body.chat_type === chatContentType.PRODUCT ? {product_id: body.product_id} : {}),
+            ...(body.chat_type === chatContentType.INVOICE ? {order_id: body.order_id} : {}),
         }
         let contentType = (body.chat_type === chatContentType.PRODUCT) ? 'PRODUCT_CARD' : (body.chat_type === chatContentType.INVOICE) ? 'ORDER_CARD' : body.chat_type.toString().toUpperCase();
         let chatBody = {
             type: contentType,
             content: JSON.stringify(contentChat)
         }
-        if (body.chat_type === chatContentType.TEXT) {
-            let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token);
-            if (sendChat.data.code != 0) {
-                return {success: false, error: sendChat.data.message}
-            }
-            return {success: true, chat: sendChat.data};
-        } else {
-            return {success: false, error: 'only "text" supported for now'}
+        let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token);
+        console.log(sendChat.data)
+        if (sendChat.data.code != 0) {
+            return {success: false, error: sendChat.data.message}
         }
+        return {success: true, chat: sendChat.data};
     } else {
-        // res.status(400).send({error: 'Not implemented'});
         return {success: false, error: 'Not implemented'}
     }
 }
-async function suncoAgentMessage(payload, tenantDB){
-    let channelName = payload.conversation.metadata["dataCapture.ticketField.44413794291993"].toString()
+async function suncoAgentMessage(payload, org_id){
+    let prisma = getPrismaClient(getTenantDB(org_id));
+    const message = await prisma.omnichat.findFirst({
+        where: { externalId: payload.conversation.id },
+        select: {
+            origin_id: true,
+            last_messageId: true,
+            store: {
+                select: {
+                    token: true,
+                    secondary_token: true,
+                    refresh_token: true,
+                    origin_id: true,
+                    channel: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    // let channelName = payload.conversation.metadata["dataCapture.ticketField.44413794291993"].toString()
+    const channelName = message.store.channel.name;
     let lineText = payload.message.content?.text ? payload.message.content.text:''
-    let chatType = payload.message.content.type
+    let chatType = payload.message.content.type;
     let param = {
-        "id": "",
-        "line_text": lineText,
-        "author": "agent",
-        "createdAt": (new Date()).toISOString(),
-        "store_origin_id": payload.conversation.metadata["dataCapture.ticketField.44414210097049"].toString(),
-        "channel_name": channelName,
-        "chat_type": chatType
+        id: "",
+        line_text: lineText,
+        author: "agent",
+        createdAt: (new Date()).toISOString(),
+        // store_origin_id: payload.conversation.metadata["dataCapture.ticketField.44414210097049"].toString(),
+        store_origin_id: message.store.origin_id,
+        channel_name: channelName,
+        chat_type: chatType,
+        omnichat: message,
+        omnichat_origin_id: message.origin_id
+    }
+    if (lineText.includes('SEND_PRODUCT')) {
+        param.product_id = lineText.split('SEND_PRODUCT: ')[1];
+        param.chat_type = chatContentType.PRODUCT
+    }
+    if (lineText.includes('SEND_INVOICE')) {
+        param.invoice_id = lineText.split('SEND_INVOICE: ')[1];
+        param.chat_type = chatContentType.INVOICE
     }
 
-    if(chatType == 'image') param.file_path = payload.message.content.mediaUrl
+    if (chatType == 'image') param.file_path = payload.message.content.mediaUrl
 
-    if(channelName == 'lazada'){
-        const mPrisma = getPrismaClient(tenantDB);
+    if (channelName == 'lazada') {
+        // const mPrisma = getPrismaClient(org_id);
         let originId = payload.conversation.metadata['lazada_origin_id']
-        let message = await mPrisma.omnichat.findUnique({
+       /*  let message = await mPrisma.omnichat.findUnique({
             where:{
                 origin_id: originId
             }
-        })
+        }) */
 
-        console.log('lazadaMessage', message)
+        // console.log('lazadaMessage', message)
         param.omnichat_origin_id = originId
         param.last_messageId = message.last_messageId
     }
 
-    if(channelName == 'tokopedia'){
+    if (channelName == 'tokopedia') {
         param.omnichat_origin_id = `${payload.conversation.metadata["dataCapture.ticketField.44414210097049"]}-${payload.conversation.metadata["dataCapture.ticketField.44421785876377"]}`
         param.last_messageId = `${payload.conversation.metadata["dataCapture.ticketField.44415748503577"]}-${Date.now()}`
     }
@@ -394,7 +432,7 @@ async function suncoAgentMessage(payload, tenantDB){
 }
 
 async function updateOmnichat (body, msgId, tenantDB) {
-    const mPrisma = getPrismaClient(tenantDB);
+    const mPrisma = getPrismaClient(getTenantDB(tenantDB));
     let chat = await mPrisma.omnichat.update({
         where: {
             origin_id: body.omnichat_origin_id

@@ -7,6 +7,7 @@ const checkJwt = async (req, res, next) => {
     '/api/v1/lazada/webhook', 
     '/api/v1/shopee/webhook', 
     '/api/v1/tiktok/webhook',
+    '/api/v1/chats/sunco/event'
   ];
   if (excludedPath.includes(req.path)) {
     return next();

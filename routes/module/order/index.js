@@ -16,6 +16,7 @@ const { ConversationListResponse } = require('sunshine-conversations-client');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
 // const checkJwt = require('../../../middleware/auth');
 const { getPrismaClient } = require('../../../services/prismaServices');
+const { decryptData } = require('../../../functions/encryption');
 // const { tenantIdentifier } = require('../../../middleware/tenantIdentifier');
 var env = process.env.NODE_ENV || 'development';
 
@@ -336,7 +337,7 @@ router.put('/:id', async function(req, res, next) {
                 const tiktokResponse = await api.post(completeUrl, data, {
                     headers: {
                         'content-type': 'application/json',
-                        'x-tts-access-token': order.store.token
+                        'x-tts-access-token': decryptData(order.store.token)
                     }
                 });
                 statusCode = tiktokResponse.status;
