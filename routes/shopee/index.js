@@ -2,14 +2,17 @@ var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
 // var { PrismaClient, Prisma } = require('@prisma/client');
-var CryptoJS = require("crypto-js");
+// var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/interceptor');
-const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL } = require('../../config/shopee_apis');
+const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, PARTNER_KEY } = require('../../config/shopee_apis');
 const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 const { getPrismaClient } = require('../../services/prismaServices');
+const { encryptData } = require('../../functions/encryption');
+const { getTenantDB } = require('../../middleware/tenantIdentifier');
+const { createHmac } = require('crypto');
 var env = process.env.NODE_ENV || 'development';
 // const prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
@@ -37,6 +40,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         jsonBody = gcpParser(req.body.message.data);
     } else {
         jsonBody = req.body;
+    }
+    if (req.body.code == 0) {
+        return res.status(200).send({message:' ok'});
     }
     basePrisma.stores.findUnique({
         where: {
@@ -299,6 +305,9 @@ router.put('/order/:id', async function(req, res, next) {
 })
 
 router.post(PATH_AUTH, async function(req, res, next) {
+    if (!req.body.code) {
+        return res.status(400).send({error: 'Missing authorization code'});
+    }
     const prisma = getPrismaClient(req.tenantDB);
     // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
@@ -316,19 +325,17 @@ router.post(PATH_AUTH, async function(req, res, next) {
     // console.log(JSON.stringify(req.body));
   
     const ts = Math.floor(Date.now() / 1000);
-    const PARTNER_ID = process.env.SHOPEE_PARTNER_ID;
-    const PARTNER_KEY = process.env.SHOPEE_PARTNER_KEY;
     var shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_TOKEN}${ts}`;
-
-    var sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-    let bodyPayload = {
+    // var sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+    var sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
+    const bodyPayload = {
         code: req.body.code,
         partner_id: Number.parseInt(PARTNER_ID),
         shop_id: Number.parseInt(req.body.shop_id),
     }
-    let token = await api.post(
+    const token = await api.post(
         `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
-        JSON.stringify(bodyPayload), 
+        JSON.stringify(bodyPayload),
         {
             headers: {
                 Accept: 'application/json',
@@ -345,9 +352,9 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(token.data);
             return res.status(400).send(token.data);
         }
-        console.log(token.data);
         shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
-        sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+        // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+        sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
         const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
         let shopInfo = await api.get(
             `${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`,
@@ -360,22 +367,22 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 console.log(shopInfo.data);
                 return res.status(400).send(shopInfo.data);
             }
-            console.log(shopInfo.data);
+            // console.log(shopInfo.data);
             let newStore = await prisma.store.upsert({
                 where: {
                     origin_id: req.body.shop_id.toString()
                 },
                 update: {
                     status: 'ACTIVE',
-                    token: token.data.access_token,
-                    refresh_token: token.data.refresh_token
+                    token: encryptData(token.data.access_token),
+                    refresh_token: encryptData(token.data.refresh_token)
                 },
                 create: {
                     origin_id: req.body.shop_id.toString(),
                     name: shopInfo.data.shop_name,
-                    token: token.data.access_token,
+                    token: encryptData(token.data.access_token),
                     status: 'ACTIVE',
-                    refresh_token: token.data.refresh_token,
+                    refresh_token: encryptData(token.data.refresh_token),
                     channel: {
                         connectOrCreate: {
                             where: {
@@ -391,14 +398,15 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 console.log(err);
                 return res.status(400).send({error: err});
             });
-            console.log(newStore);
+            // console.log(newStore);
             if (newStore) {
                 let taskPayload = {
                     channel: SHOPEE,
-                    process: 'sync',
+                    code: 9999,
                     shop_id: req.body.shop_id,
                     token: token.data.access_token,
-                    refresh_token: token.data.refresh_token
+                    refresh_token: token.data.refresh_token,
+                    org_id: req.auth.payload.org_id
                 }
                 // console.log(taskPayload);
                 pushTask(env, taskPayload)

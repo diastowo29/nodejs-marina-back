@@ -25,6 +25,7 @@ const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_ap
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClient } = require('./services/prismaServices');
 const { Prisma } = require('./prisma/generated/baseClient');
+const { getTenantDB } = require('./middleware/tenantIdentifier');
 const app = express();
 if (env == 'production') {
     app.use(express.json());
@@ -439,7 +440,7 @@ async function processTokopediaChat(body, done) {
 async function processShopee(body, done) {
     console.log(JSON.stringify(body));
     /* WORKER PART */
-    const prisma = getPrismaClient(body.tenantDB);
+    const prisma = getPrismaClient(getTenantDB(body.org_id));
     if (body.code == 3) {
         /* ==== ORDERS ==== */
         collectShopeeOrder(body, done);
@@ -522,7 +523,6 @@ async function processShopee(body, done) {
     } else {
         console.log('shopee code not supported: ', body.code);
     if (env !== 'production') {
-
         done(null, {response: 'testing'});
     }
 
