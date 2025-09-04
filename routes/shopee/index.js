@@ -1,22 +1,24 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-// var { PrismaClient, Prisma } = require('@prisma/client');
-// var CryptoJS = require("crypto-js");
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/interceptor');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, PARTNER_KEY } = require('../../config/shopee_apis');
 const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
-const { getPrismaClient } = require('../../services/prismaServices');
-const { encryptData } = require('../../functions/encryption');
+const { getPrismaClientForTenant } = require('../../services/prismaServices');
+const { encryptData, decryptData } = require('../../functions/encryption');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { createHmac } = require('crypto');
+const { PrismaClient } = require('../../prisma/generated/client');
+// const { PrismaClient: prismaMainClient } = require('../../../prisma/generated/client');
 var env = process.env.NODE_ENV || 'development';
 // const prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
+let prisma = new PrismaClient();
 
+// const prisma = new prismaMainClient({datasources: {db: {url: }}});
 
 router.get('/sync', async function(req, res, next) {
     // console.log(JSON.stringify(req.body))
@@ -52,7 +54,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const prisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        const tenantDbUrl = getTenantDB(mBase.clients.org_id)
+        // const prisma = getPrismaClient(tenantDbUrl);
+        prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
         console.log(JSON.stringify(jsonBody));
         let payloadCode = jsonBody.code;
         let response;
@@ -87,11 +91,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     channel: SHOPEE, 
                     order_id: jsonBody.data.ordersn,
                     id: newOrder.id,
-                    token: newOrder.store.token,
+                    token: decryptData(newOrder.store.token),
                     code: payloadCode,
                     m_shop_id: newOrder.store.id,
                     shop_id: jsonBody.shop_id,
-                    refresh_token: newOrder.store.refresh_token
+                    refresh_token: decryptData(newOrder.store.refresh_token),
+                    tenantDB: tenantDbUrl,
+                    org_id: mBase.clients.org_id
                 }
                 if (newOrder.order_items.length == 0) {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
@@ -197,7 +203,8 @@ router.post(PATH_CHAT, async function(req, res, next) {
 });
 
 router.put('/order/:id', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    prisma = req.prisma;
+    // const prisma = getPrismaClient(req.tenantDB);
     const orders = await prisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -308,7 +315,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
     if (!req.body.code) {
         return res.status(400).send({error: 'Missing authorization code'});
     }
-    const prisma = getPrismaClient(req.tenantDB);
+    prisma = req.prisma;
+    // const prisma = getPrismaClient(req.tenantDB);
     // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
     // let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
@@ -343,8 +351,13 @@ router.post(PATH_AUTH, async function(req, res, next) {
             }
         }
     ).catch(function (err) {
-        console.log(err.response.data);
-        return res.status(400).send({error: err.response.data});
+        if (err.response) {
+            console.log(err.response.data);
+            return res.status(400).send({error: err.response.data});
+        } else {
+            console.log(err);
+            return res.status(400).send({error: 'Failed to connect to Shopee API'});
+        }
     });
 
     if (token.data) {

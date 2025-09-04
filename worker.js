@@ -23,17 +23,18 @@ const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
-const { getPrismaClient } = require('./services/prismaServices');
+const { getPrismaClient, getPrismaClientForTenant } = require('./services/prismaServices');
 const { Prisma } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
+const { PrismaClient } = require('./prisma/generated/client');
 const app = express();
+let prisma = new PrismaClient();
 if (env == 'production') {
     app.use(express.json());
     const PORT = process.env.PORT || 8080;
-    // const PORT = 3003;
     app.listen(PORT, () => {
-        console.log('db at ', process.env.DATABASE_URL);
-        console.log(`Worker running on port ${PORT}`);
+        // console.log('db at ', process.env.DATABASE_URL);
+        // console.log(`Worker running on port ${PORT}`);
     });
     app.post('/doworker', async (req, res) => {
         let job = await processJob({
@@ -96,10 +97,8 @@ async function processJob(jobData, done) {
             break;
         default:
             console.log(jobData.data);
-            const formData = new FormData();
+           /*  const formData = new FormData();
             formData.append('data', fs.createReadStream(jobData.data.files))
-
-            // const data = jobData.data.data.data.path;
             try {
                 const uploaded = await api.post(UPLOAD_IMAGE(formData), formData, {
                     headers: {
@@ -108,11 +107,9 @@ async function processJob(jobData, done) {
                     }
                 });
                 console.log(uploaded.data);
-                // res.status(200).send(uploaded.data);
             } catch (err) {
                 console.log(err)
-                // res.status(500).send({err: err.message})
-            }
+            } */
             console.log('channel not supported: ', jobData.data.channel);
             if (env !== 'production') {
                 done(null, {response: 'testing'});
@@ -440,7 +437,11 @@ async function processTokopediaChat(body, done) {
 async function processShopee(body, done) {
     console.log(JSON.stringify(body));
     /* WORKER PART */
-    const prisma = getPrismaClient(getTenantDB(body.org_id));
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+    const tenantConfig = {
+        org_id: body.org_id,
+        tenantDB: body.tenantDB
+    }
     if (body.code == 3) {
         /* ==== ORDERS ==== */
         collectShopeeOrder(body, done);
@@ -454,7 +455,7 @@ async function processShopee(body, done) {
         ).catch(async function (err) {
             if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
                 console.log(`error status ${err.status} response ${err.response.data.error}`);
-                let newToken = await generateShopeeToken(body.shop_id, refToken);
+                let newToken = await generateShopeeToken(body.shop_id, refToken, tenantConfig);
                 accToken = newToken.access_token;
                 refToken = newToken.refresh_token;
                 console.log(newToken);

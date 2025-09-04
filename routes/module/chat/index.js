@@ -1,26 +1,24 @@
 var express = require('express');
 var router = express.Router();
-// var {
-//     PrismaClient
-// } = require('@prisma/client');
-
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
-const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
+// const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
 const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/interceptor');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
-const { getPrismaClient } = require('../../../services/prismaServices');
+const { getPrismaClient, getPrismaClientForTenant } = require('../../../services/prismaServices');
 const { callTiktok } = require('../../../functions/tiktok/function');
 const { SEND_MESSAGE } = require('../../../config/tiktok_apis');
 const { getTenantDB } = require('../../../middleware/tenantIdentifier');
-
+const { PrismaClient } = require('../../../prisma/generated/client');
+// const { PrismaClient } = require('../../../prisma/generated/client');
+let mPrisma = new PrismaClient();
 
 const tokoAppId = process.env.TOKO_APP_ID;
 // const prisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
     let chat = await mPrisma.omnichat.findMany({
         include: {
             omnichat_user: true,
@@ -38,7 +36,8 @@ router.get('/', async function(req, res, next) {
 });
 
 router.get('/comments', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
     let comments = await mPrisma.omnichat_line.findMany({
         select: {
             chat_type: true
@@ -52,7 +51,8 @@ router.post('/initiate', async function(req, res, next) {
     const customerId = '';
     const storeId = req.body.store_id;
     const channel = req.body.channel;
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
 
     let store = await mPrisma.store.findUnique({
         where: {
@@ -125,7 +125,8 @@ router.post('/', async function(req, res, next) {
 })
 
 router.get('/:id/comments', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
     let chat = await mPrisma.omnichat.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -283,7 +284,8 @@ async function sendMessageToBuyer(body, org_id) {
         let mStore = {};
         if (!body.omnichat) {
             console.log('== get omnichat ==')
-            const mPrisma = getPrismaClient(getTenantDB(org_id));
+            // const mPrisma = getPrismaClient(getTenantDB(org_id));
+            mPrisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url)
             mStore = await mPrisma.store.findUnique({
                 where: {
                     origin_id: body.store_origin_id.toString()

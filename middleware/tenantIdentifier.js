@@ -1,3 +1,5 @@
+const { getPrismaClientForTenant } = require("../services/prismaServices");
+
 const getTenantDB = (tenantId) => {
   const dbUser = process.env.DB_USER;
   const dbPassword = process.env.DB_PASSWORD;
@@ -17,18 +19,26 @@ const tenantIdentifier = (req, res, next) => {
     '/api/v1/lazada/webhook', 
     '/api/v1/shopee/webhook', 
     '/api/v1/tiktok/webhook',
-    '/api/v1/chats/sunco/event'
+    '/api/v1/chats/sunco/event',
+    '/api/v1/auth0/hook',
+    '/api/v1/auth0/schema',
+    '/api/v1/auth0/registration',
+    '/api/v1/auth0/pre-registration'
   ];
   if (excludedPath.includes(req.path)) {
     return next();
   }
-  // console.log(req.auth)
-  const tenantId = req.headers['x-tenant-id'] || req.auth.payload.org_id;  
+  let tenantId = req.headers['x-tenant-id'] || req.auth.payload.org_id;
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
-  
-  req.tenantDB = getTenantDB(tenantId);
+  if (tenantId != 'org_SdVZvtRmlurL47iY' || tenantId != 'org_rfMkRHgxqG9uxYUY') {
+    tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+  }
+
+  const dbUrl = getTenantDB(tenantId);
+  req.tenantDB = dbUrl;
+  req.prisma = getPrismaClientForTenant(tenantId, dbUrl.url);
   next();
 };
 

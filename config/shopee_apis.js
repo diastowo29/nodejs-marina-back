@@ -1,4 +1,4 @@
-const SHOPEE_HOST = process.env.SHOPEE_API_HOST || 'https://partner.test-stable.shopeemobile.com';
+const SHOPEE_HOST = process.env.SHOPEE_API_HOST || 'https://openplatform.sandbox.test-stable.shopee.sg';
 const AUTH_ENDPOINT = '/api/v2/shop/auth_partner';
 const GET_ORDER_DETAIL_PATH = '/api/v2/order/get_order_detail';
 const GET_SHOPEE_SHOP_INFO_PATH = '/api/v2/shop/get_shop_info';

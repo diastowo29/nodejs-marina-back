@@ -1,18 +1,20 @@
 const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION } = require("../../config/tiktok_apis");
-const { getPrismaClient } = require("../../services/prismaServices");
+const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
 const SunshineConversationsClient = require('sunshine-conversations-client');
 const { createSuncoUser, createSuncoConversation, postMessage } = require("../sunco/function");
-const { getTenantDB } = require("../../middleware/tenantIdentifier");
 const { createTicket } = require("../zendesk/function");
+const { PrismaClient } = require("../../prisma/generated/client");
+let prisma = new PrismaClient();
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
 
 async function collectTiktokOrder (body, done) {
-    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB);
+    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     if (tiktokOrder) {
-        const prisma = getPrismaClient(body.tenantDB);
+        prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+        // const prisma = getPrismaClient(body.tenantDB);
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
         prisma.orders.update({
             where: {
@@ -93,18 +95,19 @@ async function collectTiktokOrder (body, done) {
 
 async function collectReturnRequest (body, done) {
     // console.log(body)
-    const prisma = getPrismaClient(body.tenantDB);
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+    // const prisma = getPrismaClient(body.tenantDB);
     var data = {}
     var returnCancel = [];
     if (body.status == 'ORDER_REFUND') {
         data = { order_ids: [body.order_id] };
         returnCancel = await Promise.all([
-            callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB),
-            callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB)
+            callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
+            callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id)
         ]);
     } else if (body.status == 'ORDER_REQUEST_CANCEL') {
         data = { cancel_ids: [body.returnId] }
-        returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB);
+        returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
     const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
@@ -224,14 +227,14 @@ async function collectReturnRequest (body, done) {
 }
 
 async function collectTiktokProduct (body, done) {
-
-    const prisma = getPrismaClient(body.tenantDB);
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+    // const prisma = getPrismaClient(body.tenantDB);
     // -- UPDATE USING: callTiktok FUNCTION
     
     let tiktokStore = await prisma.store.findUnique({
         where: { origin_id: body.shop_id }
     });
-    const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB);
+    const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB, body.org_id);
     // const productData = response.data.data;
     /* let data = productData.skus.map(item => ({
             origin_id: `${productData.id}-${item.id}`,
@@ -287,6 +290,7 @@ async function forwardConversation (body, done) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
+        prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
         const suncoAppSecret = findZd.credent.find(cred => cred.key == 'SUNCO_APP_SECRET').value;
@@ -303,7 +307,6 @@ async function forwardConversation (body, done) {
         basicAuth.password = decryptData(suncoAppSecret);
         let suncoConvId;
         if (!body.message.externalId) {
-            const prisma = getPrismaClient(getTenantDB(body.org_id));
             let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
@@ -378,7 +381,7 @@ async function forwardConversation (body, done) {
     }
 }
 
-async function callTiktok (method, url, body, token, refreshToken, shopId, tenantDB) {
+async function callTiktok (method, url, body, token, refreshToken, shopId, tenantDB, org_id) {
     return api({
         method: method,
         url: url,
@@ -395,7 +398,8 @@ async function callTiktok (method, url, body, token, refreshToken, shopId, tenan
             if (!newToken.data.data.access_token) {
                 throw new Error('Failed to refresh token');
             }
-            const prisma = getPrismaClient(tenantDB);
+            // const prisma = getPrismaClient(tenantDB);
+            prisma = getPrismaClientForTenant(org_id, tenantDB.url);
             const _stored = await prisma.store.update({
                 where: {
                     id: shopId

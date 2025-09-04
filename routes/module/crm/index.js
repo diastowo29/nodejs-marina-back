@@ -39,8 +39,8 @@ router.delete('/:id', async function(req, res, next) {
             }
         });
         const deletedIntegration = await prisma.$transaction([credent, integration]);
-        console.log(deletedIntegration)
-        res.status(200).send({success: true, delteted: deletedIntegration});
+        // console.log(deletedIntegration)
+        res.status(200).send({success: true, deleted: deletedIntegration});
     } catch (err) {
         console.log(err);
         res.status(400).send({failed: err});

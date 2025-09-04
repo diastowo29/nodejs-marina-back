@@ -6,15 +6,24 @@ var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
 // const { TOKO_SHOPINFO } = require("../../config/toko_apis");
 const { storeStatuses } = require("../../config/utils");
+const { getPrismaClient, getPrismaClientForTenant } = require("../../services/prismaServices");
+const { encryptData } = require("../encryption");
+const { PrismaClient } = require("../../prisma/generated/client");
+let prisma = new PrismaClient();
 
 async function collectShopeeOrder (body, done) {
-    const prisma = getPrismaClient(body.tenantDB);
+    // const prisma = getPrismaClient(body.tenantDB);
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
     ).catch(async function (err) {
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
             console.log(`error status ${err.status} response ${err.response.data.error}`);
-            let newToken = await generateShopeeToken(body.shop_id, body.refresh_token, body.tenantDB);
+            const tenantConfig = {
+                org_id: body.org_id,
+                tenantDB: body.tenantDB
+            }
+            let newToken = await generateShopeeToken(body.shop_id, body.refresh_token, tenantConfig);
             if (newToken) {
                 if (newToken.access_token) {
                     return api.get(
@@ -34,6 +43,80 @@ async function collectShopeeOrder (body, done) {
     }
     let orderData = order.data.response.order_list[0];
     console.log('GOT ORDER DETAILS');
+
+    /* const orderUpdate = prisma.orders.update({
+        where: {
+            origin_id: body.order_id.toString()
+        },
+        data: {
+            accept_partial: orderData.split_up,
+            customers: {
+                connectOrCreate: {
+                    where: {
+                        origin_id: orderData.buyer_user_id.toString(),
+                    },
+                    create: {
+                        origin_id: orderData.buyer_user_id.toString(),
+                        name: orderData.buyer_username
+                    }
+                }
+            },
+            logistic: {
+                connectOrCreate: {
+                    where: {
+                        name: orderData.shipping_carrier
+                    },
+                    create: {
+                        name: orderData.shipping_carrier
+                    }
+                }
+            },
+            payment_id: orderData.payment_method,
+            recp_addr_city: orderData.recipient_address.city,
+            recp_addr_country: orderData.recipient_address.region,
+            recp_addr_district: orderData.recipient_address.district,
+            recp_addr_full: orderData.recipient_address.full_address,
+            recp_addr_postal_code: orderData.recipient_address.zipicode,
+            recp_name: orderData.recipient_address.name,
+            recp_phone: orderData.recipient_address.phone,
+            shipping_price: orderData.estimated_shipping_fee,
+            total_amount: orderData.total_amount,
+            status: orderData.order_status,
+        },
+        select: {
+            id: true
+        }
+    });
+
+    const trxArray = orderData.item_list.map(async item => {
+        return prisma.order_items.create({
+            data: {
+                qty: item.model_quantity_purchased,
+                total_price: item.model_discounted_price,
+                origin_id: `${body.order_id}-${item.item_id}`,
+                ordersId: body.id,
+                products: {
+                    connectOrCreate: {
+                        where: {
+                            origin_id: `${item.item_id}-${item.model_id}`
+                        },
+                        create: {
+                            name: (item.model_name == '') ? item.item_name : `${item.item_name} - ${item.model_name}`,
+                            origin_id: `${item.item_id}-${item.model_id}`,
+                            price: item.model_original_price,
+                            sku: (item.item_sku == '') ? item.model_sku : item.item_sku,
+                            weight: Number.parseInt(item.weight),
+                            storeId: body.m_shop_id
+                        }
+                    }
+                }
+            }
+        })
+    });
+    trxArray.push(orderUpdate);
+    const orderTrx = await prisma.$transaction(trxArray);
+    console.log(orderTrx); */
+
     let orderUpdate = await prisma.orders.update({
         where: {
             origin_id: body.order_id.toString()
@@ -105,8 +188,8 @@ async function collectShopeeOrder (body, done) {
     // done(null, {response: 'testing'});
 }
 
-async function generateShopeeToken (shop_id, refToken, tenantDB) {
-    const prisma = getPrismaClient(tenantDB);
+async function generateShopeeToken (shop_id, refToken, tenantConfig) {
+    prisma = getPrismaClientForTenant(tenantConfig.org_id, tenantConfig.tenantDB.url);
     let ts = Math.floor(Date.now() / 1000);
     const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
     const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
@@ -138,8 +221,8 @@ async function generateShopeeToken (shop_id, refToken, tenantDB) {
                 origin_id: shop_id.toString()
             },
             data: {
-                token: token.data.access_token,
-                refresh_token: token.data.refresh_token
+                token: encryptData(token.data.access_token),
+                refresh_token: encryptData(token.data.refresh_token)
             }
         }).catch(function (err) {
             console.log(err);

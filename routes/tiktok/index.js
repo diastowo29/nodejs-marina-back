@@ -1,21 +1,19 @@
 var express = require('express');
 var router = express.Router();
-// var {
-//     PrismaClient
-// } = require('@prisma/client');
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
-const { getPrismaClient } = require('../../services/prismaServices');
+const { getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { encryptData } = require('../../functions/encryption');
-const { createTicket } = require('../../functions/zendesk/function');
+const { PrismaClient } = require('../../prisma/generated/client');
 const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
+let mPrisma = new PrismaClient();
+
 
 router.get(PATH_WEBHOOK, function (req, res, next) {
     res.status(200).send({})
@@ -50,7 +48,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        mPrisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
+        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
         if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
             const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
             let newOrder = await mPrisma.orders.upsert({
@@ -126,6 +125,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 refresh_token: newOrder.store.refresh_token,
                 returnId: newOrder.temp_id,
                 tenantDB: getTenantDB(mBase.clients.org_id),
+                org_id: mBase.clients.org_id
             }
             if (jsonBody.type == 2) {
                 taskPayload = {
@@ -142,7 +142,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     code: jsonBody.type,
                     customer_id: newOrder.customers.origin_id,
                     shop_id: jsonBody.shop_id,
-                    integration: newOrder.store.channel.client.integration
+                    integration: newOrder.store.channel.client.integration,
+                    org_id: mBase.clients.org_id
                 }
             }
             if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND') || (orderStatus == 'ORDER_REQUEST_CANCEL')) {
@@ -155,7 +156,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 channel: TIKTOK,
                 code: jsonBody.type,
                 product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
-                shop_id: jsonBody.shop_id
+                shop_id: jsonBody.shop_id,
+                org_id: mBase.clients.org_id
             }
             pushTask(env, taskPayload);
             res.status(200).send({})
@@ -263,7 +265,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         message: upsertMessage,
                         userExternalId: userExternalId,
                         userName: userName,
-                        message_content: jsonBody.data.content
+                        message_content: jsonBody.data.content,
+                        tenantDB: getTenantDB(mBase.clients.org_id),
+                        org_id: mBase.clients.org_id
                     }
                     pushTask(env, taskPayload);
                 }
@@ -342,7 +346,8 @@ router.get('/return_refund', async function (req, res, next) {
 }); */
 
 router.post(PATH_ORDER, async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
     let orderId = req.body.order.id;
     let order = await mPrisma.orders.findUnique({
         where: {
@@ -389,7 +394,8 @@ router.post(PATH_ORDER, async function(req, res, next) {
 })
 
 router.get(PATH_CANCELLATION, async function (req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
     mPrisma.orders.findUnique({
         where: {
             id: req.body.order.id
@@ -437,7 +443,8 @@ router.get(PATH_CANCELLATION, async function (req, res, next) {
 }) */
 
 router.post(PATH_AUTH, async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
+    // const mPrisma = getPrismaClient(req.tenantDB);
     // console.log(GET_TOKEN_API(req.body.auth_code));
     let token = await api.get(GET_TOKEN_API(req.body.auth_code)).catch(function (err) {
         res.status(400).send({error: err.response.data});
