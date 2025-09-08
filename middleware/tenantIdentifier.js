@@ -1,3 +1,4 @@
+const { whitelistUrl } = require("../config/urls");
 const { getPrismaClientForTenant } = require("../services/prismaServices");
 
 const getTenantDB = (tenantId) => {
@@ -14,17 +15,7 @@ const getTenantDB = (tenantId) => {
 };
 
 const tenantIdentifier = (req, res, next) => {
-  const excludedPath = [
-    '/api/v1/blibli/webhook', 
-    '/api/v1/lazada/webhook', 
-    '/api/v1/shopee/webhook', 
-    '/api/v1/tiktok/webhook',
-    '/api/v1/chats/sunco/event',
-    '/api/v1/auth0/hook',
-    '/api/v1/auth0/schema',
-    '/api/v1/auth0/registration',
-    '/api/v1/auth0/pre-registration'
-  ];
+  const excludedPath = whitelistUrl;
   if (excludedPath.includes(req.path)) {
     return next();
   }

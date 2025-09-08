@@ -12,20 +12,21 @@ const multer = require('multer');
 // const { pushTask } = require('../../../functions/queue/task');
 // const { Blob } = require('buffer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
-const { ConversationListResponse } = require('sunshine-conversations-client');
+// const { ConversationListResponse } = require('sunshine-conversations-client');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
 // const checkJwt = require('../../../middleware/auth');
-const { getPrismaClient } = require('../../../services/prismaServices');
+// const { getPrismaClient } = require('../../../services/prismaServices');
 const { decryptData } = require('../../../functions/encryption');
 // const { tenantIdentifier } = require('../../../middleware/tenantIdentifier');
 var env = process.env.NODE_ENV || 'development';
+const { PrismaClient } = require('../../../prisma/generated/client');
+let mPrisma = new PrismaClient();
 
 // const upload = multer({ dest: 'uploads/' });
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
-
+    mPrisma = req.prisma;
     let order = await mPrisma.orders.findMany({
         orderBy: [
             { updatedAt: 'desc' }
@@ -139,7 +140,8 @@ router.get('/', async function(req, res, next) {
 }) */
 
 router.get('/:id', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    // const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
     if (!req.params.id) {
         return res.status(400).send({
             error: 'id is required'
@@ -226,7 +228,8 @@ router.get('/:id', async function(req, res, next) {
 }) */
 
 router.put('/:id', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    // const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
     console.log(req.body)
     const action = req.body.action;
     if (!action) {

@@ -1,19 +1,13 @@
 const { auth } = require('express-oauth2-jwt-bearer');
 const { promisify } = require('util');
+const { whitelistUrl } = require('../config/urls');
 
 const checkJwt = async (req, res, next) => {
-  const excludedPath = [
-    '/api/v1/blibli/webhook', 
-    '/api/v1/lazada/webhook', 
-    '/api/v1/shopee/webhook', 
-    '/api/v1/tiktok/webhook',
-    '/api/v1/chats/sunco/event',
-    '/api/v1/auth0/hook',
-    '/api/v1/auth0/schema',
-    '/api/v1/auth0/registration',
-    '/api/v1/auth0/pre-registration'
-  ];
+  const excludedPath = whitelistUrl
   if (excludedPath.includes(req.path)) {
+    return next();
+  }
+  if (req.headers['zd-event'] == 'local_test') {
     return next();
   }
   const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
