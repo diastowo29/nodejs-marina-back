@@ -11,8 +11,8 @@ const { callTiktok } = require('../../../functions/tiktok/function');
 const { SEND_MESSAGE } = require('../../../config/tiktok_apis');
 const { getTenantDB } = require('../../../middleware/tenantIdentifier');
 const { PrismaClient } = require('../../../prisma/generated/client');
-// const { PrismaClient } = require('../../../prisma/generated/client');
 let mPrisma = new PrismaClient();
+// const { PrismaClient } = require('../../../prisma/generated/client');
 
 const tokoAppId = process.env.TOKO_APP_ID;
 // const prisma = new PrismaClient();

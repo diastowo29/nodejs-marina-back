@@ -5,6 +5,10 @@ let appKeyCHAT = process.env.LAZ_APP_KEY_ID
 let lazadaHost = 'https://api.lazada.co.id/rest';
 let lazadaAuthHost = 'https://auth.lazada.com/rest';
 
+function convertOrgName (org_name) {
+    return org_name.toString().toLowerCase().split(' ').join('_');
+}
+
 function lazGetToken (appKey) {
     return {
         host: lazadaAuthHost,
@@ -24,6 +28,7 @@ function lazGetSellerInfo (appKey) {
 }
 
 module.exports = {
+    convertOrgName,
     lazGetToken,
     lazGetSellerInfo,
     PATH_WEBHOOK: '/webhook',

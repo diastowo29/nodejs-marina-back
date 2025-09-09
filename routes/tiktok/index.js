@@ -3,7 +3,7 @@ var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
-const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION } = require('../../config/utils');
+const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
@@ -48,8 +48,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        mPrisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
-        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]))
+        // const mPrisma = getPrismaClient(getTenantDB(org[1]));
         if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
             const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
             let newOrder = await mPrisma.orders.upsert({
@@ -124,12 +125,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 cipher: newOrder.store.secondary_token,
                 refresh_token: newOrder.store.refresh_token,
                 returnId: newOrder.temp_id,
-                tenantDB: getTenantDB(mBase.clients.org_id),
-                org_id: mBase.clients.org_id
+                tenantDB: getTenantDB(org[1]),
+                org_id: org[0]
             }
             if (jsonBody.type == 2) {
                 taskPayload = {
-                    tenantDB: getTenantDB(mBase.clients.org_id),
+                    tenantDB: getTenantDB(org[1]),
                     channel: TIKTOK,
                     token: newOrder.store.token,
                     refresh_token: newOrder.store.refresh_token,
@@ -143,7 +144,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     customer_id: newOrder.customers.origin_id,
                     shop_id: jsonBody.shop_id,
                     integration: newOrder.store.channel.client.integration,
-                    org_id: mBase.clients.org_id
+                    org_id: org[0]
                 }
             }
             if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND') || (orderStatus == 'ORDER_REQUEST_CANCEL')) {
@@ -152,12 +153,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
         } else if (jsonBody.type == 16) {
             let taskPayload = {
-                tenantDB: getTenantDB(mBase.clients.org_id),
+                tenantDB: getTenantDB(org[1]),
                 channel: TIKTOK,
                 code: jsonBody.type,
                 product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
                 shop_id: jsonBody.shop_id,
-                org_id: mBase.clients.org_id
+                org_id: org[0]
             }
             pushTask(env, taskPayload);
             res.status(200).send({})
@@ -258,7 +259,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 });
                 if (upsertMessage.store.channel.client.integration.length > 0) {
                     let taskPayload = {
-                        org_id: mBase.clients.org_id,
+                        org_id: org[0],
                         channel: TIKTOK,
                         code: jsonBody.type,
                         chat_type: jsonBody.data.type,
@@ -266,8 +267,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         userExternalId: userExternalId,
                         userName: userName,
                         message_content: jsonBody.data.content,
-                        tenantDB: getTenantDB(mBase.clients.org_id),
-                        org_id: mBase.clients.org_id
+                        tenantDB: getTenantDB(org[1]),
+                        org_id: org[0]
                     }
                     pushTask(env, taskPayload);
                 }
@@ -467,6 +468,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 return res.status(400).send({error: 'No shop found'});
             }
 
+            const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
             let clientStored = await Promise.all([
                 basePrisma.stores.upsert({
                     where: {
@@ -477,15 +479,26 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         clients: {
                             connectOrCreate: {
                                 where: {
-                                    org_id: req.auth.payload.org_id
+                                    org_id: orgBase64
                                 }, 
                                 create: {
-                                    org_id: req.auth.payload.org_id
+                                    org_id: orgBase64
                                 }
                             }
                         }
                     },
-                    update: {}
+                    update: {
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                },
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    }
                 }),
                 mPrisma.store.upsert({
                     where: {

@@ -23,7 +23,12 @@ const tenantIdentifier = (req, res, next) => {
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
-  if (tenantId != 'org_SdVZvtRmlurL47iY' || tenantId != 'org_rfMkRHgxqG9uxYUY') {
+
+  if (tenantId == 'org_SdVZvtRmlurL47iY') {
+    tenantId = 'org_SdVZvtRmlurL47iY';
+  } else if (tenantId == 'org_rfMkRHgxqG9uxYUY') {
+    tenantId = 'org_rfMkRHgxqG9uxYUY';
+  } else {
     tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
   }
 

@@ -27,6 +27,7 @@ router.get('/', async function(req, res, next) {
 router.delete('/:id', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
     /* SHOULD DELETE ALL EXTERNAL ID FROM OMNICHAT AND WEBHOOK */
+    /* DELETE TICKET FIELDS AND SUNCO WEBHOOK ASWELL */
     try {
         let credent = prisma.credent.deleteMany({
             where: {
@@ -49,6 +50,16 @@ router.delete('/:id', async function(req, res, next) {
 
 router.post('/', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
+    const stores = await prisma.store.findMany({
+        select: {
+            name: true,
+            origin_id: true
+        }
+    });
+    let storeOptions = stores.map(store => ({
+        name: store.name,
+        value: store.origin_id
+    }));
     if (req.body.crm == 'zendesk') {
         try {
             const zdConfig = await Promise.all([
@@ -56,13 +67,14 @@ router.post('/', async function(req, res, next) {
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL')),
+                axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'MM_SHOP', storeOptions)),
                 axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
             const integration = await prisma.integration.create({
                 data: {
                     baseUrl: req.body.host,
                     name: req.body.name,
-                    notes: `${zdConfig[0].data.ticket_field.id}-${zdConfig[1].data.ticket_field.id}-${zdConfig[2].data.ticket_field.id}-${zdConfig[3].data.ticket_field.id}`,
+                    notes: `${zdConfig[0].data.ticket_field.id}-${zdConfig[1].data.ticket_field.id}-${zdConfig[2].data.ticket_field.id}-${zdConfig[3].data.ticket_field.id}-${zdConfig[4].data.ticket_field.id}`,
                     clients: {
                         connectOrCreate: {
                             where: {
@@ -118,6 +130,23 @@ function zdApiConfig (host, token, tFieldsTitle) {
             ticket_field: {
                 type: "text",
                 title: tFieldsTitle
+            }
+        }
+    }
+}
+
+function zdApiConfigTagger (host, token, tFieldsTitle, options) {
+    return {
+        method: 'POST',
+        url: `${host}/api/v2/ticket_fields.json`,
+        headers: {
+            'Authorization': `Basic ${token}`
+        },
+        data: {
+            ticket_field: {
+                type: "tagger",
+                title: tFieldsTitle,
+                custom_field_options: options
             }
         }
     }
