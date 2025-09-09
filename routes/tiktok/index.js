@@ -259,7 +259,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 });
                 if (upsertMessage.store.channel.client.integration.length > 0) {
                     let taskPayload = {
-                        org_id: org[0],
                         channel: TIKTOK,
                         code: jsonBody.type,
                         chat_type: jsonBody.data.type,

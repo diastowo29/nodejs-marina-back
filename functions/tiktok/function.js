@@ -299,6 +299,7 @@ async function forwardConversation (body, done) {
             [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
             [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
             [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
+            [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
             marina_org_id: body.org_id
         }
         let defaultClient = SunshineConversationsClient.ApiClient.instance
