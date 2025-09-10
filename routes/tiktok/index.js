@@ -50,11 +50,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     }).then(async (mBase) => {
         console.log(JSON.stringify(jsonBody.data))
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
-        console.log(org)
-        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url)
+        // console.log(org)
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
         // const mPrisma = getPrismaClient(getTenantDB(org[1]));
         if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
-            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;;W
+            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
             let newOrder = await mPrisma.orders.upsert({
                 where: {
                     origin_id: jsonBody.data.order_id

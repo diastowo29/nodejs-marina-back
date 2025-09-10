@@ -13,10 +13,10 @@ let prisma = new PrismaClient();
 async function collectTiktokOrder (body, done) {
     let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     if (tiktokOrder) {
-        console.log(`Worker order origin_id: ${tiktokOrderIdx.id}`);
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         // const prisma = getPrismaClient(body.tenantDB);
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
+        console.log(`Worker order origin_id: ${tiktokOrderIdx.id}`);
         if (body.status == 'IN_TRANSIT') {
             console.log('updating tracking number only');
             prisma.orders.update({
