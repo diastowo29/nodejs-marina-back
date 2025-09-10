@@ -13,83 +13,98 @@ let prisma = new PrismaClient();
 async function collectTiktokOrder (body, done) {
     let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     if (tiktokOrder) {
+        console.log(`Worker order origin_id: ${tiktokOrderIdx.id}`);
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         // const prisma = getPrismaClient(body.tenantDB);
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
-        prisma.orders.update({
-            where: {
-                origin_id: tiktokOrderIdx.id
-            },
-            data: {
-                logistic: {  
-                    connectOrCreate: {
-                        create: {
-                            name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type,
-                            type: tiktokOrderIdx.shipping_type
-                        },
-                        where: {
-                            name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type
-                        }
-                    }
+        if (body.status == 'IN_TRANSIT') {
+            console.log('updating tracking number only');
+            prisma.orders.update({
+                where: {
+                    origin_id: tiktokOrderIdx.id
                 },
-                status: tiktokOrderIdx.status,
-                payment_id: tiktokOrderIdx.payment_method_name,
-                recp_addr_country: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L0').address_name,
-                recp_addr_province: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L1').address_name,
-                recp_addr_city: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L2').address_name,
-                recp_addr_district: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L3').address_name,
-                recp_addr_full: tiktokOrderIdx.recipient_address.full_address,
-                recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
-                recp_phone: tiktokOrderIdx.recipient_address.phone_number,
-                recp_name: tiktokOrderIdx.recipient_address.name,
-                total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
-                total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
-                shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
-                order_items: {
-                    create: tiktokOrderIdx.line_items.map((item) => {
-                        return {
-                            qty: 1,
-                            total_price: Number.parseInt(item.sale_price),
-                            origin_id: item.id,
-                            package_id: item.package_id,
-                            products: {
-                                connectOrCreate: {
-                                    where: {
-                                        origin_id: `${item.product_id}-${item.sku_id}`
-                                    },
-                                    create: {
-                                        name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
-                                        origin_id: `${item.product_id}-${item.sku_id}`,
-                                        price: Number.parseInt(item.original_price),
-                                        sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
-                                        currency: item.currency,
-                                        storeId: body.m_shop_id
+                data: {
+                    tracking_number: tiktokOrderIdx.tracking_number
+                }
+            })
+        } else {
+            prisma.orders.update({
+                where: {
+                    origin_id: tiktokOrderIdx.id
+                },
+                data: {
+                    logistic: {  
+                        connectOrCreate: {
+                            create: {
+                                name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type,
+                                type: tiktokOrderIdx.shipping_type
+                            },
+                            where: {
+                                name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type
+                            }
+                        }
+                    },
+                    status: tiktokOrderIdx.status,
+                    payment_id: tiktokOrderIdx.payment_method_name,
+                    recp_addr_country: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L0').address_name,
+                    recp_addr_province: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L1').address_name,
+                    recp_addr_city: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L2').address_name,
+                    recp_addr_district: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L3').address_name,
+                    recp_addr_full: tiktokOrderIdx.recipient_address.full_address,
+                    recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
+                    recp_phone: tiktokOrderIdx.recipient_address.phone_number,
+                    recp_name: tiktokOrderIdx.recipient_address.name,
+                    total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
+                    total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
+                    shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
+                    order_items: {
+                        create: tiktokOrderIdx.line_items.map((item) => {
+                            return {
+                                qty: 1,
+                                total_price: Number.parseInt(item.sale_price),
+                                origin_id: item.id,
+                                package_id: item.package_id,
+                                products: {
+                                    connectOrCreate: {
+                                        where: {
+                                            origin_id: `${item.product_id}-${item.sku_id}`
+                                        },
+                                        create: {
+                                            name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
+                                            origin_id: `${item.product_id}-${item.sku_id}`,
+                                            price: Number.parseInt(item.original_price),
+                                            sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
+                                            currency: item.currency,
+                                            storeId: body.m_shop_id
+                                        }
                                     }
                                 }
                             }
-                        }
-                    })
-                },
-                customers: {
-                    connectOrCreate: {
-                        where: {
-                            origin_id: tiktokOrderIdx.user_id.toString()
-                        },
-                        create: {
-                            origin_id: tiktokOrderIdx.user_id.toString(),
-
+                        })
+                    },
+                    customers: {
+                        connectOrCreate: {
+                            where: {
+                                origin_id: tiktokOrderIdx.user_id.toString()
+                            },
+                            create: {
+                                origin_id: tiktokOrderIdx.user_id.toString(),
+    
+                            }
                         }
                     }
-                }
-            }
-        }).catch(function(err) {
-            console.log(err);
-            console.log(JSON.stringify(tiktokOrderIdx));
-            // done(new Error(err));
-        });
+                },
+                select: { id: true }
+            }).then((order) => {
+                console.log(`Worker order done: ${order.id}`);
+            }).catch(function(err) {
+                console.log(err);
+                console.log(JSON.stringify(tiktokOrderIdx));
+                // done(new Error(err));
+            });
+        }
     } else {
         console.log('no order found');
-        // done(new Error('no order found'));
     }
 }
 
@@ -178,9 +193,11 @@ async function collectReturnRequest (body, done) {
 
     let subject = '';
     let comment = '';
+    let tags = [];
     if ((body.status == 'ORDER_REQUEST_CANCEL')) {
         subject = 'Cancellation Request: ' + body.order_id;
         comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
+        tags.push('marina_cancellation');
     } else {
         subject = 'Refund Request: ' + body.order_id;
         comment = `User request a refund to order: ${body.order_id}
@@ -196,8 +213,9 @@ async function collectReturnRequest (body, done) {
                 ticket: {
                     subject: subject,
                     comment: { body: comment },
-                    requester: { external_id: `6972710759960723714-7530485791072960776-7495813365286538189` },
-                    // requester: { external_id: `tiktok-${body.customer_id}-${body.shop_id}` },
+                    // requester: { external_id: `6972710759960723714-7530485791072960776-7495813365286538189` },
+                    tags: tags,
+                    requester: { external_id: `tiktok-${body.customer_id}-${body.shop_id}` },
                     custom_fields: [
                         {
                             id: findZd.notes.split('-')[0],
@@ -211,6 +229,9 @@ async function collectReturnRequest (body, done) {
                         },{
                             id: findZd.notes.split('-')[3],
                             value: 'tiktok'
+                        },{
+                            id: findZd.notes.split('-')[4],
+                            value: body.shop_id
                         }
                     ]
                 }

@@ -46,11 +46,6 @@ router.get('/', async function(req, res, next) {
                         origin_id: store
                     }
                 } : {},
-                /* store : {
-                    channel: {
-                        name : req.query.channel || req.query.c
-                    }
-                }, */
                 order_items: {
                     some: {}
                 },
@@ -59,6 +54,7 @@ router.get('/', async function(req, res, next) {
                 },
             },
             include: {
+                return_refund: true,
                 order_items: {
                     include: {
                         products: {
@@ -116,8 +112,7 @@ router.get('/:id/awb_track', async function(req, res, next) {
     }).then(async (order) => {
         if (req.query.channel == TIKTOK) {
             callTiktok('GET', 
-                GET_SHIP_TRACKING(order.origin_id, order.store.secondary_token), 
-                {}, 
+                GET_SHIP_TRACKING(order.origin_id, order.store.secondary_token), {}, 
                 order.store.token, 
                 order.store.refresh_token, 
                 order.store.id, req.tenantDB, req.tenantId).then((tracking) => {
