@@ -43,9 +43,7 @@ router.get('/find', async function(req, res, next) {
     let queryName = req.query.skuname;
     let storeId = req.query.store_id;
     let mStoreId = Number.parseInt(req.query.m_store_id);
-    // console.log(storeId);
     mPrisma = req.prisma;
-    console.log(req.query)
     try {
         let products = await mPrisma.products.findMany({
             where: {

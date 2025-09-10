@@ -21,61 +21,71 @@ router.get('/', async function(req, res, next) {
         });
     }
     mPrisma = req.prisma;
-    let order = await mPrisma.orders.findMany({
-        orderBy: [
-            { updatedAt: 'desc' }
-        ],
-        where: {
-            ...(req.query.channel || req.query.c) ? {
-                store : {
-                    channel: { name : req.query.channel || req.query.c }
-                }
-            } : {},
-            ...(req.query.user || req.query.user_id) ? {
-                customers: {
-                    origin_id: req.query.user || req.query.user_id
-                }
-            } : {},
-            ...(req.query.store || req.query.store_id) ? {
-                store: {
-                    origin_id: req.query.store || req.query.store_id
-                }
-            } : {},
-            /* store : {
-                channel: {
-                    name : req.query.channel || req.query.c
-                }
-            }, */
-            order_items: {
-                some: {}
+    try {
+        let order = await mPrisma.orders.findMany({
+            orderBy: [
+                { updatedAt: 'desc' }
+            ],
+            where: {
+                ...(req.query.channel || req.query.c) ? {
+                    store : {
+                        channel: { name : req.query.channel || req.query.c }
+                    }
+                } : {},
+                ...(req.query.user || req.query.user_id) ? {
+                    customers: {
+                        origin_id: req.query.user || req.query.user_id
+                    }
+                } : {},
+                ...(req.query.store || req.query.store_id) ? {
+                    store: {
+                        origin_id: req.query.store || req.query.store_id
+                    }
+                } : {},
+                /* store : {
+                    channel: {
+                        name : req.query.channel || req.query.c
+                    }
+                }, */
+                order_items: {
+                    some: {}
+                },
+                logistic: {
+                    isNot: null
+                },
             },
-            logistic: {
-                isNot: null
-            },
-        },
-        include: {
-            order_items: {
-                include: {
-                    products: {
-                        include: {
-                            product_img: true
+            include: {
+                order_items: {
+                    include: {
+                        products: {
+                            include: {
+                                product_img: true
+                            }
                         }
                     }
-                }
+                },
+                store: {
+                    select: {
+                        id: true, 
+                        origin_id: true,
+                        channel: true,
+                        name: true
+                    }
+                },
+                logistic: true
             },
-            store: {
-                select: {
-                    id: true, 
-                    origin_id: true,
-                    channel: true,
-                    name: true
-                }
-            },
-            logistic: true
-        },
-       ...(req.query.user || req.query.user_id) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
-    })
-    res.status(200).send(order);
+           ...(req.query.user || req.query.user_id) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
+        })
+        res.status(200).send(order);
+    } catch (err) {
+        console.log(err);
+        if (err.response) {
+            return res.status(err.status).send(err.response.data);
+        } else {
+            console.log(err);
+            return res.status(500).send({ error: err.message });
+        }
+    }
 });
 
 /* router.post('/upload', async function(req, res, next) {
@@ -191,7 +201,6 @@ router.get('/:id', async function(req, res, next) {
 router.put('/:id', async function(req, res, next) {
     // const mPrisma = getPrismaClient(req.tenantDB);
     mPrisma = req.prisma;
-    console.log(req.body)
     const action = req.body.action;
     if (!action) {
         return res.status(400).send({
