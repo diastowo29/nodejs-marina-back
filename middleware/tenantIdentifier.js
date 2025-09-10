@@ -10,7 +10,7 @@ const getTenantDB = (tenantId) => {
     tenantId = 'realco_db';
   }
   return {
-    url: `postgresql://${dbUser}:${dbPassword}@${dbHost}/${tenantId}?${dbParams}`
+    url: `postgresql://${dbUser}:${dbPassword}@${dbHost}/${tenantId}${(dbParams) ? `?${dbParams}` : ''}`
   };
 };
 
@@ -24,12 +24,20 @@ const tenantIdentifier = (req, res, next) => {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
 
-  if (tenantId == 'org_SdVZvtRmlurL47iY') {
+  /* if (tenantId == 'org_SdVZvtRmlurL47iY') {
     tenantId = 'org_SdVZvtRmlurL47iY';
   } else if (tenantId == 'org_rfMkRHgxqG9uxYUY') {
     tenantId = 'org_rfMkRHgxqG9uxYUY';
   } else {
-    tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+    if (!req.headers['x-tenant-id']) {
+      tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+    }
+  } */
+
+  if (tenantId != 'org_SdVZvtRmlurL47iY' && tenantId != 'org_rfMkRHgxqG9uxYUY') {
+    if (!req.headers['x-tenant-id']) {
+      tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+    }
   }
 
   const dbUrl = getTenantDB(tenantId);

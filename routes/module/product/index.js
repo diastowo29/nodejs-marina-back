@@ -1,10 +1,11 @@
 var express = require('express');
 var router = express.Router();
-const { getPrismaClient } = require('../../../services/prismaServices');
+const { PrismaClient } = require('../../../prisma/generated/client');
+let mPrisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
     let channel = req.query.c;
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
     let products = await mPrisma.products.findMany({
         include: {
             product_img: true,
@@ -33,11 +34,17 @@ router.get('/', async function(req, res, next) {
 });
 
 router.get('/find', async function(req, res, next) {
+    // return 400 if there is no valid params
+    if (!req.query.skuname && !req.query.store_id && !req.query.m_store_id) {
+        return res.status(400).send({
+            error: 'Invalid parameters'
+        });
+    }
     let queryName = req.query.skuname;
     let storeId = req.query.store_id;
     let mStoreId = Number.parseInt(req.query.m_store_id);
     // console.log(storeId);
-    const mPrisma = getPrismaClient(req.tenantDB);
+    mPrisma = req.prisma;
     console.log(req.query)
     try {
         let products = await mPrisma.products.findMany({

@@ -8,3 +8,4 @@ manual.txt
 *.bak
 public.key
 private.key
+baseSeeder.js

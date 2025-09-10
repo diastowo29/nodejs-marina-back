@@ -3,7 +3,7 @@ var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
-const { TIKTOK, PATH_WEBHOOK, PATH_CHAT, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
+const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
@@ -48,8 +48,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
+        console.log(JSON.stringify(jsonBody.data))
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
-        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]))
+        console.log(org)
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url)
         // const mPrisma = getPrismaClient(getTenantDB(org[1]));
         if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
             const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
@@ -163,7 +165,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             pushTask(env, taskPayload);
             res.status(200).send({})
         } else if (jsonBody.type == 14) {
-            console.log(JSON.stringify(jsonBody));
+            // console.log(JSON.stringify(jsonBody));
             if (jsonBody.data.sender.role == 'SYSTEM') {
                 console.log('system message, ignoring');
                 return res.status(200).send({message: 'system message, ignoring'});

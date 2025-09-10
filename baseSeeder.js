@@ -1,8 +1,6 @@
-const { decryptData, encryptData } = require('./functions/encryption');
-const { PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
-const basePrisma = new prismaBaseClient({
-    datasourceUrl: 'postgresql://postgres:-|nR=q}i>&VJRtK0@34.101.38.77:5432/marina_base_db'
-});
+// const { decryptData, encryptData } = require('./functions/encryption');
+// const { PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
+
 
 function seedBase() {
    /*  basePrisma.stores.create({
@@ -17,7 +15,7 @@ function seedBase() {
     }).then((seed) => {
         console.log('Seeding completed ', seed.id);
     }) */
-   console.log(encryptData('eyJhbGciOiJIUzI1NiJ9.CL3dehABGJeTvQQgAijjvZrFBjCZj8TlDDgBQAE.P0t_1uYVSB6FHNkQvTb2yqj3F7XnCacS75DZC5YnVmg'))
+//    console.log(encryptData('eyJhbGciOiJIUzI1NiJ9.CL3dehABGJeTvQQgAijjvZrFBjCZj8TlDDgBQAE.P0t_1uYVSB6FHNkQvTb2yqj3F7XnCacS75DZC5YnVmg'))
 }
 
 seedBase();

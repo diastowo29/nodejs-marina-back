@@ -153,6 +153,7 @@ function zdApiConfigTagger (host, token, tFieldsTitle, options) {
 }
 
 function suncoApiConfig (appId, token) {
+    const backend = process.env.BACKEND_HOST || '55df5b89d466.ngrok-free.app';
     return {
         method: 'POST',
         url: `https://api.smooch.io/v2/apps/${appId}/integrations`,
@@ -162,7 +163,7 @@ function suncoApiConfig (appId, token) {
             type: "custom",
             status: "active",
             webhooks: [{
-                target: "https://55df5b89d466.ngrok-free.app/api/v1/chats/sunco/event",
+                target: `https://${backend}/api/v1/chats/sunco/event`,
                 triggers: [
                     "conversation:message"
                 ],

@@ -1,5 +1,6 @@
 const { randomUUID } = require("crypto");
 var CryptoJS = require("crypto-js");
+const { decryptData } = require("../functions/encryption");
 const HOST = 'https://auth.tiktok-shops.com';
 const OPEN_HOST = 'https://open-api.tiktokglobalshop.com';
 const excludeKeys = ["access_token", "sign"]
@@ -24,11 +25,11 @@ function GET_ORDER_API (orderId, cipher) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
         ids: orderId
     };
     const signed = getSigned(endpoint, params);    
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&ids=${orderId}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&ids=${orderId}`;
 }
 
 function GET_AUTHORIZED_SHOP () {
@@ -49,11 +50,12 @@ function SEARCH_CANCELLATION (cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
         // idempotency_key: uid
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function APPROVE_CANCELLATION (cancelId, cipher, body) {
@@ -63,11 +65,12 @@ function APPROVE_CANCELLATION (cancelId, cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
         idempotency_key: uid
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&idempotency_key=${uid}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
 }
 
 function APPROVE_REFUND (returnId, cipher, body) {
@@ -77,11 +80,12 @@ function APPROVE_REFUND (returnId, cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
         idempotency_key: uid
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&idempotency_key=${uid}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
 }
 
 function REJECT_REFUND (returnId, cipher, body) {
@@ -91,11 +95,12 @@ function REJECT_REFUND (returnId, cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
         idempotency_key: uid
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&idempotency_key=${uid}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
 }
 
 function REJECT_CANCELLATION (cancelId, cipher, body) {
@@ -105,11 +110,12 @@ function REJECT_CANCELLATION (cancelId, cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
         idempotency_key: uid
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&idempotency_key=${uid}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
 }
 
 function GET_RETURN_RECORDS (returnId, cipher) {
@@ -118,10 +124,11 @@ function GET_RETURN_RECORDS (returnId, cipher) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
     };
     const signed = getSigned(endpoint, params);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function SEARCH_RETURN (cipher, body) {
@@ -130,10 +137,10 @@ function SEARCH_RETURN (cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function CANCEL_ORDER (cipher, body) {
@@ -142,10 +149,10 @@ function CANCEL_ORDER (cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?sign=${signed}&timestamp=${ts}&app_key=${APP_KEY}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?sign=${signed}&timestamp=${ts}&app_key=${APP_KEY}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function SHIP_PACKAGE (cipher, body) {
@@ -154,10 +161,10 @@ function SHIP_PACKAGE (cipher, body) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function GET_SHIP_DOCUMENT (packageId, cipher) {
@@ -166,11 +173,11 @@ function GET_SHIP_DOCUMENT (packageId, cipher) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
         document_type: 'SHIPPING_LABEL'
     };
     const signed = getSigned(endpoint, params);    
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}&document_type=SHIPPING_LABEL`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&document_type=SHIPPING_LABEL`;
 }
 
 function GET_PRODUCT (productId, cipher) {
@@ -179,10 +186,10 @@ function GET_PRODUCT (productId, cipher) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher,
+        shop_cipher: decryptData(cipher),
     };
     const signed = getSigned(endpoint, params);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function SEND_MESSAGE (convId, body, cipher) {
@@ -191,10 +198,10 @@ function SEND_MESSAGE (convId, body, cipher) {
     const params = {
         timestamp: ts,
         app_key: APP_KEY,
-        shop_cipher: cipher
+        shop_cipher: decryptData(cipher)
     };
     const signed = getSigned(endpoint, params, body);
-    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${cipher}`;
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
 function UPLOAD_IMAGE () {

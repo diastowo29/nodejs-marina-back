@@ -1,23 +1,12 @@
 var express = require('express');
 var router = express.Router();
-// var {
-//     PrismaClient
-// } = require('@prisma/client');
 const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND } = require('../../../config/tiktok_apis');
-// const prisma = new PrismaClient();
 const multer = require('multer');
-// const fs = require('fs');
-// const { pushTask } = require('../../../functions/queue/task');
-// const { Blob } = require('buffer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
-// const { ConversationListResponse } = require('sunshine-conversations-client');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
-// const checkJwt = require('../../../middleware/auth');
-// const { getPrismaClient } = require('../../../services/prismaServices');
 const { decryptData } = require('../../../functions/encryption');
-// const { tenantIdentifier } = require('../../../middleware/tenantIdentifier');
 var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
 let mPrisma = new PrismaClient();
@@ -26,6 +15,11 @@ let mPrisma = new PrismaClient();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', async function(req, res, next) {
+    if (!req.query.channel && !req.query.user_id && !req.query.store_id) {
+        return res.status(400).send({
+            error: 'Invalid parameters'
+        });
+    }
     mPrisma = req.prisma;
     let order = await mPrisma.orders.findMany({
         orderBy: [
@@ -37,12 +31,12 @@ router.get('/', async function(req, res, next) {
                     channel: { name : req.query.channel || req.query.c }
                 }
             } : {},
-            ...(req.query.user || req.query.u) ? {
+            ...(req.query.user || req.query.user_id) ? {
                 customers: {
                     origin_id: req.query.user || req.query.user_id
                 }
             } : {},
-            ...(req.query.store || req.query.s) ? {
+            ...(req.query.store || req.query.store_id) ? {
                 store: {
                     origin_id: req.query.store || req.query.store_id
                 }
@@ -58,60 +52,28 @@ router.get('/', async function(req, res, next) {
             logistic: {
                 isNot: null
             },
-            // JUST FOR REVIEW
-            /* OR: [
-                {
-                    status: 'SHIPPED'
-                },
-                {
-                    status: 'TO_CONFIRM_RECEIVE'
-                },
-                {
-                    status: 'READY_TO_SHIP'
-                },
-                {
-                    status: 'COMPLETED'
-                },
-                {
-                    status: 'IN_TRANSIT'
-                },
-                {
-                    status: 'CANCELLED'
-                },
-                {
-                    status: 'DELIVERED'
-                },
-                {
-                    status: 'COMPLETED'
-                }
-            ] */
-            // JUST FOR REVIEW
         },
-       include: {
-        order_items: {
-            include: {
-                products: {
-                    include: {
-                        product_img: true
+        include: {
+            order_items: {
+                include: {
+                    products: {
+                        include: {
+                            product_img: true
+                        }
                     }
                 }
-            }
+            },
+            store: {
+                select: {
+                    id: true, 
+                    origin_id: true,
+                    channel: true,
+                    name: true
+                }
+            },
+            logistic: true
         },
-        store: {
-            select: {
-                id: true, 
-                origin_id: true,
-                channel: true,
-                name: true
-            }
-
-            // include: {
-            //     channel: true
-            // }
-        },
-        logistic: true
-       },
-       ...(req.query.user || req.query.u) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
+       ...(req.query.user || req.query.user_id) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
     })
     res.status(200).send(order);
 });
@@ -140,7 +102,6 @@ router.get('/', async function(req, res, next) {
 }) */
 
 router.get('/:id', async function(req, res, next) {
-    // const mPrisma = getPrismaClient(req.tenantDB);
     mPrisma = req.prisma;
     if (!req.params.id) {
         return res.status(400).send({

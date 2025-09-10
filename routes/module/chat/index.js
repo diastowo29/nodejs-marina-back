@@ -6,16 +6,13 @@ const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/interceptor');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
-const { getPrismaClient, getPrismaClientForTenant } = require('../../../services/prismaServices');
+const { getPrismaClientForTenant } = require('../../../services/prismaServices');
 const { callTiktok } = require('../../../functions/tiktok/function');
 const { SEND_MESSAGE } = require('../../../config/tiktok_apis');
 const { getTenantDB } = require('../../../middleware/tenantIdentifier');
 const { PrismaClient } = require('../../../prisma/generated/client');
 let mPrisma = new PrismaClient();
-// const { PrismaClient } = require('../../../prisma/generated/client');
-
 const tokoAppId = process.env.TOKO_APP_ID;
-// const prisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;
@@ -290,7 +287,7 @@ async function sendMessageToBuyer(body, org_id) {
                 where: {
                     origin_id: body.store_origin_id.toString()
                 }
-            })
+            });
         }
         mStore = body.omnichat.store;
         let contentChat = {
@@ -315,7 +312,7 @@ async function sendMessageToBuyer(body, org_id) {
     }
 }
 async function suncoAgentMessage(payload, org_id){
-    let prisma = getPrismaClient(getTenantDB(org_id));
+    let prisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url);
     const message = await prisma.omnichat.findFirst({
         where: { externalId: payload.conversation.id },
         select: {
@@ -433,8 +430,8 @@ async function suncoAgentMessage(payload, org_id){
     return param
 }
 
-async function updateOmnichat (body, msgId, tenantDB) {
-    const mPrisma = getPrismaClient(getTenantDB(tenantDB));
+async function updateOmnichat (body, msgId, org_id) {
+    const mPrisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url);
     let chat = await mPrisma.omnichat.update({
         where: {
             origin_id: body.omnichat_origin_id
