@@ -180,6 +180,18 @@ function GET_SHIP_DOCUMENT (packageId, cipher) {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&document_type=SHIPPING_LABEL`;
 }
 
+function GET_SHIP_TRACKING (orderId, cipher) {
+    const endpoint = `/fulfillment/${apiVersion}/orders/${orderId}/tracking`;
+    const ts = Math.floor(Date.now()/1000);
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: decryptData(cipher),
+    };
+    const signed = getSigned(endpoint, params);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
+}
+
 function GET_PRODUCT (productId, cipher) {
     const endpoint = `/product/${apiVersion}/products/${productId}`;
     const ts = Math.floor(Date.now()/1000);
@@ -247,5 +259,6 @@ module.exports = {
     SEARCH_RETURN,
     APPROVE_REFUND,
     REJECT_REFUND,
-    SEARCH_CANCELLATION
+    SEARCH_CANCELLATION,
+    GET_SHIP_TRACKING
 }

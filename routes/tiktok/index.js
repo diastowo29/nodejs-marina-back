@@ -54,7 +54,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url)
         // const mPrisma = getPrismaClient(getTenantDB(org[1]));
         if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
-            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
+            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;;W
             let newOrder = await mPrisma.orders.upsert({
                 where: {
                     origin_id: jsonBody.data.order_id
@@ -128,6 +128,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 refresh_token: newOrder.store.refresh_token,
                 returnId: newOrder.temp_id,
                 tenantDB: getTenantDB(org[1]),
+                status: orderStatus,
                 org_id: org[0]
             }
             if (jsonBody.type == 2) {
@@ -149,7 +150,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     org_id: org[0]
                 }
             }
-            if ((newOrder.order_items.length == 0) || (orderStatus == 'ORDER_REFUND') || (orderStatus == 'ORDER_REQUEST_CANCEL')) {
+            if ((newOrder.order_items.length == 0)
+                 || (orderStatus == 'ORDER_REFUND')
+                 || (orderStatus == 'ORDER_REQUEST_CANCEL')
+                 || (orderStatus == 'IN_TRANSIT')) {
                 pushTask(env, taskPayload);
             }
             res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
