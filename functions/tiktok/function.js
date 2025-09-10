@@ -26,7 +26,9 @@ async function collectTiktokOrder (body, done) {
                 data: {
                     tracking_number: tiktokOrderIdx.tracking_number
                 }
-            })
+            }).catch((err) => {
+                console.error(`Error updating order ${tiktokOrderIdx.id}:`, err);
+            });
         } else {
             prisma.orders.update({
                 where: {
