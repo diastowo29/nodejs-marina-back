@@ -2,20 +2,24 @@ var express = require('express');
 var router = express.Router();
 const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
-const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND } = require('../../../config/tiktok_apis');
+const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING } = require('../../../config/tiktok_apis');
 const multer = require('multer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
 const { decryptData } = require('../../../functions/encryption');
 var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
+const { callTiktok } = require('../../../functions/tiktok/function');
+const { getTenantDB } = require('../../../middleware/tenantIdentifier');
 let mPrisma = new PrismaClient();
-
 // const upload = multer({ dest: 'uploads/' });
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', async function(req, res, next) {
-    if (!req.query.channel && !req.query.user_id && !req.query.store_id) {
+    const channel = req.query.channel || req.query.c;
+    const user = req.query.user || req.query.user_id;
+    const store = req.query.store || req.query.store_id;
+    if (!channel && !user && !store) {
         return res.status(400).send({
             error: 'Invalid parameters'
         });
@@ -27,19 +31,19 @@ router.get('/', async function(req, res, next) {
                 { updatedAt: 'desc' }
             ],
             where: {
-                ...(req.query.channel || req.query.c) ? {
+                ...(channel) ? {
                     store : {
-                        channel: { name : req.query.channel || req.query.c }
+                        channel: { name : channel }
                     }
                 } : {},
-                ...(req.query.user || req.query.user_id) ? {
+                ...(user) ? {
                     customers: {
-                        origin_id: req.query.user || req.query.user_id
+                        origin_id: user
                     }
                 } : {},
-                ...(req.query.store || req.query.store_id) ? {
+                ...(store) ? {
                     store: {
-                        origin_id: req.query.store || req.query.store_id
+                        origin_id: store
                     }
                 } : {},
                 /* store : {
@@ -74,7 +78,7 @@ router.get('/', async function(req, res, next) {
                 },
                 logistic: true
             },
-           ...(req.query.user || req.query.user_id) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
+           ...(user) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
         })
         res.status(200).send(order);
     } catch (err) {
@@ -87,6 +91,60 @@ router.get('/', async function(req, res, next) {
         }
     }
 });
+
+router.get('/:id/awb_track', async function(req, res, next) {
+    mPrisma = req.prisma;
+    if (!req.params.id || !req.query.channel) {
+        return res.status(400).send({
+            error: 'Some parameters are missing'
+        })
+    }
+    mPrisma.orders.findUnique({
+        where: {
+            id: Number.parseInt(req.params.id)
+        },
+        select: {
+            origin_id: true,
+            store: {
+                select: {
+                    id: true,
+                    token: true,
+                    secondary_token: true
+                }
+            }
+        }
+    }).then(async (order) => {
+        if (req.query.channel == TIKTOK) {
+            callTiktok('GET', 
+                GET_SHIP_TRACKING(order.origin_id, order.store.secondary_token), 
+                {}, 
+                order.store.token, 
+                order.store.refresh_token, 
+                order.store.id, req.tenantDB, req.tenantId).then((tracking) => {
+                    if (tracking.data.data.tracking) {
+                        return res.status(200).send(tracking.data.data);
+                    } else {
+                        return res.status(200).send(tracking.data);
+                    }
+                }).catch((err) => {
+                    console.log(err);
+                    return res.status(500).send({ error: err.message });
+                })
+        } else {
+            return res.status(200).send({
+                message: 'Available soon for this channel: ' + req.query.channel
+            })
+        }
+    }).catch((err) => {
+        console.log(err);
+        if (err.response) {
+            return res.status(err.status).send(err.response.data);
+        } else {
+            console.log(err);
+            return res.status(500).send({ error: err.message });
+        }
+    })
+})
 
 /* router.post('/upload', async function(req, res, next) {
     const data = {

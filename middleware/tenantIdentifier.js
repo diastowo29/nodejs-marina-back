@@ -42,6 +42,7 @@ const tenantIdentifier = (req, res, next) => {
 
   const dbUrl = getTenantDB(tenantId);
   req.tenantDB = dbUrl;
+  req.tenantId = tenantId;
   req.prisma = getPrismaClientForTenant(tenantId, dbUrl.url);
   next();
 };

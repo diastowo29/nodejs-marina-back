@@ -382,7 +382,7 @@ async function forwardConversation (body, done) {
     }
 }
 
-async function callTiktok (method, url, body, token, refreshToken, shopId, tenantDB, org_id) {
+async function callTiktok (method, url, body, token, refreshToken, mShopId, tenantDB, org_id) {
     return api({
         method: method,
         url: url,
@@ -403,7 +403,7 @@ async function callTiktok (method, url, body, token, refreshToken, shopId, tenan
             prisma = getPrismaClientForTenant(org_id, tenantDB.url);
             const _stored = await prisma.store.update({
                 where: {
-                    id: shopId
+                    id: mShopId
                 },
                 data: {
                     token: encryptData(newToken.data.data.access_token),
