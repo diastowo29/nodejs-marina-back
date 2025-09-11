@@ -202,18 +202,23 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
             shop_id: Number.parseInt(shop_id),
         },
     }).catch(async function (err) {
-        console.log(err.response.data);
-        if (err.response.data.error == 'shop_access_expired') {
-            await prisma.store.update({
-                where: {
-                    origin_id: shop_id.toString()
-                },
-                data: {
-                    status: storeStatuses.EXPIRED
-                }
-            })
+        if (err.response) {
+            console.log(err.response.data);
+            if (err.response.data.error == 'shop_access_expired') {
+                await prisma.store.update({
+                    where: {
+                        origin_id: shop_id.toString()
+                    },
+                    data: {
+                        status: storeStatuses.EXPIRED
+                    }
+                })
+            }
+            return err.response.data;
+        } else {
+            console.log(err);
+            return err;
         }
-        return err.response.data;
     });
     if ((token.data) && (token.data.access_token)) {
         await prisma.store.update({

@@ -104,7 +104,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
                         pushTask(env, taskPayload);
                     } else {
-                        console.log('Store %s Expired', newOrder.store.id);
+                        console.log('Shopee store: %s Expired', newOrder.store.id);
                     }
                 }
                 break;
