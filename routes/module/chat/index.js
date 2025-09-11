@@ -148,7 +148,7 @@ router.post('/sunco/event', async function(req, res, next){
     let payload = req.body.events[0].payload;
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;
-
+    console.log(JSON.stringify(payload));
     try {
         if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
             console.log('message author is bussines')
@@ -159,6 +159,7 @@ router.post('/sunco/event', async function(req, res, next){
           if (payload.conversation.metadata.marina_org_id) {
             const org_id = payload.conversation.metadata.marina_org_id;
             let body = await suncoAgentMessage(payload, org_id);
+            console.log(JSON.stringify(body));
             let sendMessage =  await sendMessageToBuyer(body, org_id);
             return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
           } else {

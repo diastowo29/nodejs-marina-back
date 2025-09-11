@@ -126,6 +126,7 @@ async function collectReturnRequest (body, done) {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
+    console.log(returnCancel);
     const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
     // console.log(JSON.stringify(refundEvidence));
