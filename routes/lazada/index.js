@@ -6,9 +6,12 @@ const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo,
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
-const { getPrismaClient } = require('../../services/prismaServices');
+const { getPrismaClient, getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const basePrisma = new prismaBaseClient();
+const { PrismaClient } = require('../../prisma/generated/client');
+let mPrisma = new PrismaClient();
+
 var env = process.env.NODE_ENV || 'development';
 
 router.post('/webhook', async function (req, res, next) {
@@ -32,8 +35,10 @@ router.post('/order', async function(req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
-
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        // mPrisma = getPrismaClientForTenant(getTenantDB(mBase.clients.org_id));
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
+        
         if (jsonBody.message_type == 0) {
             console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
             // console.log(req.body);
@@ -232,8 +237,10 @@ router.post('/chat', async function(req, res, next) {
             clients: true
         }
     }).then(async(mBase) => {
-        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
-
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
+        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        
         let bodyData = jsonBody.data;
         let sessionId = bodyData.session_id;
         let userId = bodyData.from_user_id;
