@@ -193,22 +193,20 @@ async function collectReturnRequest (body, done) {
         })
     }
 
-    let subject = '';
-    let comment = '';
-    let tags = [];
-    if ((body.status == 'ORDER_REQUEST_CANCEL')) {
-        subject = 'Cancellation Request: ' + body.order_id;
-        comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
-        tags.push('marina_cancellation');
-    } else {
-        subject = 'Refund Request: ' + body.order_id;
-        comment = `User request a refund to order: ${body.order_id}
-        Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
-        Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
-    }
-
-    //create ticket on zendesk
     if (body.integration.length > 0) {
+        let subject = '';
+        let comment = '';
+        let tags = [];
+        if ((body.status == 'ORDER_REQUEST_CANCEL')) {
+            subject = 'Cancellation Request: ' + body.order_id;
+            comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
+            tags.push('marina_cancellation');
+        } else {
+            subject = 'Refund Request: ' + body.order_id;
+            comment = `User request a refund to order: ${body.order_id}
+            Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+            Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+        }
         const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
         if (findZd) {
             let ticketData = {

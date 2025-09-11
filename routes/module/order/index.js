@@ -74,7 +74,7 @@ router.get('/', async function(req, res, next) {
                 },
                 logistic: true
             },
-           ...(user) ? { take: 3, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
+           ...(user) ? { take: 10, orderBy: { createdAt:'desc' } } : {orderBy: { createdAt:'desc' }}
         })
         res.status(200).send(order);
     } catch (err) {

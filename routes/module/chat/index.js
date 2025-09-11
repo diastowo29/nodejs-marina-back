@@ -144,7 +144,7 @@ router.get('/:id/comments', async function(req, res, next) {
     res.status(200).send(chat);
 });
 
-router.post('/sunco/event', async function(req,res,next){
+router.post('/sunco/event', async function(req, res, next){
     let payload = req.body.events[0].payload;
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;

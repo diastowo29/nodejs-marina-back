@@ -26,13 +26,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     } else {
         jsonBody = req.body;
     }
-    if (jsonBody.type == 2) {
+    /* if (jsonBody.type == 2) {
         if (jsonBody.data.reverse_event_type) {
             if (jsonBody.data.reverse_event_type == 'UNSUPPORTED') {
                 return res.status(200).send({message: 'Unsupported reverse event type, ignoring'});
             }
         }
-    }
+    } */
     if (jsonBody.type == 1) {
         if (jsonBody.data.order_status) {
             if (jsonBody.data.order_status == 'UNPAID') {
@@ -61,11 +61,18 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 },
                 update: {
                     temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
-                    status: orderStatus
+                    ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
+                    ...(jsonBody.data.reverse_event_type) && {
+                        return_refund: {
+                            update: {
+                                status: orderStatus
+                            }
+                        }
+                    },
                 },
                 create: {
                     origin_id: jsonBody.data.order_id,
-                    status: orderStatus,
+                    ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
                     store: {
                         connect: {
                             origin_id: jsonBody.shop_id
