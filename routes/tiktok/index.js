@@ -64,8 +64,17 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
                     ...(jsonBody.data.reverse_event_type) && {
                         return_refund: {
-                            update: {
-                                status: orderStatus
+                            upsert: {
+                                create: {
+                                    origin_id: jsonBody.data.reverse_order_id,
+                                    status: orderStatus
+                                },
+                                update: {
+                                    status: orderStatus
+                                },
+                                where: {
+                                    origin_id: jsonBody.data.reverse_order_id
+                                }
                             }
                         }
                     },
