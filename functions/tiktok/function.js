@@ -166,14 +166,14 @@ async function collectReturnRequest (body, done) {
                 status: returnData.cancellations[0].cancel_status,
                 return_type: returnData.cancellations[0].cancel_type,
                 return_reason: returnData.cancellations[0].cancel_reason_text,
-                total_amount: Number.parseInt(returnData.cancellations[0].refund_amount.refund_total),
+                total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
                 line_item: {
                     create: returnData.cancellations[0].cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
-                            currency: item.refund_amount.currency,
-                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            currency: (item.refund_amount) ? item.refund_amount.currency : 0,
+                            refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                            refund_subtotal: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                            refund_total: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
                             item: {
                                 connect: {
                                     origin_id: item.order_line_item_id
