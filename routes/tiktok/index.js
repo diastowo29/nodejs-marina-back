@@ -290,7 +290,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         userName: userName,
                         message_content: jsonBody.data.content,
                         tenantDB: getTenantDB(org[1]),
-                        org_id: org[0]
+                        org_id: org[1]
                     }
                     pushTask(env, taskPayload);
                 }

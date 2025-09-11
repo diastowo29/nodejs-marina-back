@@ -303,7 +303,6 @@ async function sendMessageToBuyer(body, org_id) {
             content: JSON.stringify(contentChat)
         }
         let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token);
-        console.log(sendChat.data)
         if (sendChat.data.code != 0) {
             return {success: false, error: sendChat.data.message}
         }
