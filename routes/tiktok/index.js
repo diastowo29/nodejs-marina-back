@@ -67,6 +67,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             upsert: {
                                 create: {
                                     origin_id: jsonBody.data.reverse_order_id,
+                                    total_amount: 0,
                                     status: orderStatus
                                 },
                                 update: {
