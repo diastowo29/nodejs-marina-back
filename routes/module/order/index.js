@@ -54,7 +54,15 @@ router.get('/', async function(req, res, next) {
                 },
             },
             include: {
-                return_refund: true,
+                return_refund: {
+                    include: {
+                        line_item: {
+                            include: {
+                                item: true
+                            }
+                        }
+                    }
+                },
                 order_items: {
                     include: {
                         products: {

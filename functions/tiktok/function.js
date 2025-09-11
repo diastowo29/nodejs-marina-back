@@ -111,9 +111,7 @@ async function collectTiktokOrder (body, done) {
 }
 
 async function collectReturnRequest (body, done) {
-    // console.log(body)
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
-    // const prisma = getPrismaClient(body.tenantDB);
     var data = {}
     var returnCancel = [];
     if (body.status == 'ORDER_REFUND') {
@@ -126,10 +124,9 @@ async function collectReturnRequest (body, done) {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
-    console.log(returnCancel);
     const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
-    // console.log(JSON.stringify(refundEvidence));
+    console.log(JSON.stringify(returnData))
     if (body.status == 'ORDER_REFUND') {
         if (returnData && returnData.return_orders.length > 0) {
             const returnOrder = returnData.return_orders[0];
@@ -207,6 +204,7 @@ async function collectReturnRequest (body, done) {
             comment = `User request a refund to order: ${body.order_id}
             Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
             Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+            tags.push('marina_return_refund');
         }
         const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
         if (findZd) {
