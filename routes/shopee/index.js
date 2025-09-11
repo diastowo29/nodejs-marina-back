@@ -54,9 +54,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const tenantDbUrl = getTenantDB(mBase.clients.org_id)
-        // const prisma = getPrismaClient(tenantDbUrl);
-        prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        const tenantDbUrl = getTenantDB(org[1]);
+        prisma = getPrismaClientForTenant(org[1], tenantDbUrl.url);
+        // prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
         console.log(JSON.stringify(jsonBody));
         let payloadCode = jsonBody.code;
         let response;
@@ -97,7 +98,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     shop_id: jsonBody.shop_id,
                     refresh_token: decryptData(newOrder.store.refresh_token),
                     tenantDB: tenantDbUrl,
-                    org_id: mBase.clients.org_id
+                    org_id: org[1]
                 }
                 if (newOrder.order_items.length == 0) {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
@@ -192,15 +193,15 @@ function msgContainer (msgType, content) {
     return msgContent;
 }
 
-router.post('/order', async function(req, res, next) {
+/* router.post('/order', async function(req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
     res.status(200).send({});
-});
+}); */
 
-router.post(PATH_CHAT, async function(req, res, next) {
+/* router.post(PATH_CHAT, async function(req, res, next) {
     res.status(200).send({});
-});
+}); */
 
 router.put('/order/:id', async function(req, res, next) {
     prisma = req.prisma;
