@@ -353,7 +353,7 @@ router.put('/:id', async function(req, res, next) {
                 data = { decision: 'APPROVE_REFUND'}; // https://partner.tiktokshop.com/docv2/page/650ab6c2c16ffe02b8f2efcf?external_id=650ab6c2c16ffe02b8f2efcf
                 completeUrl = APPROVE_REFUND(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'reject_refund') {
-                data = { decision: 'REJECT_REFUND', reject_reason: 'reverse_reject_request_reason_4'};
+                data = { decision: 'REJECT_REFUND', reject_reason: req.body.cancel_reason};
                 completeUrl = REJECT_REFUND(order.temp_id, order.store.secondary_token, data);
             } else {
                 console.log(`Unknown action: ${action}`);
@@ -380,7 +380,7 @@ router.put('/:id', async function(req, res, next) {
                 if (action == 'approve_refund') {
                     await mPrisma.return_refund.update({
                         data: {
-                            status: 'success'
+                            status: 'APPROVED'
                         },
                         where: {
                             id: order.return_refund.id 
