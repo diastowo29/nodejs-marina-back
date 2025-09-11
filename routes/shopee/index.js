@@ -481,7 +481,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 return res.status(400).send({error: err});
             }); */
             // console.log(newStore);
-            if (newStore[0]) {
+            console.log(clientStored[0]);
+            if (clientStored[0]) {
                 /* DO SYNC PRODUCTS */
                 let taskPayload = {
                     channel: SHOPEE,
@@ -493,9 +494,9 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 }
                 // console.log(taskPayload);
                 pushTask(env, taskPayload)
-                res.status(200).send(newStore);
+                res.status(200).send(clientStored[0]);
             } else {
-                res.status(400).send(newStore);
+                res.status(400).send(clientStored[0]);
             }
         } else {
             return res.status(400).send({error: 'No response from Shopee API'});
