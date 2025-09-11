@@ -342,16 +342,21 @@ router.post(PATH_AUTH, async function(req, res, next) {
         partner_id: Number.parseInt(PARTNER_ID),
         shop_id: Number.parseInt(req.body.shop_id),
     }
-    const token = await api.post(
-        `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
-        JSON.stringify(bodyPayload),
-        {
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json'
+
+    /* Generate shopee access token */
+    let token = {};
+    try {
+        token = await api.post(
+            `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
+            JSON.stringify(bodyPayload),
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                }
             }
-        }
-    ).catch(function (err) {
+        )
+    } catch (err) {
         if (err.response) {
             console.log(err.response.data);
             return res.status(400).send({error: err.response.data});
@@ -359,7 +364,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(err);
             return res.status(400).send({error: 'Failed to connect to Shopee API'});
         }
-    });
+    }
 
     if (token.data) {
         if (token.data.error) {
@@ -370,19 +375,82 @@ router.post(PATH_AUTH, async function(req, res, next) {
         // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
         sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
         const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
-        let shopInfo = await api.get(
-            `${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`,
-        ).catch(function(err) {
+        let shopInfo = {};
+        try {
+            shopInfo = await api.get(`${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`)
+        } catch (err) {
             console.log(err.response.data);
             return res.status(400).send({error: err.response.data});
-        });
+        }
+        
         if (shopInfo.data) {
             if (shopInfo.data.error) {
                 console.log(shopInfo.data);
                 return res.status(400).send(shopInfo.data);
             }
             // console.log(shopInfo.data);
-            let newStore = await prisma.store.upsert({
+             
+            const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
+            let clientStored = await Promise.all([
+                prisma.store.upsert({
+                    where: {
+                        origin_id: req.body.shop_id.toString()
+                    },
+                    update: {
+                        status: 'ACTIVE',
+                        token: encryptData(token.data.access_token),
+                        refresh_token: encryptData(token.data.refresh_token)
+                    },
+                    create: {
+                        origin_id: req.body.shop_id.toString(),
+                        name: shopInfo.data.shop_name,
+                        token: encryptData(token.data.access_token),
+                        status: 'ACTIVE',
+                        refresh_token: encryptData(token.data.refresh_token),
+                        channel: {
+                            connectOrCreate: {
+                                where: {
+                                    name: SHOPEE
+                                },
+                                create: {
+                                    name: SHOPEE
+                                }
+                            }
+                        }
+                    }
+                }),
+                basePrisma.stores.upsert({
+                    where: {
+                        origin_id: req.body.shop_id.toString()
+                    },
+                    create: {
+                        origin_id: req.body.shop_id.toString(),
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                }, 
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    },
+                    update: {
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                },
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    }
+                })
+            ])
+            /* let newStore = await prisma.store.upsert({
                 where: {
                     origin_id: req.body.shop_id.toString()
                 },
@@ -411,9 +479,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
             }).catch(function (err) {
                 console.log(err);
                 return res.status(400).send({error: err});
-            });
+            }); */
             // console.log(newStore);
-            if (newStore) {
+            if (newStore[0]) {
+                /* DO SYNC PRODUCTS */
                 let taskPayload = {
                     channel: SHOPEE,
                     code: 9999,
@@ -428,7 +497,11 @@ router.post(PATH_AUTH, async function(req, res, next) {
             } else {
                 res.status(400).send(newStore);
             }
+        } else {
+            return res.status(400).send({error: 'No response from Shopee API'});
         }
+    } else {
+        return res.status(400).send({error: 'No response from Shopee API'});
     }
 })
 
