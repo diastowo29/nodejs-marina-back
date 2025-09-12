@@ -142,7 +142,7 @@ async function collectReturnRequest (body, done) {
         if (returnOrder) {
             await prisma.return_refund.create({
                 data: {
-                    total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
+                    total_amount: (returnOrder.refund_amount) ? Number.parseInt(returnOrder.refund_amount.refund_total) : 0,
                     ordersId: body.m_order_id,
                     origin_id: returnOrder.return_id,
                     status: returnOrder.return_status,
@@ -151,10 +151,10 @@ async function collectReturnRequest (body, done) {
                     line_item: {
                         create: returnOrder.return_line_items.map(item => ({
                             origin_id: item.return_line_item_id,
-                            currency: item.refund_amount.currency,
-                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            currency: (item.refund_amount) ? item.refund_amount.currency : '',
+                            refund_service_fee:(item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                            refund_subtotal:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                            refund_total:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
                             item: {
                                 connect: {
                                     origin_id: item.order_line_item_id
@@ -182,7 +182,7 @@ async function collectReturnRequest (body, done) {
                 line_item: {
                     create: returnData.cancellations[0].cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
-                            currency: (item.refund_amount) ? item.refund_amount.currency : 0,
+                            currency: (item.refund_amount) ? item.refund_amount.currency : '',
                             refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
                             refund_subtotal: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
                             refund_total: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
