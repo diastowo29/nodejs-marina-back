@@ -11139,6 +11139,14 @@ export namespace Prisma {
     logisticId: number | null
     total_product_price: number | null
     shipping_price: number | null
+    seller_discount: number | null
+    platform_discount: number | null
+    shipping_seller_discount: number | null
+    shipping_platform_discount: number | null
+    buyer_service_fee: number | null
+    handling_fee: number | null
+    shipping_insurance_fee: number | null
+    item_insurance_fee: number | null
     total_amount: number | null
   }
 
@@ -11149,6 +11157,14 @@ export namespace Prisma {
     logisticId: number | null
     total_product_price: number | null
     shipping_price: number | null
+    seller_discount: number | null
+    platform_discount: number | null
+    shipping_seller_discount: number | null
+    shipping_platform_discount: number | null
+    buyer_service_fee: number | null
+    handling_fee: number | null
+    shipping_insurance_fee: number | null
+    item_insurance_fee: number | null
     total_amount: number | null
   }
 
@@ -11185,6 +11201,14 @@ export namespace Prisma {
     logisticId: number | null
     total_product_price: number | null
     shipping_price: number | null
+    seller_discount: number | null
+    platform_discount: number | null
+    shipping_seller_discount: number | null
+    shipping_platform_discount: number | null
+    buyer_service_fee: number | null
+    handling_fee: number | null
+    shipping_insurance_fee: number | null
+    item_insurance_fee: number | null
     total_amount: number | null
     updatedAt: Date | null
   }
@@ -11222,6 +11246,14 @@ export namespace Prisma {
     logisticId: number | null
     total_product_price: number | null
     shipping_price: number | null
+    seller_discount: number | null
+    platform_discount: number | null
+    shipping_seller_discount: number | null
+    shipping_platform_discount: number | null
+    buyer_service_fee: number | null
+    handling_fee: number | null
+    shipping_insurance_fee: number | null
+    item_insurance_fee: number | null
     total_amount: number | null
     updatedAt: Date | null
   }
@@ -11259,6 +11291,14 @@ export namespace Prisma {
     logisticId: number
     total_product_price: number
     shipping_price: number
+    seller_discount: number
+    platform_discount: number
+    shipping_seller_discount: number
+    shipping_platform_discount: number
+    buyer_service_fee: number
+    handling_fee: number
+    shipping_insurance_fee: number
+    item_insurance_fee: number
     total_amount: number
     updatedAt: number
     _all: number
@@ -11272,6 +11312,14 @@ export namespace Prisma {
     logisticId?: true
     total_product_price?: true
     shipping_price?: true
+    seller_discount?: true
+    platform_discount?: true
+    shipping_seller_discount?: true
+    shipping_platform_discount?: true
+    buyer_service_fee?: true
+    handling_fee?: true
+    shipping_insurance_fee?: true
+    item_insurance_fee?: true
     total_amount?: true
   }
 
@@ -11282,6 +11330,14 @@ export namespace Prisma {
     logisticId?: true
     total_product_price?: true
     shipping_price?: true
+    seller_discount?: true
+    platform_discount?: true
+    shipping_seller_discount?: true
+    shipping_platform_discount?: true
+    buyer_service_fee?: true
+    handling_fee?: true
+    shipping_insurance_fee?: true
+    item_insurance_fee?: true
     total_amount?: true
   }
 
@@ -11318,6 +11374,14 @@ export namespace Prisma {
     logisticId?: true
     total_product_price?: true
     shipping_price?: true
+    seller_discount?: true
+    platform_discount?: true
+    shipping_seller_discount?: true
+    shipping_platform_discount?: true
+    buyer_service_fee?: true
+    handling_fee?: true
+    shipping_insurance_fee?: true
+    item_insurance_fee?: true
     total_amount?: true
     updatedAt?: true
   }
@@ -11355,6 +11419,14 @@ export namespace Prisma {
     logisticId?: true
     total_product_price?: true
     shipping_price?: true
+    seller_discount?: true
+    platform_discount?: true
+    shipping_seller_discount?: true
+    shipping_platform_discount?: true
+    buyer_service_fee?: true
+    handling_fee?: true
+    shipping_insurance_fee?: true
+    item_insurance_fee?: true
     total_amount?: true
     updatedAt?: true
   }
@@ -11392,6 +11464,14 @@ export namespace Prisma {
     logisticId?: true
     total_product_price?: true
     shipping_price?: true
+    seller_discount?: true
+    platform_discount?: true
+    shipping_seller_discount?: true
+    shipping_platform_discount?: true
+    buyer_service_fee?: true
+    handling_fee?: true
+    shipping_insurance_fee?: true
+    item_insurance_fee?: true
     total_amount?: true
     updatedAt?: true
     _all?: true
@@ -11516,6 +11596,14 @@ export namespace Prisma {
     logisticId: number | null
     total_product_price: number | null
     shipping_price: number | null
+    seller_discount: number | null
+    platform_discount: number | null
+    shipping_seller_discount: number | null
+    shipping_platform_discount: number | null
+    buyer_service_fee: number | null
+    handling_fee: number | null
+    shipping_insurance_fee: number | null
+    item_insurance_fee: number | null
     total_amount: number | null
     updatedAt: Date
     _count: OrdersCountAggregateOutputType | null
@@ -11572,6 +11660,14 @@ export namespace Prisma {
     logisticId?: boolean
     total_product_price?: boolean
     shipping_price?: boolean
+    seller_discount?: boolean
+    platform_discount?: boolean
+    shipping_seller_discount?: boolean
+    shipping_platform_discount?: boolean
+    buyer_service_fee?: boolean
+    handling_fee?: boolean
+    shipping_insurance_fee?: boolean
+    item_insurance_fee?: boolean
     total_amount?: boolean
     updatedAt?: boolean
     order_items?: boolean | orders$order_itemsArgs<ExtArgs>
@@ -11615,6 +11711,62 @@ export namespace Prisma {
     logisticId?: boolean
     total_product_price?: boolean
     shipping_price?: boolean
+    seller_discount?: boolean
+    platform_discount?: boolean
+    shipping_seller_discount?: boolean
+    shipping_platform_discount?: boolean
+    buyer_service_fee?: boolean
+    handling_fee?: boolean
+    shipping_insurance_fee?: boolean
+    item_insurance_fee?: boolean
+    total_amount?: boolean
+    updatedAt?: boolean
+    customers?: boolean | orders$customersArgs<ExtArgs>
+    logistic?: boolean | orders$logisticArgs<ExtArgs>
+    store?: boolean | orders$storeArgs<ExtArgs>
+  }, ExtArgs["result"]["orders"]>
+
+  export type ordersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    status?: boolean
+    shop_id?: boolean
+    payment_id?: boolean
+    temp_id?: boolean
+    origin_id?: boolean
+    package_id?: boolean
+    invoice?: boolean
+    recp_name?: boolean
+    recp_phone?: boolean
+    recp_addr_full?: boolean
+    recp_addr_district?: boolean
+    recp_addr_city?: boolean
+    recp_addr_province?: boolean
+    recp_addr_country?: boolean
+    recp_addr_postal_code?: boolean
+    recp_addr_district_id?: boolean
+    recp_addr_city_id?: boolean
+    tracking_number?: boolean
+    ship_document_url?: boolean
+    recp_addr_province_id?: boolean
+    recp_addr_geo?: boolean
+    logistic_service?: boolean
+    origin_createdAt?: boolean
+    accept_partial?: boolean
+    device?: boolean
+    storeId?: boolean
+    customersId?: boolean
+    logisticId?: boolean
+    total_product_price?: boolean
+    shipping_price?: boolean
+    seller_discount?: boolean
+    platform_discount?: boolean
+    shipping_seller_discount?: boolean
+    shipping_platform_discount?: boolean
+    buyer_service_fee?: boolean
+    handling_fee?: boolean
+    shipping_insurance_fee?: boolean
+    item_insurance_fee?: boolean
     total_amount?: boolean
     updatedAt?: boolean
     customers?: boolean | orders$customersArgs<ExtArgs>
@@ -11695,11 +11847,19 @@ export namespace Prisma {
     logisticId?: boolean
     total_product_price?: boolean
     shipping_price?: boolean
+    seller_discount?: boolean
+    platform_discount?: boolean
+    shipping_seller_discount?: boolean
+    shipping_platform_discount?: boolean
+    buyer_service_fee?: boolean
+    handling_fee?: boolean
+    shipping_insurance_fee?: boolean
+    item_insurance_fee?: boolean
     total_amount?: boolean
     updatedAt?: boolean
   }
 
-  export type ordersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "status" | "shop_id" | "payment_id" | "temp_id" | "origin_id" | "package_id" | "invoice" | "recp_name" | "recp_phone" | "recp_addr_full" | "recp_addr_district" | "recp_addr_city" | "recp_addr_province" | "recp_addr_country" | "recp_addr_postal_code" | "recp_addr_district_id" | "recp_addr_city_id" | "tracking_number" | "ship_document_url" | "recp_addr_province_id" | "recp_addr_geo" | "logistic_service" | "origin_createdAt" | "accept_partial" | "device" | "storeId" | "customersId" | "logisticId" | "total_product_price" | "shipping_price" | "total_amount" | "updatedAt", ExtArgs["result"]["orders"]>
+  export type ordersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "status" | "shop_id" | "payment_id" | "temp_id" | "origin_id" | "package_id" | "invoice" | "recp_name" | "recp_phone" | "recp_addr_full" | "recp_addr_district" | "recp_addr_city" | "recp_addr_province" | "recp_addr_country" | "recp_addr_postal_code" | "recp_addr_district_id" | "recp_addr_city_id" | "tracking_number" | "ship_document_url" | "recp_addr_province_id" | "recp_addr_geo" | "logistic_service" | "origin_createdAt" | "accept_partial" | "device" | "storeId" | "customersId" | "logisticId" | "total_product_price" | "shipping_price" | "seller_discount" | "platform_discount" | "shipping_seller_discount" | "shipping_platform_discount" | "buyer_service_fee" | "handling_fee" | "shipping_insurance_fee" | "item_insurance_fee" | "total_amount" | "updatedAt", ExtArgs["result"]["orders"]>
   export type ordersInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     order_items?: boolean | orders$order_itemsArgs<ExtArgs>
     customers?: boolean | orders$customersArgs<ExtArgs>
@@ -11761,6 +11921,14 @@ export namespace Prisma {
       logisticId: number | null
       total_product_price: number | null
       shipping_price: number | null
+      seller_discount: number | null
+      platform_discount: number | null
+      shipping_seller_discount: number | null
+      shipping_platform_discount: number | null
+      buyer_service_fee: number | null
+      handling_fee: number | null
+      shipping_insurance_fee: number | null
+      item_insurance_fee: number | null
       total_amount: number | null
       updatedAt: Date
     }, ExtArgs["result"]["orders"]>
@@ -12223,6 +12391,14 @@ export namespace Prisma {
     readonly logisticId: FieldRef<"orders", 'Int'>
     readonly total_product_price: FieldRef<"orders", 'Int'>
     readonly shipping_price: FieldRef<"orders", 'Int'>
+    readonly seller_discount: FieldRef<"orders", 'Int'>
+    readonly platform_discount: FieldRef<"orders", 'Int'>
+    readonly shipping_seller_discount: FieldRef<"orders", 'Int'>
+    readonly shipping_platform_discount: FieldRef<"orders", 'Int'>
+    readonly buyer_service_fee: FieldRef<"orders", 'Int'>
+    readonly handling_fee: FieldRef<"orders", 'Int'>
+    readonly shipping_insurance_fee: FieldRef<"orders", 'Int'>
+    readonly item_insurance_fee: FieldRef<"orders", 'Int'>
     readonly total_amount: FieldRef<"orders", 'Int'>
     readonly updatedAt: FieldRef<"orders", 'DateTime'>
   }
@@ -24332,6 +24508,14 @@ export namespace Prisma {
     logisticId: 'logisticId',
     total_product_price: 'total_product_price',
     shipping_price: 'shipping_price',
+    seller_discount: 'seller_discount',
+    platform_discount: 'platform_discount',
+    shipping_seller_discount: 'shipping_seller_discount',
+    shipping_platform_discount: 'shipping_platform_discount',
+    buyer_service_fee: 'buyer_service_fee',
+    handling_fee: 'handling_fee',
+    shipping_insurance_fee: 'shipping_insurance_fee',
+    item_insurance_fee: 'item_insurance_fee',
     total_amount: 'total_amount',
     updatedAt: 'updatedAt'
   };
@@ -25119,6 +25303,14 @@ export namespace Prisma {
     logisticId?: IntNullableFilter<"orders"> | number | null
     total_product_price?: IntNullableFilter<"orders"> | number | null
     shipping_price?: IntNullableFilter<"orders"> | number | null
+    seller_discount?: IntNullableFilter<"orders"> | number | null
+    platform_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_seller_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_platform_discount?: IntNullableFilter<"orders"> | number | null
+    buyer_service_fee?: IntNullableFilter<"orders"> | number | null
+    handling_fee?: IntNullableFilter<"orders"> | number | null
+    shipping_insurance_fee?: IntNullableFilter<"orders"> | number | null
+    item_insurance_fee?: IntNullableFilter<"orders"> | number | null
     total_amount?: IntNullableFilter<"orders"> | number | null
     updatedAt?: DateTimeFilter<"orders"> | Date | string
     order_items?: Order_itemsListRelationFilter
@@ -25161,6 +25353,14 @@ export namespace Prisma {
     logisticId?: SortOrderInput | SortOrder
     total_product_price?: SortOrderInput | SortOrder
     shipping_price?: SortOrderInput | SortOrder
+    seller_discount?: SortOrderInput | SortOrder
+    platform_discount?: SortOrderInput | SortOrder
+    shipping_seller_discount?: SortOrderInput | SortOrder
+    shipping_platform_discount?: SortOrderInput | SortOrder
+    buyer_service_fee?: SortOrderInput | SortOrder
+    handling_fee?: SortOrderInput | SortOrder
+    shipping_insurance_fee?: SortOrderInput | SortOrder
+    item_insurance_fee?: SortOrderInput | SortOrder
     total_amount?: SortOrderInput | SortOrder
     updatedAt?: SortOrder
     order_items?: order_itemsOrderByRelationAggregateInput
@@ -25206,6 +25406,14 @@ export namespace Prisma {
     logisticId?: IntNullableFilter<"orders"> | number | null
     total_product_price?: IntNullableFilter<"orders"> | number | null
     shipping_price?: IntNullableFilter<"orders"> | number | null
+    seller_discount?: IntNullableFilter<"orders"> | number | null
+    platform_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_seller_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_platform_discount?: IntNullableFilter<"orders"> | number | null
+    buyer_service_fee?: IntNullableFilter<"orders"> | number | null
+    handling_fee?: IntNullableFilter<"orders"> | number | null
+    shipping_insurance_fee?: IntNullableFilter<"orders"> | number | null
+    item_insurance_fee?: IntNullableFilter<"orders"> | number | null
     total_amount?: IntNullableFilter<"orders"> | number | null
     updatedAt?: DateTimeFilter<"orders"> | Date | string
     order_items?: Order_itemsListRelationFilter
@@ -25248,6 +25456,14 @@ export namespace Prisma {
     logisticId?: SortOrderInput | SortOrder
     total_product_price?: SortOrderInput | SortOrder
     shipping_price?: SortOrderInput | SortOrder
+    seller_discount?: SortOrderInput | SortOrder
+    platform_discount?: SortOrderInput | SortOrder
+    shipping_seller_discount?: SortOrderInput | SortOrder
+    shipping_platform_discount?: SortOrderInput | SortOrder
+    buyer_service_fee?: SortOrderInput | SortOrder
+    handling_fee?: SortOrderInput | SortOrder
+    shipping_insurance_fee?: SortOrderInput | SortOrder
+    item_insurance_fee?: SortOrderInput | SortOrder
     total_amount?: SortOrderInput | SortOrder
     updatedAt?: SortOrder
     _count?: ordersCountOrderByAggregateInput
@@ -25293,6 +25509,14 @@ export namespace Prisma {
     logisticId?: IntNullableWithAggregatesFilter<"orders"> | number | null
     total_product_price?: IntNullableWithAggregatesFilter<"orders"> | number | null
     shipping_price?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    seller_discount?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    platform_discount?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    shipping_seller_discount?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    shipping_platform_discount?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    buyer_service_fee?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    handling_fee?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    shipping_insurance_fee?: IntNullableWithAggregatesFilter<"orders"> | number | null
+    item_insurance_fee?: IntNullableWithAggregatesFilter<"orders"> | number | null
     total_amount?: IntNullableWithAggregatesFilter<"orders"> | number | null
     updatedAt?: DateTimeWithAggregatesFilter<"orders"> | Date | string
   }
@@ -26553,6 +26777,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
@@ -26595,6 +26827,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
@@ -26630,6 +26870,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
@@ -26672,6 +26920,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
@@ -26711,6 +26967,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
   }
@@ -26744,6 +27008,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -26781,6 +27053,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -28057,6 +28337,14 @@ export namespace Prisma {
     logisticId?: SortOrder
     total_product_price?: SortOrder
     shipping_price?: SortOrder
+    seller_discount?: SortOrder
+    platform_discount?: SortOrder
+    shipping_seller_discount?: SortOrder
+    shipping_platform_discount?: SortOrder
+    buyer_service_fee?: SortOrder
+    handling_fee?: SortOrder
+    shipping_insurance_fee?: SortOrder
+    item_insurance_fee?: SortOrder
     total_amount?: SortOrder
     updatedAt?: SortOrder
   }
@@ -28068,6 +28356,14 @@ export namespace Prisma {
     logisticId?: SortOrder
     total_product_price?: SortOrder
     shipping_price?: SortOrder
+    seller_discount?: SortOrder
+    platform_discount?: SortOrder
+    shipping_seller_discount?: SortOrder
+    shipping_platform_discount?: SortOrder
+    buyer_service_fee?: SortOrder
+    handling_fee?: SortOrder
+    shipping_insurance_fee?: SortOrder
+    item_insurance_fee?: SortOrder
     total_amount?: SortOrder
   }
 
@@ -28104,6 +28400,14 @@ export namespace Prisma {
     logisticId?: SortOrder
     total_product_price?: SortOrder
     shipping_price?: SortOrder
+    seller_discount?: SortOrder
+    platform_discount?: SortOrder
+    shipping_seller_discount?: SortOrder
+    shipping_platform_discount?: SortOrder
+    buyer_service_fee?: SortOrder
+    handling_fee?: SortOrder
+    shipping_insurance_fee?: SortOrder
+    item_insurance_fee?: SortOrder
     total_amount?: SortOrder
     updatedAt?: SortOrder
   }
@@ -28141,6 +28445,14 @@ export namespace Prisma {
     logisticId?: SortOrder
     total_product_price?: SortOrder
     shipping_price?: SortOrder
+    seller_discount?: SortOrder
+    platform_discount?: SortOrder
+    shipping_seller_discount?: SortOrder
+    shipping_platform_discount?: SortOrder
+    buyer_service_fee?: SortOrder
+    handling_fee?: SortOrder
+    shipping_insurance_fee?: SortOrder
+    item_insurance_fee?: SortOrder
     total_amount?: SortOrder
     updatedAt?: SortOrder
   }
@@ -28152,6 +28464,14 @@ export namespace Prisma {
     logisticId?: SortOrder
     total_product_price?: SortOrder
     shipping_price?: SortOrder
+    seller_discount?: SortOrder
+    platform_discount?: SortOrder
+    shipping_seller_discount?: SortOrder
+    shipping_platform_discount?: SortOrder
+    buyer_service_fee?: SortOrder
+    handling_fee?: SortOrder
+    shipping_insurance_fee?: SortOrder
+    item_insurance_fee?: SortOrder
     total_amount?: SortOrder
   }
 
@@ -29939,6 +30259,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
@@ -29979,6 +30307,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
@@ -30047,6 +30383,14 @@ export namespace Prisma {
     logisticId?: IntNullableFilter<"orders"> | number | null
     total_product_price?: IntNullableFilter<"orders"> | number | null
     shipping_price?: IntNullableFilter<"orders"> | number | null
+    seller_discount?: IntNullableFilter<"orders"> | number | null
+    platform_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_seller_discount?: IntNullableFilter<"orders"> | number | null
+    shipping_platform_discount?: IntNullableFilter<"orders"> | number | null
+    buyer_service_fee?: IntNullableFilter<"orders"> | number | null
+    handling_fee?: IntNullableFilter<"orders"> | number | null
+    shipping_insurance_fee?: IntNullableFilter<"orders"> | number | null
+    item_insurance_fee?: IntNullableFilter<"orders"> | number | null
     total_amount?: IntNullableFilter<"orders"> | number | null
     updatedAt?: DateTimeFilter<"orders"> | Date | string
   }
@@ -30312,6 +30656,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
@@ -30352,6 +30704,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
@@ -30766,6 +31126,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     customers?: customersCreateNestedOneWithoutOrdersInput
@@ -30807,6 +31175,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
@@ -30926,6 +31302,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customers?: customersUpdateOneWithoutOrdersNestedInput
@@ -30967,6 +31351,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
@@ -31077,6 +31469,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
@@ -31117,6 +31517,14 @@ export namespace Prisma {
     customersId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
@@ -32226,6 +32634,14 @@ export namespace Prisma {
     device?: string | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
@@ -32267,6 +32683,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
@@ -32346,6 +32770,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
@@ -32387,6 +32819,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
@@ -32440,6 +32880,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
   }
@@ -32473,6 +32921,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
@@ -32513,6 +32969,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
@@ -32551,6 +33015,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32651,6 +33123,14 @@ export namespace Prisma {
     logisticId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
   }
@@ -32734,6 +33214,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
@@ -32774,6 +33262,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
@@ -32812,6 +33308,14 @@ export namespace Prisma {
     logisticId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -33030,6 +33534,14 @@ export namespace Prisma {
     customersId?: number | null
     total_product_price?: number | null
     shipping_price?: number | null
+    seller_discount?: number | null
+    platform_discount?: number | null
+    shipping_seller_discount?: number | null
+    shipping_platform_discount?: number | null
+    buyer_service_fee?: number | null
+    handling_fee?: number | null
+    shipping_insurance_fee?: number | null
+    item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
   }
@@ -33063,6 +33575,14 @@ export namespace Prisma {
     device?: NullableStringFieldUpdateOperationsInput | string | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
@@ -33103,6 +33623,14 @@ export namespace Prisma {
     customersId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
@@ -33141,6 +33669,14 @@ export namespace Prisma {
     customersId?: NullableIntFieldUpdateOperationsInput | number | null
     total_product_price?: NullableIntFieldUpdateOperationsInput | number | null
     shipping_price?: NullableIntFieldUpdateOperationsInput | number | null
+    seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_seller_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_platform_discount?: NullableIntFieldUpdateOperationsInput | number | null
+    buyer_service_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    handling_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    shipping_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
+    item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

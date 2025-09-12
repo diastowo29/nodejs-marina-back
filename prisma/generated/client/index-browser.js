@@ -228,6 +228,14 @@ exports.Prisma.OrdersScalarFieldEnum = {
   logisticId: 'logisticId',
   total_product_price: 'total_product_price',
   shipping_price: 'shipping_price',
+  seller_discount: 'seller_discount',
+  platform_discount: 'platform_discount',
+  shipping_seller_discount: 'shipping_seller_discount',
+  shipping_platform_discount: 'shipping_platform_discount',
+  buyer_service_fee: 'buyer_service_fee',
+  handling_fee: 'handling_fee',
+  shipping_insurance_fee: 'shipping_insurance_fee',
+  item_insurance_fee: 'item_insurance_fee',
   total_amount: 'total_amount',
   updatedAt: 'updatedAt'
 };

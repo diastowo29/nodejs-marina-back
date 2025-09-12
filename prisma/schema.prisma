@@ -131,6 +131,14 @@ model orders {
   logisticId            Int?
   total_product_price   Int?
   shipping_price        Int?
+  seller_discount Int?
+  platform_discount Int?
+  shipping_seller_discount Int?
+  shipping_platform_discount Int?
+  buyer_service_fee Int?
+  handling_fee Int?
+  shipping_insurance_fee Int?
+  item_insurance_fee Int?
   total_amount          Int?
   updatedAt             DateTime       @updatedAt
   order_items           order_items[]

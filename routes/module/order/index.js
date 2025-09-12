@@ -287,7 +287,11 @@ router.put('/:id', async function(req, res, next) {
                     }
                 }
             },
-            return_refund: true,
+            return_refund: {
+                select: {
+                    id: true
+                }
+            },
             store: {
                 select: {
                     token: true,
@@ -317,6 +321,8 @@ router.put('/:id', async function(req, res, next) {
     let completeUrl;
     switch (order.store.channel.name) {
         case TIKTOK:
+            let isRR = false;
+            let decision = '';
             if (action == 'cancel') {
                 data = {
                     order_id: order.origin_id,
@@ -333,6 +339,8 @@ router.put('/:id', async function(req, res, next) {
                 }
                 completeUrl = CANCEL_ORDER(order.store.secondary_token, data);
             } else if (action == 'reject') {
+                isRR = true;
+                decision = 'CANCEL_REJECTED';
                 data = { reject_reason: req.body.cancel_reason }
                 completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'process') {
@@ -348,12 +356,18 @@ router.put('/:id', async function(req, res, next) {
                 completeUrl = SHIP_PACKAGE(order.store.secondary_token, data);
                 // goto line 172
             } else if (action == 'approve') {
+                isRR = true;
+                decision = 'CANCEL_APPROVED';
                 completeUrl = APPROVE_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'approve_refund') {
+                isRR = true;
+                decision = 'REFUND_APPROVED';
                 data = { decision: 'APPROVE_REFUND'}; // https://partner.tiktokshop.com/docv2/page/650ab6c2c16ffe02b8f2efcf?external_id=650ab6c2c16ffe02b8f2efcf
                 completeUrl = APPROVE_REFUND(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'reject_refund') {
-                data = { decision: 'REJECT_REFUND', reject_reason: 'reverse_reject_request_reason_4'};
+                isRR = true;
+                decision = 'REFUND_REJECTED';
+                data = { decision: 'REJECT_REFUND', reject_reason: req.body.reject_reason};
                 completeUrl = REJECT_REFUND(order.temp_id, order.store.secondary_token, data);
             } else {
                 console.log(`Unknown action: ${action}`);
@@ -377,14 +391,10 @@ router.put('/:id', async function(req, res, next) {
                 statusCode = tiktokResponse.status;
                 responseCode = tiktokResponse.data.code;
                 responseData = tiktokResponse.data;
-                if (action == 'approve_refund') {
+                if (isRR) {
                     await mPrisma.return_refund.update({
-                        data: {
-                            status: 'success'
-                        },
-                        where: {
-                            id: order.return_refund.id 
-                        }
+                        data: { status: decision },
+                        where: { id: order.return_refund.id }
                     });
                 }
             } catch (err) {
