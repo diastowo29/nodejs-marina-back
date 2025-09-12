@@ -126,9 +126,9 @@ async function collectReturnRequest (body, done) {
     }
     const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
-    console.log(JSON.stringify(returnData))
+    // console.log(JSON.stringify(returnData))
     if (body.status == 'ORDER_REFUND') {
-        if (returnData && returnData.return_orders.length > 0) {
+        if (returnData.return_orders && returnData.return_orders.length > 0) {
             const returnOrder = returnData.return_orders[0];
             await prisma.return_refund.create({
                 data: {
