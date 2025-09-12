@@ -65,6 +65,7 @@ router.get('/', async function(req, res, next) {
                 },
                 order_items: {
                     include: {
+                        return_line_item: true,
                         products: {
                             include: {
                                 product_img: true
@@ -187,7 +188,8 @@ router.get('/:id', async function(req, res, next) {
              include: {
                  order_items: {
                      include: {
-                         products: true
+                        return_line_item: true,
+                        products: true
                      }
                  },
                  return_refund: true,
