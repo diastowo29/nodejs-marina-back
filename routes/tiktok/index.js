@@ -170,6 +170,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             if ((newOrder.order_items.length == 0)
                  || (orderStatus == 'ORDER_REFUND')
                  || (orderStatus == 'ORDER_REQUEST_CANCEL')
+                 || (orderStatus == 'ORDER_RETURN')
                  || (orderStatus == 'IN_TRANSIT')) {
                 pushTask(env, taskPayload);
             }
