@@ -99,45 +99,53 @@ model logistic {
 }
 
 model orders {
-  id                    Int            @id @default(autoincrement())
-  createdAt             DateTime       @default(now())
-  status                String?
-  shop_id               String?
-  payment_id            String?
-  temp_id               String?
-  origin_id             String?        @unique
-  package_id            String?
-  invoice               String?
-  recp_name             String?
-  recp_phone            String?
-  recp_addr_full        String?
-  recp_addr_district    String?
-  recp_addr_city        String?
-  recp_addr_province    String?
-  recp_addr_country     String?
-  recp_addr_postal_code String?
-  recp_addr_district_id String?
-  recp_addr_city_id     String?
-  tracking_number       String?
-  ship_document_url     String?
-  recp_addr_province_id String?
-  recp_addr_geo         String?
-  logistic_service      String?
-  origin_createdAt      DateTime       @default(now())
-  accept_partial        Boolean?
-  device                String?
-  storeId               Int?
-  customersId           Int?
-  logisticId            Int?
-  total_product_price   Int?
-  shipping_price        Int?
-  total_amount          Int?
-  updatedAt             DateTime       @updatedAt
-  order_items           order_items[]
-  customers             customers?     @relation(fields: [customersId], references: [id])
-  logistic              logistic?      @relation(fields: [logisticId], references: [id])
-  store                 store?         @relation(fields: [storeId], references: [id])
-  return_refund         return_refund?
+  id                         Int            @id @default(autoincrement())
+  createdAt                  DateTime       @default(now())
+  status                     String?
+  shop_id                    String?
+  payment_id                 String?
+  temp_id                    String?
+  origin_id                  String?        @unique
+  package_id                 String?
+  invoice                    String?
+  recp_name                  String?
+  recp_phone                 String?
+  recp_addr_full             String?
+  recp_addr_district         String?
+  recp_addr_city             String?
+  recp_addr_province         String?
+  recp_addr_country          String?
+  recp_addr_postal_code      String?
+  recp_addr_district_id      String?
+  recp_addr_city_id          String?
+  tracking_number            String?
+  ship_document_url          String?
+  recp_addr_province_id      String?
+  recp_addr_geo              String?
+  logistic_service           String?
+  origin_createdAt           DateTime       @default(now())
+  accept_partial             Boolean?
+  device                     String?
+  storeId                    Int?
+  customersId                Int?
+  logisticId                 Int?
+  total_product_price        Int?
+  shipping_price             Int?
+  seller_discount            Int?
+  platform_discount          Int?
+  shipping_seller_discount   Int?
+  shipping_platform_discount Int?
+  buyer_service_fee          Int?
+  handling_fee               Int?
+  shipping_insurance_fee     Int?
+  item_insurance_fee         Int?
+  total_amount               Int?
+  updatedAt                  DateTime       @updatedAt
+  order_items                order_items[]
+  customers                  customers?     @relation(fields: [customersId], references: [id])
+  logistic                   logistic?      @relation(fields: [logisticId], references: [id])
+  store                      store?         @relation(fields: [storeId], references: [id])
+  return_refund              return_refund?
 }
 
 model omnichat_user {

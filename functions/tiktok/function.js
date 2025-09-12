@@ -56,6 +56,14 @@ async function collectTiktokOrder (body, done) {
                     recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
                     recp_phone: tiktokOrderIdx.recipient_address.phone_number,
                     recp_name: tiktokOrderIdx.recipient_address.name,
+                    seller_discount: Number.parseInt(tiktokOrderIdx.payment.seller_discount),
+                    platform_discount: Number.parseInt(tiktokOrderIdx.payment.platform_discount),
+                    shipping_seller_discount: Number.parseInt(tiktokOrderIdx.payment.shipping_fee_seller_discount),
+                    shipping_platform_discount: Number.parseInt(tiktokOrderIdx.payment.shipping_fee_platform_discount),
+                    buyer_service_fee: Number.parseInt(tiktokOrderIdx.payment.buyer_service_fee),
+                    handling_fee: Number.parseInt(tiktokOrderIdx.payment.handling_fee),
+                    shipping_insurance_fee: Number.parseInt(tiktokOrderIdx.payment.shipping_insurance_fee),
+                    item_insurance_fee: Number.parseInt(tiktokOrderIdx.payment.item_insurance_fee),
                     total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
                     total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
                     shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
@@ -114,7 +122,7 @@ async function collectReturnRequest (body, done) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     var data = {}
     var returnCancel = [];
-    if (body.status == 'ORDER_REFUND') {
+    if (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') {
         data = { order_ids: [body.order_id] };
         returnCancel = await Promise.all([
             callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
@@ -124,15 +132,16 @@ async function collectReturnRequest (body, done) {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
-    let returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
-    const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
+    let returnData = (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') ? returnCancel[0].data.data : returnCancel.data.data;
+    const refundEvidence = (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') ? returnCancel[1].data.data : null;
     // console.log(JSON.stringify(returnData))
-    if (body.status == 'ORDER_REFUND') {
+    if (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') {
+        console.log(JSON.stringify(returnData));
+        console.log(JSON.stringify(refundEvidence));
         let returnOrder = null;
         if (returnData.return_orders && returnData.return_orders.length > 0) {
             returnOrder = returnData.return_orders[0];
         } else {
-            /* try calling once again, delay 2 second */
             await new Promise(resolve => setTimeout(resolve, 2000));
             returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
             if (returnData.return_orders && returnData.return_orders.length > 0) {
@@ -142,19 +151,19 @@ async function collectReturnRequest (body, done) {
         if (returnOrder) {
             await prisma.return_refund.create({
                 data: {
-                    total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
+                    total_amount: (returnOrder.refund_amount) ? Number.parseInt(returnOrder.refund_amount.refund_total) : 0,
                     ordersId: body.m_order_id,
                     origin_id: returnOrder.return_id,
                     status: returnOrder.return_status,
                     return_type: returnOrder.return_type,
-                    return_reason: returnOrder.return_reason,
+                    return_reason: returnOrder.return_reason_text,
                     line_item: {
                         create: returnOrder.return_line_items.map(item => ({
                             origin_id: item.return_line_item_id,
-                            currency: item.refund_amount.currency,
-                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
+                            refund_service_fee:(item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                            refund_subtotal:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                            refund_total:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
                             item: {
                                 connect: {
                                     origin_id: item.order_line_item_id
@@ -182,7 +191,7 @@ async function collectReturnRequest (body, done) {
                 line_item: {
                     create: returnData.cancellations[0].cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
-                            currency: (item.refund_amount) ? item.refund_amount.currency : 0,
+                            currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
                             refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
                             refund_subtotal: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
                             refund_total: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
@@ -207,16 +216,28 @@ async function collectReturnRequest (body, done) {
         let subject = '';
         let comment = '';
         let tags = [];
-        if ((body.status == 'ORDER_REQUEST_CANCEL')) {
-            subject = 'Cancellation Request: ' + body.order_id;
-            comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
-            tags.push('marina_cancellation');
-        } else {
-            subject = 'Refund Request: ' + body.order_id;
-            comment = `User request a refund to order: ${body.order_id}
-            Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
-            Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
-            tags.push('marina_return_refund');
+        switch (body.status) {
+            case 'ORDER_REQUEST_CANCEL':
+                subject = 'Cancellation Request: ' + body.order_id;
+                comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
+                tags.push('marina_cancellation');
+                break;
+            case 'ORDER_REFUND':
+                subject = 'Refund Request: ' + body.order_id;
+                comment = `User request a refund to order: ${body.order_id}
+                Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+                Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+                tags.push('marina_return_refund');
+                break;
+            case 'ORDER_RETURN':
+                subject = 'Return Request: ' + body.order_id;
+                comment = `User request a return to order: ${body.order_id}
+                Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+                Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+                tags.push('marina_return_refund');
+                break;
+            default:
+                break;
         }
         const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
         if (findZd) {
