@@ -18,17 +18,17 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use((response) => {
-    console.log('Interceptor Response');
-    if (response.config.url.includes('open-api.tiktokglobalshop.com')) {
-        if (response.config.url.includes('/returns/search') && response.data.message == 'success' && response.data.data.return_orders) {
-            if (response.data.data.return_orders.length == 0) {
-                /* RETRY CALLING ONCE */
-                return response; // << -- No retry for now
-            } else {
-                return response;
-            }
-        }
-    }
+    // console.log('Interceptor Response');
+    // if (response.config.url.includes('open-api.tiktokglobalshop.com')) {
+    //     if (response.config.url.includes('/returns/search') && response.data.message == 'success' && response.data.data.return_orders) {
+    //         if (response.data.data.return_orders.length == 0) {
+    //             /* RETRY CALLING ONCE */
+    //             return response; // << -- No retry for now
+    //         } else {
+    //             return response;
+    //         }
+    //     }
+    // }
     // console.log(response);
     return response;
 }, async (error) => {
