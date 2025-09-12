@@ -39,7 +39,7 @@ async function collectTiktokOrder (body, done) {
                         connectOrCreate: {
                             create: {
                                 name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type,
-                                type: tiktokOrderIdx.shipping_type
+                                type: tiktokOrderIdx.delivery_option_name || tiktokOrderIdx.delivery_type
                             },
                             where: {
                                 name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type
