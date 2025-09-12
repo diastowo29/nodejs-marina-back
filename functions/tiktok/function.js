@@ -124,12 +124,22 @@ async function collectReturnRequest (body, done) {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
-    const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
+    let returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
-    console.log(JSON.stringify(returnData))
+    // console.log(JSON.stringify(returnData))
     if (body.status == 'ORDER_REFUND') {
-        if (returnData && returnData.return_orders.length > 0) {
-            const returnOrder = returnData.return_orders[0];
+        let returnOrder = null;
+        if (returnData.return_orders && returnData.return_orders.length > 0) {
+            returnOrder = returnData.return_orders[0];
+        } else {
+            /* try calling once again, delay 2 second */
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
+            if (returnData.return_orders && returnData.return_orders.length > 0) {
+                returnOrder = returnData.return_orders[0];
+            }
+        }
+        if (returnOrder) {
             await prisma.return_refund.create({
                 data: {
                     total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
@@ -153,7 +163,9 @@ async function collectReturnRequest (body, done) {
                         }))
                     }
                 }
-            });    
+            });
+        } else {
+            console.log('still no return found -- ignoring for now');
         }
     } else {
         await prisma.return_refund.upsert({
