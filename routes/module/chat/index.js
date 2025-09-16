@@ -302,7 +302,7 @@ async function sendMessageToBuyer(body, org_id) {
             type: contentType,
             content: JSON.stringify(contentChat)
         }
-        let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token);
+        let sendChat = await callTiktok('POST', SEND_MESSAGE(body.omnichat_origin_id, chatBody, mStore.secondary_token), chatBody, mStore.token, mStore.refresh_token, mStore.id, getTenantDB(org_id), org_id);
         if (sendChat.data.code != 0) {
             return {success: false, error: sendChat.data.message}
         }
@@ -320,6 +320,7 @@ async function suncoAgentMessage(payload, org_id){
             last_messageId: true,
             store: {
                 select: {
+                    id: true,
                     token: true,
                     secondary_token: true,
                     refresh_token: true,

@@ -533,6 +533,7 @@ async function callTiktok (method, url, body, token, refreshToken, mShopId, tena
     }).catch(async function (err) {
         console.log(err.response.data)
         if (err.response.data.code == 105002) {
+            console.log('Refreshing token...');
             let newToken = await api.get(GET_REFRESH_TOKEN_API(decryptData(refreshToken)));
             // console.log(newToken.data);
             if (!newToken.data.data.access_token) {

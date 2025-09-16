@@ -34,7 +34,7 @@ api.interceptors.response.use((response) => {
 }, async (error) => {
     const originalRequest = error.config;
     console.log('Interceptor Error');
-    console.log(error);
+    // console.log(error);
     if (error.hostname != 'partner.test-stable.shopeemobile.com')  {
         if (!error.response) {
             console.error('Network error:', error);
