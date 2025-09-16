@@ -132,7 +132,7 @@ async function collectReturnRequest (body, done) {
             callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
             callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id)
         ]);
-    } else if (body.status == 'CANCELLATION_REQUEST_PENDING') {
+    } else if (body.status == 'CANCELLATION') {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
@@ -281,7 +281,7 @@ async function collectReturnRequest (body, done) {
         let comment = '';
         let tags = [];
         switch (body.status) {
-            case 'CANCELLATION_REQUEST_PENDING':
+            case 'CANCELLATION':
                 subject = 'Cancellation Request: ' + body.order_id;
                 comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
                 tags.push('marina_cancellation');
@@ -333,11 +333,11 @@ async function collectReturnRequest (body, done) {
                 }
             }
             // console.log(ticketData)
-            /* createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
+            createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
                 console.log(err.response.data);
-            }) */
+            })
         }
     }
 

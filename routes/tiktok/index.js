@@ -172,7 +172,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     },
                     create: {
                         origin_id: jsonBody.data.cancel_id,
-                        return_type: jsonBody.data.cancel_status,
+                        return_type: 'CANCELLATION',
                         status: jsonBody.data.cancel_status,
                         total_amount: 0,
                         order: {
@@ -186,6 +186,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         status: jsonBody.data.cancel_status
                     },
                     include: {
+                        line_item: true,
                         order: {
                             select: {
                                 customers: {
@@ -223,7 +224,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         }
                     }
                 }).then((rr) => {
-                    if (jsonBody.data.cancel_status == 'CANCELLATION_REQUEST_PENDING') {
+                    if (rr.line_item.length == 0) {
                         taskPayload = {
                             tenantDB: getTenantDB(org[1]),
                             channel: TIKTOK,
@@ -234,7 +235,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             m_shop_id: rr.order.store.id,
                             m_order_id: rr.order.id,
                             returnId: jsonBody.data.cancel_id,
-                            status: jsonBody.data.cancel_status,
+                            status: 'CANCELLATION',
                             code: jsonBody.type,
                             customer_id: rr.order.customers.origin_id,
                             shop_id: jsonBody.shop_id,
