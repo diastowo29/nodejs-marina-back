@@ -328,7 +328,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         }
                         pushTask(env, taskPayload);
                     }
-                    // res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
+                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
                     console.log(err);
                     res.status(400).send({error: err});
