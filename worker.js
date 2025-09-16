@@ -617,7 +617,7 @@ async function processTiktok(body, done) {
     } else if (body.code == 16) {
         /* PRODUCT STATUS UPDATE */
         collectTiktokProduct(body, done);
-    } else if (body.code == 12) {
+    } else if (body.code == 12 || body.code == 11) {
         collectReturnRequest(body, done);
     } else if (body.code == 14) {
         forwardConversation(body, done);

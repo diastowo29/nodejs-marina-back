@@ -244,7 +244,7 @@ async function collectReturnRequest (body, done) {
     } else {
         await prisma.return_refund.update({
             where: {
-                ordersId: body.m_order_id
+                origin_id: body.returnId
             },
             data: {
                 status: returnData.cancellations[0].cancel_status,
@@ -333,11 +333,11 @@ async function collectReturnRequest (body, done) {
                 }
             }
             // console.log(ticketData)
-            createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
+            /* createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
                 console.log(err.response.data);
-            })
+            }) */
         }
     }
 
