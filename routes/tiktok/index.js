@@ -430,18 +430,20 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         }
                     });
                     if (upsertMessage.store.channel.client.integration.length > 0) {
-                        let taskPayload = {
-                            channel: TIKTOK,
-                            code: jsonBody.type,
-                            chat_type: jsonBody.data.type,
-                            message: upsertMessage,
-                            userExternalId: userExternalId,
-                            userName: userName,
-                            message_content: jsonBody.data.content,
-                            tenantDB: getTenantDB(org[1]),
-                            org_id: org[1]
+                        if (jsonBody.data.sender.role == 'BUYER') {
+                            let taskPayload = {
+                                channel: TIKTOK,
+                                code: jsonBody.type,
+                                chat_type: jsonBody.data.type,
+                                message: upsertMessage,
+                                userExternalId: userExternalId,
+                                userName: userName,
+                                message_content: jsonBody.data.content,
+                                tenantDB: getTenantDB(org[1]),
+                                org_id: org[1]
+                            }
+                            pushTask(env, taskPayload);
                         }
-                        pushTask(env, taskPayload);
                     }
                     res.status(200).send({message: {id: upsertMessage.id}});
                 } catch (err) {

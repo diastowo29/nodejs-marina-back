@@ -444,6 +444,8 @@ async function forwardConversation (body, done) {
         } else {
             suncoConvId = body.message.externalId;
         }
+        console.log('Sunco Conv ID: ' + suncoConvId);
+        console.log('Sunco User External ID: ' + body.userExternalId);
         let messageContent = JSON.parse(body.message_content);
         let suncoMessagePayload = {
             author: {
