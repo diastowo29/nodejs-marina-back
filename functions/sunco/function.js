@@ -117,12 +117,13 @@ function postMessage(suncoAppId, conversationId, payload) {
             }
         } else {
             // console.log(`post message to ${conversationId} error: ${error.body.errors[0].title}`)
-            return {
+            throw new Error(JSON.stringify(error.body));
+            /* return {
                 error: {
                     title: error.body.errors[0].title,
                     data: error.body.errors[0]
                 }
-            }
+            } */
         }
     })
 }

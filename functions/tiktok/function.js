@@ -491,7 +491,28 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
-        await postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+            console.log('error here')
+            console.log(JSON.parse(error.message))
+            const errorMessage = JSON.parse(error.message);
+            if (errorMessage.errors && errorMessage.errors.length > 0) {
+                if (errorMessage.errors[0].code == 'conversation_not_found') {
+                    console.log('recreate conversation');
+                    let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+                    let conversationBody = suncoUser;
+                    conversationBody.metadata = suncoMetadata;
+                    let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+                    if (suncoConversation.conversation) {
+                        suncoConvId = suncoConversation.conversation.id;
+                        await prisma.omnichat.update({
+                            where:{ id: body.message.id },
+                            data:{ externalId: suncoConversation.conversation.id }
+                        })
+                        postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+                    }
+                }
+            }
+        })
     }
 
     if (findSf) {
