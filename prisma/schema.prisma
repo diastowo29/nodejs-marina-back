@@ -145,7 +145,7 @@ model orders {
   customers             customers?     @relation(fields: [customersId], references: [id])
   logistic              logistic?      @relation(fields: [logisticId], references: [id])
   store                 store?         @relation(fields: [storeId], references: [id])
-  return_refund         return_refund?
+  return_refund         return_refund[]
 }
 
 model omnichat_user {
@@ -262,5 +262,5 @@ model return_refund {
   total_amount  Int
   return_type   String?
   return_reason String?
-  ordersId      Int                @unique
+  ordersId      Int               
 }

@@ -122,40 +122,44 @@ async function collectReturnRequest (body, done) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     var data = {}
     var returnCancel = [];
-    if (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') {
+    let isRR = false;
+    if (body.status == 'RETURN_AND_REFUND' || body.status == 'REFUND') {
+        isRR = true;
+    }
+    if (isRR) {
         data = { order_ids: [body.order_id] };
         returnCancel = await Promise.all([
             callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
             callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id)
         ]);
-    } else if (body.status == 'ORDER_REQUEST_CANCEL') {
+    } else if (body.status == 'CANCELLATION_REQUEST_PENDING') {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
-    let returnData = (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') ? returnCancel[0].data.data : returnCancel.data.data;
-    const refundEvidence = (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') ? returnCancel[1].data.data : null;
-    // console.log(JSON.stringify(returnData))
-    if (body.status == 'ORDER_REFUND' || body.status == 'ORDER_RETURN') {
-        console.log(JSON.stringify(returnData));
-        console.log(JSON.stringify(refundEvidence));
+    let returnData = (isRR) ? returnCancel[0].data.data : returnCancel.data.data;
+    const refundEvidence = (isRR) ? returnCancel[1].data.data : null;
+    // console.log(JSON.stringify(returnData));
+    if (isRR) {
         let returnOrder = null;
         if (returnData.return_orders && returnData.return_orders.length > 0) {
-            returnOrder = returnData.return_orders[0];
+            returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
         } else {
             await new Promise(resolve => setTimeout(resolve, 2000));
             returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
             if (returnData.return_orders && returnData.return_orders.length > 0) {
-                returnOrder = returnData.return_orders[0];
+                returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
             }
         }
         if (returnOrder) {
-            await prisma.return_refund.create({
+            // let rrRow = [];
+            // let rrItemRow = [];
+            // returnOrder.forEach(async (rrData) => {
+            prisma.return_refund.update({
+                where: {
+                    origin_id: returnOrder.return_id
+                },
                 data: {
                     total_amount: (returnOrder.refund_amount) ? Number.parseInt(returnOrder.refund_amount.refund_total) : 0,
-                    ordersId: body.m_order_id,
-                    origin_id: returnOrder.return_id,
-                    status: returnOrder.return_status,
-                    return_type: returnOrder.return_type,
                     return_reason: returnOrder.return_reason_text,
                     line_item: {
                         create: returnOrder.return_line_items.map(item => ({
@@ -171,21 +175,79 @@ async function collectReturnRequest (body, done) {
                             }
                         }))
                     }
+                },
+                select: {
+                    id: true
                 }
+            }).then((rr) => {
+                console.log(rr);
+            }).catch((err) => {
+                console.log(err);
             });
+                // await prisma.return_refund.create({
+                //     data: {
+                //         total_amount: (rrData.refund_amount) ? Number.parseInt(rrData.refund_amount.refund_total) : 0,
+                //         ordersId: body.m_order_id,
+                //         origin_id: rrData.return_id,
+                //         status: rrData.return_status,
+                //         return_type: rrData.return_type,
+                //         return_reason: rrData.return_reason_text,
+                //         line_item: {
+                //             create: rrData.return_line_items.map(item => ({
+                //                 origin_id: item.return_line_item_id,
+                //                 currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
+                //                 refund_service_fee:(item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                //                 refund_subtotal:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                //                 refund_total:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
+                //                 item: {
+                //                     connect: {
+                //                         origin_id: item.order_line_item_id
+                //                     }
+                //                 }
+                //             }))
+                //         }
+                //     },
+                //     select: {
+                //         id: true
+                //     }
+                // });
+               /*  rrRow.push({
+                    total_amount: (rrData.refund_amount) ? Number.parseInt(rrData.refund_amount.refund_total) : 0,
+                    ordersId: body.m_order_id,
+                    origin_id: rrData.return_id,
+                    status: rrData.return_status,
+                    return_type: rrData.return_type,
+                    return_reason: rrData.return_reason_text,
+                })
+                rrData.return_line_item.forEach(rrLineItem => {
+                    rrItemRow.push({
+                        origin_id: rrLineItem.return_line_item_id,
+                        currency: (rrLineItem.refund_amount) ? rrLineItem.refund_amount.currency : 'IDR',
+                        refund_service_fee:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.buyer_service_fee) : 0,
+                        refund_subtotal:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.refund_subtotal) : 0,
+                        refund_total:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.refund_total) : 0,
+                    })
+                }); */
+            // });
+            
+
+           /*  let createRR = await prisma.return_refund.createManyAndReturn({
+                data: [rrRow]
+            })
+            let createRRLine = await prisma.return_line_item.createMany({
+                data: [rrItemRow]
+            }) */
+
         } else {
             console.log('still no return found -- ignoring for now');
         }
     } else {
-        await prisma.return_refund.upsert({
+        await prisma.return_refund.update({
             where: {
                 ordersId: body.m_order_id
             },
-            create: {
-                ordersId: body.m_order_id,
-                origin_id: body.returnId,
+            data: {
                 status: returnData.cancellations[0].cancel_status,
-                return_type: returnData.cancellations[0].cancel_type,
                 return_reason: returnData.cancellations[0].cancel_reason_text,
                 total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
                 line_item: {
@@ -204,12 +266,14 @@ async function collectReturnRequest (body, done) {
                     ))
                 }
             },
-            update: {
+            /* update: {
                 status: returnData.cancellations[0].cancel_status
-            }
+            } */
         }).then(() => {
             console.log('cancellation created')
-        })
+        }).catch((err) => {
+            console.log(err);
+        });
     }
 
     if (body.integration.length > 0) {
@@ -217,19 +281,19 @@ async function collectReturnRequest (body, done) {
         let comment = '';
         let tags = [];
         switch (body.status) {
-            case 'ORDER_REQUEST_CANCEL':
+            case 'CANCELLATION_REQUEST_PENDING':
                 subject = 'Cancellation Request: ' + body.order_id;
                 comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
                 tags.push('marina_cancellation');
                 break;
-            case 'ORDER_REFUND':
+            case 'REFUND':
                 subject = 'Refund Request: ' + body.order_id;
                 comment = `User request a refund to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
                 Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
                 tags.push('marina_return_refund');
                 break;
-            case 'ORDER_RETURN':
+            case 'RETURN_AND_REFUND':
                 subject = 'Return Request: ' + body.order_id;
                 comment = `User request a return to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
@@ -268,6 +332,7 @@ async function collectReturnRequest (body, done) {
                     ]
                 }
             }
+            // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {

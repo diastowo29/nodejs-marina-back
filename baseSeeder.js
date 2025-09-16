@@ -2,20 +2,22 @@
 // const { PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
 
 
-function seedBase() {
-   /*  basePrisma.stores.create({
-        data: {
-            origin_id: '9390487',
-            clients: {
-                create: {
-                    org_id: 'org_SdVZvtRmlurL47iY'
-                }
-            }
-        }
-    }).then((seed) => {
-        console.log('Seeding completed ', seed.id);
-    }) */
-//    console.log(encryptData('eyJhbGciOiJIUzI1NiJ9.CL3dehABGJeTvQQgAijjvZrFBjCZj8TlDDgBQAE.P0t_1uYVSB6FHNkQvTb2yqj3F7XnCacS75DZC5YnVmg'))
+async function testAll() {
+    let a = [1,2,6]
+    let arr = [];
+    a.forEach(i => {
+        arr.push(delayedResponse(i))
+    });
+    const b = await Promise.all(arr);
+    console.log(b)
 }
 
-seedBase();
+function delayedResponse(i) {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, (i * 1000));
+    console.log(i)
+    return i
+  });
+}
+
+testAll();

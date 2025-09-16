@@ -10,6 +10,7 @@ const { getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { encryptData } = require('../../functions/encryption');
 const { PrismaClient } = require('../../prisma/generated/client');
+const { dmmfToRuntimeDataModel } = require('../../prisma/generated/client/runtime/library');
 const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
 let mPrisma = new PrismaClient();
@@ -52,225 +53,166 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
         // console.log(org)
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        // const mPrisma = getPrismaClient(getTenantDB(org[1]));
-        if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
-            const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
-            let newOrder = await mPrisma.orders.upsert({
-                where: {
-                    origin_id: jsonBody.data.order_id
-                },
-                update: {
-                    temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
-                    ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
-                    /* ...(jsonBody.data.reverse_event_type) && {
-                        return_refund: {
-                            upsert: {
-                                create: {
-                                    origin_id: jsonBody.data.reverse_order_id,
-                                    total_amount: 0,
-                                    status: orderStatus
-                                },
-                                update: {
-                                    status: orderStatus
-                                },
-                                where: {
-                                    origin_id: jsonBody.data.reverse_order_id
-                                }
-                            }
-                        }
-                    }, */
-                },
-                create: {
-                    origin_id: jsonBody.data.order_id,
-                    ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
-                    store: {
-                        connect: {
-                            origin_id: jsonBody.shop_id
-                        }
-                    }
-                },
-                include: {
-                    return_refund: {
-                        select: {
-                            id: true
-                        }
+        let taskPayload = {};
+        switch (jsonBody.type) {
+            case 1:
+                // const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
+                let newOrder = await mPrisma.orders.upsert({
+                    where: {
+                        origin_id: jsonBody.data.order_id
                     },
-                    order_items: {
-                        select: {
-                            id: true
-                        }
-                    },
-                    customers: {
-                        select: {
-                            origin_id: true
-                        }
-                    },
-                    store: {
-                        select: {
-                            token: true,
-                            secondary_token: true,
-                            refresh_token: true,
-                            id: true,
-                            origin_id: true,
-                            channel: {
-                                select: {
-                                    client: {
-                                        select: {
-                                            integration: {
-                                                select: {
-                                                    baseUrl: true,
-                                                    credent: true,
-                                                    name: true,
-                                                    notes: true
-                                                }
-                                            }
-                                        }
+                    update: {
+                        status: jsonBody.data.status
+                        // temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
+                        // ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
+                        /* ...(jsonBody.data.reverse_event_type) && {
+                            return_refund: {
+                                upsert: {
+                                    create: {
+                                        origin_id: jsonBody.data.reverse_order_id,
+                                        total_amount: 0,
+                                        status: orderStatus
+                                    },
+                                    update: {
+                                        status: orderStatus
+                                    },
+                                    where: {
+                                        origin_id: jsonBody.data.reverse_order_id
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            });
-            let taskPayload = {
-                channel: TIKTOK, 
-                order_id: jsonBody.data.order_id,
-                id: newOrder.id,
-                token: newOrder.store.token,
-                code: jsonBody.type,
-                m_shop_id: newOrder.store.id,
-                shop_id: jsonBody.shop_id,
-                status: newOrder.status,
-                cipher: newOrder.store.secondary_token,
-                refresh_token: newOrder.store.refresh_token,
-                returnId: newOrder.temp_id,
-                tenantDB: getTenantDB(org[1]),
-                status: orderStatus,
-                org_id: org[0]
-            }
-            if (jsonBody.type == 2) {
-                taskPayload = {
-                    tenantDB: getTenantDB(org[1]),
-                    channel: TIKTOK,
-                    token: newOrder.store.token,
-                    refresh_token: newOrder.store.refresh_token,
-                    order_id: jsonBody.data.order_id,
-                    cipher: newOrder.store.secondary_token,
-                    m_shop_id: newOrder.store.id,
-                    m_order_id: newOrder.id,
-                    returnId: newOrder.temp_id,
-                    status: orderStatus,
-                    code: jsonBody.type,
-                    customer_id: newOrder.customers.origin_id,
-                    shop_id: jsonBody.shop_id,
-                    integration: newOrder.store.channel.client.integration,
-                    org_id: org[0]
-                }
-            }
-            if ((newOrder.order_items.length == 0)
-                 || (orderStatus == 'ORDER_REFUND')
-                 || (orderStatus == 'ORDER_REQUEST_CANCEL')
-                 || (orderStatus == 'ORDER_RETURN')
-                 || (orderStatus == 'IN_TRANSIT')) {
-                pushTask(env, taskPayload);
-            }
-            res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
-        } else if (jsonBody.type == 16) {
-            let taskPayload = {
-                tenantDB: getTenantDB(org[1]),
-                channel: TIKTOK,
-                code: jsonBody.type,
-                product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
-                shop_id: jsonBody.shop_id,
-                org_id: org[0]
-            }
-            pushTask(env, taskPayload);
-            res.status(200).send({})
-        } else if (jsonBody.type == 14) {
-            // console.log(JSON.stringify(jsonBody));
-            if (jsonBody.data.sender.role == 'SYSTEM') {
-                console.log('system message, ignoring');
-                return res.status(200).send({message: 'system message, ignoring'});
-            }
-            try {
-                const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
-                const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
-                console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
-                let upsertMessage = await mPrisma.omnichat.upsert({
-                    where: {
-                        origin_id: jsonBody.data.conversation_id
-                    },
-                    update: {
-                        last_message: jsonBody.data.content,
-                        last_messageId: jsonBody.data.message_id,
-                        messages: {
-                            connectOrCreate: {
-                                where: {
-                                    origin_id: jsonBody.data.message_id
-                                },
-                                create: {
-                                    line_text: jsonBody.data.content,
-                                    origin_id: jsonBody.data.message_id,
-                                    author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                    chat_type: jsonBody.data.type,
-                                }
-                            }
-                        },
+                        }, */
                     },
                     create: {
-                        last_message: jsonBody.data.content,
-                        last_messageId: jsonBody.data.message_id,
-                        origin_id: jsonBody.data.conversation_id,
+                        origin_id: jsonBody.data.order_id,
+                        status: jsonBody.data.status,
                         store: {
                             connect: {
                                 origin_id: jsonBody.shop_id
                             }
-                        },
-                        messages: {
-                            create: {
-                                line_text: jsonBody.data.content,
-                                origin_id: jsonBody.data.message_id,
-                                author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                chat_type: jsonBody.data.type,
-                            }
-                        },
-                        omnichat_user: {
-                            connectOrCreate: {
-                                create: {
-                                    username: userName,
-                                    origin_id: jsonBody.data.sender.im_user_id
-                                },
-                                where: {
-                                    origin_id: jsonBody.data.sender.im_user_id
-                                }
-                            }
                         }
                     },
-                    select: {
-                        id: true,
-                        origin_id: true,
-                        externalId: true,
-                        omnichat_user: {
+                    include: {
+                        order_items: {
                             select: {
-                                id: true, 
-                                origin_id: true
+                                id: true
                             }
                         },
                         store: {
                             select: {
-                                name: true,
+                                token: true,
+                                secondary_token: true,
+                                refresh_token: true,
                                 id: true,
-                                origin_id: true,
-                                channel: {
+                                origin_id: true
+                            }
+                        }
+                    }
+                });
+                taskPayload = {
+                    channel: TIKTOK, 
+                    order_id: jsonBody.data.order_id,
+                    id: newOrder.id,
+                    token: newOrder.store.token,
+                    code: jsonBody.type,
+                    m_shop_id: newOrder.store.id,
+                    shop_id: jsonBody.shop_id,
+                    status: newOrder.status,
+                    cipher: newOrder.store.secondary_token,
+                    refresh_token: newOrder.store.refresh_token,
+                    returnId: newOrder.temp_id,
+                    tenantDB: getTenantDB(org[1]),
+                    status: jsonBody.data.status,
+                    org_id: org[0]
+                }
+                /* if (jsonBody.type == 2) {
+                    taskPayload = {
+                        tenantDB: getTenantDB(org[1]),
+                        channel: TIKTOK,
+                        token: newOrder.store.token,
+                        refresh_token: newOrder.store.refresh_token,
+                        order_id: jsonBody.data.order_id,
+                        cipher: newOrder.store.secondary_token,
+                        m_shop_id: newOrder.store.id,
+                        m_order_id: newOrder.id,
+                        returnId: newOrder.temp_id,
+                        status: jsonBody.data.status,
+                        code: jsonBody.type,
+                        customer_id: newOrder.customers.origin_id,
+                        shop_id: jsonBody.shop_id,
+                        integration: newOrder.store.channel.client.integration,
+                        org_id: org[0]
+                    }
+                } */
+                if (newOrder.order_items.length == 0) {
+                    pushTask(env, taskPayload);
+                }
+                res.status(200).send({order: newOrder.id, origin_id: newOrder.origin_id, status: newOrder.status});
+                break;
+            case 2:
+                console.log('type 2')
+                res.status(200).send({});
+                break;
+            case 6:
+                mPrisma.store.update({
+                    where: {
+                        origin_id: jsonBody.shop_id.toString()
+                    },
+                    data: {
+                        status: 'INACTIVE'
+                    }
+                }).then(() => {
+                    res.status(200).send({});
+                })
+                break;
+            case 11:
+                mPrisma.return_refund.upsert({
+                    where: {
+                        origin_id: jsonBody.data.cancel_id
+                    },
+                    create: {
+                        origin_id: jsonBody.data.cancel_id,
+                        return_type: jsonBody.data.cancel_status,
+                        status: jsonBody.data.cancel_status,
+                        total_amount: 0,
+                        order: {
+                            connect: {
+                                origin_id: jsonBody.data.order_id
+                            }
+                        }
+
+                    },
+                    update: {
+                        status: jsonBody.data.cancel_status
+                    },
+                    include: {
+                        order: {
+                            select: {
+                                customers: {
                                     select: {
-                                        client: {
+                                        origin_id: true
+                                    }
+                                },
+                                id: true,
+                                store: {
+                                    select: {
+                                        token: true,
+                                        secondary_token: true,
+                                        refresh_token: true,
+                                        id: true,
+                                        origin_id: true,
+                                        channel: {
                                             select: {
-                                                integration: {
+                                                client: {
                                                     select: {
-                                                        name: true,
-                                                        notes: true,
-                                                        id: true,
-                                                        credent: true
+                                                        integration: {
+                                                            select: {
+                                                                baseUrl: true,
+                                                                credent: true,
+                                                                name: true,
+                                                                notes: true
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -280,37 +222,258 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             }
                         }
                     }
-                });
-                if (upsertMessage.store.channel.client.integration.length > 0) {
-                    let taskPayload = {
-                        channel: TIKTOK,
-                        code: jsonBody.type,
-                        chat_type: jsonBody.data.type,
-                        message: upsertMessage,
-                        userExternalId: userExternalId,
-                        userName: userName,
-                        message_content: jsonBody.data.content,
-                        tenantDB: getTenantDB(org[1]),
-                        org_id: org[1]
+                }).then((rr) => {
+                    if (jsonBody.data.cancel_status == 'CANCELLATION_REQUEST_PENDING') {
+                        taskPayload = {
+                            tenantDB: getTenantDB(org[1]),
+                            channel: TIKTOK,
+                            token: rr.order.store.token,
+                            refresh_token: rr.order.store.refresh_token,
+                            order_id: jsonBody.data.order_id,
+                            cipher: rr.order.store.secondary_token,
+                            m_shop_id: rr.order.store.id,
+                            m_order_id: rr.order.id,
+                            returnId: jsonBody.data.cancel_id,
+                            status: jsonBody.data.cancel_status,
+                            code: jsonBody.type,
+                            customer_id: rr.order.customers.origin_id,
+                            shop_id: jsonBody.shop_id,
+                            integration: rr.order.store.channel.client.integration,
+                            org_id: org[0]
+                        }
+                        pushTask(env, taskPayload);
                     }
-                    pushTask(env, taskPayload);
+                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
+                }).catch ((err) => {
+                    console.log(err);
+                    res.status(400).send({error: err});
+                });
+                break;
+            case 12:
+                mPrisma.return_refund.upsert({
+                    where: {
+                        origin_id: jsonBody.data.return_id
+                    },
+                    create: {
+                        origin_id: jsonBody.data.return_id,
+                        return_type: jsonBody.data.return_type,
+                        status: jsonBody.data.return_status,
+                        total_amount: 0,
+                        order: {
+                            connect: {
+                                origin_id: jsonBody.data.order_id
+                            }
+                        }
+
+                    },
+                    update: {
+                        status: jsonBody.data.return_status
+                    },
+                    include: {
+                        order: {
+                            select: {
+                                customers: {
+                                    select: {
+                                        origin_id: true
+                                    }
+                                },
+                                id: true,
+                                store: {
+                                    select: {
+                                        token: true,
+                                        secondary_token: true,
+                                        refresh_token: true,
+                                        id: true,
+                                        origin_id: true,
+                                        channel: {
+                                            select: {
+                                                client: {
+                                                    select: {
+                                                        integration: {
+                                                            select: {
+                                                                baseUrl: true,
+                                                                credent: true,
+                                                                name: true,
+                                                                notes: true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }).then((rr) => {
+                    if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
+                        taskPayload = {
+                            tenantDB: getTenantDB(org[1]),
+                            channel: TIKTOK,
+                            token: rr.order.store.token,
+                            refresh_token: rr.order.store.refresh_token,
+                            order_id: jsonBody.data.order_id,
+                            cipher: rr.order.store.secondary_token,
+                            m_shop_id: rr.order.store.id,
+                            m_order_id: rr.order.id,
+                            returnId: jsonBody.data.return_id,
+                            status: jsonBody.data.return_type,
+                            code: jsonBody.type,
+                            customer_id: rr.order.customers.origin_id,
+                            shop_id: jsonBody.shop_id,
+                            integration: rr.order.store.channel.client.integration,
+                            org_id: org[0]
+                        }
+                        pushTask(env, taskPayload);
+                    }
+                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
+                }).catch ((err) => {
+                    console.log(err);
+                    res.status(400).send({error: err});
+                });
+                break;
+            case 14:
+                 // console.log(JSON.stringify(jsonBody));
+                if (jsonBody.data.sender.role == 'SYSTEM') {
+                    console.log('system message, ignoring');
+                    return res.status(200).send({message: 'system message, ignoring'});
                 }
-                res.status(200).send({message: {id: upsertMessage.id}});
-            } catch (err) {
-                console.log(err);
-                res.status(400).send({error: err});
-            }
+                try {
+                    const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
+                    const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                    console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
+                    let upsertMessage = await mPrisma.omnichat.upsert({
+                        where: {
+                            origin_id: jsonBody.data.conversation_id
+                        },
+                        update: {
+                            last_message: jsonBody.data.content,
+                            last_messageId: jsonBody.data.message_id,
+                            messages: {
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: jsonBody.data.message_id
+                                    },
+                                    create: {
+                                        line_text: jsonBody.data.content,
+                                        origin_id: jsonBody.data.message_id,
+                                        author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
+                                        chat_type: jsonBody.data.type,
+                                    }
+                                }
+                            },
+                        },
+                        create: {
+                            last_message: jsonBody.data.content,
+                            last_messageId: jsonBody.data.message_id,
+                            origin_id: jsonBody.data.conversation_id,
+                            store: {
+                                connect: {
+                                    origin_id: jsonBody.shop_id
+                                }
+                            },
+                            messages: {
+                                create: {
+                                    line_text: jsonBody.data.content,
+                                    origin_id: jsonBody.data.message_id,
+                                    author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
+                                    chat_type: jsonBody.data.type,
+                                }
+                            },
+                            omnichat_user: {
+                                connectOrCreate: {
+                                    create: {
+                                        username: userName,
+                                        origin_id: jsonBody.data.sender.im_user_id
+                                    },
+                                    where: {
+                                        origin_id: jsonBody.data.sender.im_user_id
+                                    }
+                                }
+                            }
+                        },
+                        select: {
+                            id: true,
+                            origin_id: true,
+                            externalId: true,
+                            omnichat_user: {
+                                select: {
+                                    id: true, 
+                                    origin_id: true
+                                }
+                            },
+                            store: {
+                                select: {
+                                    name: true,
+                                    id: true,
+                                    origin_id: true,
+                                    channel: {
+                                        select: {
+                                            client: {
+                                                select: {
+                                                    integration: {
+                                                        select: {
+                                                            name: true,
+                                                            notes: true,
+                                                            id: true,
+                                                            credent: true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    if (upsertMessage.store.channel.client.integration.length > 0) {
+                        let taskPayload = {
+                            channel: TIKTOK,
+                            code: jsonBody.type,
+                            chat_type: jsonBody.data.type,
+                            message: upsertMessage,
+                            userExternalId: userExternalId,
+                            userName: userName,
+                            message_content: jsonBody.data.content,
+                            tenantDB: getTenantDB(org[1]),
+                            org_id: org[1]
+                        }
+                        pushTask(env, taskPayload);
+                    }
+                    res.status(200).send({message: {id: upsertMessage.id}});
+                } catch (err) {
+                    console.log(err);
+                    res.status(400).send({error: err});
+                }
+                break;
+            case 16: 
+                taskPayload = {
+                    tenantDB: getTenantDB(org[1]),
+                    channel: TIKTOK,
+                    code: jsonBody.type,
+                    product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
+                    shop_id: jsonBody.shop_id,
+                    org_id: org[0]
+                }
+                pushTask(env, taskPayload);
+                res.status(200).send({})
+                break;
+            default:
+                res.status(200).send({message: 'event type not handled: ' + jsonBody.type});
+                break;
+        }
+        // const mPrisma = getPrismaClient(getTenantDB(org[1]));
+        if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
+        } else if (jsonBody.type == 12) {
+
+        } else if (jsonBody.type == 16) {
+            
+        } else if (jsonBody.type == 14) {
+           
         } else if (jsonBody.type == 6) {
-            mPrisma.store.update({
-                where: {
-                    origin_id: jsonBody.shop_id.toString()
-                },
-                data: {
-                    status: 'INACTIVE'
-                }
-            }).then(() => {
-                res.status(200).send({});
-            })
+            
         } else {
             console.log('code type not supported: %s', jsonBody.type)
             res.status(200).send({error: 'code type not supported'});

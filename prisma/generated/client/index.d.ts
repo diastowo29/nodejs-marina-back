@@ -2617,10 +2617,12 @@ export namespace Prisma {
 
   export type OrdersCountOutputType = {
     order_items: number
+    return_refund: number
   }
 
   export type OrdersCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     order_items?: boolean | OrdersCountOutputTypeCountOrder_itemsArgs
+    return_refund?: boolean | OrdersCountOutputTypeCountReturn_refundArgs
   }
 
   // Custom InputTypes
@@ -2639,6 +2641,13 @@ export namespace Prisma {
    */
   export type OrdersCountOutputTypeCountOrder_itemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: order_itemsWhereInput
+  }
+
+  /**
+   * OrdersCountOutputType without action
+   */
+  export type OrdersCountOutputTypeCountReturn_refundArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: return_refundWhereInput
   }
 
 
@@ -11774,46 +11783,6 @@ export namespace Prisma {
     store?: boolean | orders$storeArgs<ExtArgs>
   }, ExtArgs["result"]["orders"]>
 
-  export type ordersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    createdAt?: boolean
-    status?: boolean
-    shop_id?: boolean
-    payment_id?: boolean
-    temp_id?: boolean
-    origin_id?: boolean
-    package_id?: boolean
-    invoice?: boolean
-    recp_name?: boolean
-    recp_phone?: boolean
-    recp_addr_full?: boolean
-    recp_addr_district?: boolean
-    recp_addr_city?: boolean
-    recp_addr_province?: boolean
-    recp_addr_country?: boolean
-    recp_addr_postal_code?: boolean
-    recp_addr_district_id?: boolean
-    recp_addr_city_id?: boolean
-    tracking_number?: boolean
-    ship_document_url?: boolean
-    recp_addr_province_id?: boolean
-    recp_addr_geo?: boolean
-    logistic_service?: boolean
-    origin_createdAt?: boolean
-    accept_partial?: boolean
-    device?: boolean
-    storeId?: boolean
-    customersId?: boolean
-    logisticId?: boolean
-    total_product_price?: boolean
-    shipping_price?: boolean
-    total_amount?: boolean
-    updatedAt?: boolean
-    customers?: boolean | orders$customersArgs<ExtArgs>
-    logistic?: boolean | orders$logisticArgs<ExtArgs>
-    store?: boolean | orders$storeArgs<ExtArgs>
-  }, ExtArgs["result"]["orders"]>
-
   export type ordersSelectScalar = {
     id?: boolean
     createdAt?: boolean
@@ -11886,7 +11855,7 @@ export namespace Prisma {
       customers: Prisma.$customersPayload<ExtArgs> | null
       logistic: Prisma.$logisticPayload<ExtArgs> | null
       store: Prisma.$storePayload<ExtArgs> | null
-      return_refund: Prisma.$return_refundPayload<ExtArgs> | null
+      return_refund: Prisma.$return_refundPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -12329,7 +12298,7 @@ export namespace Prisma {
     customers<T extends orders$customersArgs<ExtArgs> = {}>(args?: Subset<T, orders$customersArgs<ExtArgs>>): Prisma__customersClient<$Result.GetResult<Prisma.$customersPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     logistic<T extends orders$logisticArgs<ExtArgs> = {}>(args?: Subset<T, orders$logisticArgs<ExtArgs>>): Prisma__logisticClient<$Result.GetResult<Prisma.$logisticPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     store<T extends orders$storeArgs<ExtArgs> = {}>(args?: Subset<T, orders$storeArgs<ExtArgs>>): Prisma__storeClient<$Result.GetResult<Prisma.$storePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-    return_refund<T extends orders$return_refundArgs<ExtArgs> = {}>(args?: Subset<T, orders$return_refundArgs<ExtArgs>>): Prisma__return_refundClient<$Result.GetResult<Prisma.$return_refundPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    return_refund<T extends orders$return_refundArgs<ExtArgs> = {}>(args?: Subset<T, orders$return_refundArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$return_refundPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -12894,6 +12863,11 @@ export namespace Prisma {
      */
     include?: return_refundInclude<ExtArgs> | null
     where?: return_refundWhereInput
+    orderBy?: return_refundOrderByWithRelationInput | return_refundOrderByWithRelationInput[]
+    cursor?: return_refundWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: Return_refundScalarFieldEnum | Return_refundScalarFieldEnum[]
   }
 
   /**
@@ -25317,7 +25291,7 @@ export namespace Prisma {
     customers?: XOR<CustomersNullableScalarRelationFilter, customersWhereInput> | null
     logistic?: XOR<LogisticNullableScalarRelationFilter, logisticWhereInput> | null
     store?: XOR<StoreNullableScalarRelationFilter, storeWhereInput> | null
-    return_refund?: XOR<Return_refundNullableScalarRelationFilter, return_refundWhereInput> | null
+    return_refund?: Return_refundListRelationFilter
   }
 
   export type ordersOrderByWithRelationInput = {
@@ -25367,7 +25341,7 @@ export namespace Prisma {
     customers?: customersOrderByWithRelationInput
     logistic?: logisticOrderByWithRelationInput
     store?: storeOrderByWithRelationInput
-    return_refund?: return_refundOrderByWithRelationInput
+    return_refund?: return_refundOrderByRelationAggregateInput
   }
 
   export type ordersWhereUniqueInput = Prisma.AtLeast<{
@@ -25420,7 +25394,7 @@ export namespace Prisma {
     customers?: XOR<CustomersNullableScalarRelationFilter, customersWhereInput> | null
     logistic?: XOR<LogisticNullableScalarRelationFilter, logisticWhereInput> | null
     store?: XOR<StoreNullableScalarRelationFilter, storeWhereInput> | null
-    return_refund?: XOR<Return_refundNullableScalarRelationFilter, return_refundWhereInput> | null
+    return_refund?: Return_refundListRelationFilter
   }, "id" | "origin_id">
 
   export type ordersOrderByWithAggregationInput = {
@@ -26174,7 +26148,6 @@ export namespace Prisma {
   export type return_refundWhereUniqueInput = Prisma.AtLeast<{
     id?: number
     origin_id?: string
-    ordersId?: number
     AND?: return_refundWhereInput | return_refundWhereInput[]
     OR?: return_refundWhereInput[]
     NOT?: return_refundWhereInput | return_refundWhereInput[]
@@ -26182,9 +26155,10 @@ export namespace Prisma {
     total_amount?: IntFilter<"return_refund"> | number
     return_type?: StringNullableFilter<"return_refund"> | string | null
     return_reason?: StringNullableFilter<"return_refund"> | string | null
+    ordersId?: IntFilter<"return_refund"> | number
     order?: XOR<OrdersScalarRelationFilter, ordersWhereInput>
     line_item?: Return_line_itemListRelationFilter
-  }, "id" | "origin_id" | "ordersId">
+  }, "id" | "origin_id">
 
   export type return_refundOrderByWithAggregationInput = {
     id?: SortOrder
@@ -26791,7 +26765,7 @@ export namespace Prisma {
     customers?: customersCreateNestedOneWithoutOrdersInput
     logistic?: logisticCreateNestedOneWithoutOrdersInput
     store?: storeCreateNestedOneWithoutOrdersInput
-    return_refund?: return_refundCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUncheckedCreateInput = {
@@ -26838,7 +26812,7 @@ export namespace Prisma {
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
-    return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUpdateInput = {
@@ -26884,7 +26858,7 @@ export namespace Prisma {
     customers?: customersUpdateOneWithoutOrdersNestedInput
     logistic?: logisticUpdateOneWithoutOrdersNestedInput
     store?: storeUpdateOneWithoutOrdersNestedInput
-    return_refund?: return_refundUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateInput = {
@@ -26931,7 +26905,7 @@ export namespace Prisma {
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
-    return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersCreateManyInput = {
@@ -28299,9 +28273,14 @@ export namespace Prisma {
     isNot?: logisticWhereInput | null
   }
 
-  export type Return_refundNullableScalarRelationFilter = {
-    is?: return_refundWhereInput | null
-    isNot?: return_refundWhereInput | null
+  export type Return_refundListRelationFilter = {
+    every?: return_refundWhereInput
+    some?: return_refundWhereInput
+    none?: return_refundWhereInput
+  }
+
+  export type return_refundOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type ordersCountOrderByAggregateInput = {
@@ -28892,6 +28871,11 @@ export namespace Prisma {
   export type Order_itemsScalarRelationFilter = {
     is?: order_itemsWhereInput
     isNot?: order_itemsWhereInput
+  }
+
+  export type Return_refundNullableScalarRelationFilter = {
+    is?: return_refundWhereInput | null
+    isNot?: return_refundWhereInput | null
   }
 
   export type return_line_itemCountOrderByAggregateInput = {
@@ -29515,10 +29499,11 @@ export namespace Prisma {
     connect?: storeWhereUniqueInput
   }
 
-  export type return_refundCreateNestedOneWithoutOrderInput = {
-    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
-    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput
-    connect?: return_refundWhereUniqueInput
+  export type return_refundCreateNestedManyWithoutOrderInput = {
+    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput> | return_refundCreateWithoutOrderInput[] | return_refundUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput | return_refundCreateOrConnectWithoutOrderInput[]
+    createMany?: return_refundCreateManyOrderInputEnvelope
+    connect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
   }
 
   export type order_itemsUncheckedCreateNestedManyWithoutOrdersInput = {
@@ -29528,10 +29513,11 @@ export namespace Prisma {
     connect?: order_itemsWhereUniqueInput | order_itemsWhereUniqueInput[]
   }
 
-  export type return_refundUncheckedCreateNestedOneWithoutOrderInput = {
-    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
-    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput
-    connect?: return_refundWhereUniqueInput
+  export type return_refundUncheckedCreateNestedManyWithoutOrderInput = {
+    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput> | return_refundCreateWithoutOrderInput[] | return_refundUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput | return_refundCreateOrConnectWithoutOrderInput[]
+    createMany?: return_refundCreateManyOrderInputEnvelope
+    connect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
   }
 
   export type NullableBoolFieldUpdateOperationsInput = {
@@ -29582,14 +29568,18 @@ export namespace Prisma {
     update?: XOR<XOR<storeUpdateToOneWithWhereWithoutOrdersInput, storeUpdateWithoutOrdersInput>, storeUncheckedUpdateWithoutOrdersInput>
   }
 
-  export type return_refundUpdateOneWithoutOrderNestedInput = {
-    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
-    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput
-    upsert?: return_refundUpsertWithoutOrderInput
-    disconnect?: return_refundWhereInput | boolean
-    delete?: return_refundWhereInput | boolean
-    connect?: return_refundWhereUniqueInput
-    update?: XOR<XOR<return_refundUpdateToOneWithWhereWithoutOrderInput, return_refundUpdateWithoutOrderInput>, return_refundUncheckedUpdateWithoutOrderInput>
+  export type return_refundUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput> | return_refundCreateWithoutOrderInput[] | return_refundUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput | return_refundCreateOrConnectWithoutOrderInput[]
+    upsert?: return_refundUpsertWithWhereUniqueWithoutOrderInput | return_refundUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: return_refundCreateManyOrderInputEnvelope
+    set?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    disconnect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    delete?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    connect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    update?: return_refundUpdateWithWhereUniqueWithoutOrderInput | return_refundUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: return_refundUpdateManyWithWhereWithoutOrderInput | return_refundUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: return_refundScalarWhereInput | return_refundScalarWhereInput[]
   }
 
   export type order_itemsUncheckedUpdateManyWithoutOrdersNestedInput = {
@@ -29606,14 +29596,18 @@ export namespace Prisma {
     deleteMany?: order_itemsScalarWhereInput | order_itemsScalarWhereInput[]
   }
 
-  export type return_refundUncheckedUpdateOneWithoutOrderNestedInput = {
-    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
-    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput
-    upsert?: return_refundUpsertWithoutOrderInput
-    disconnect?: return_refundWhereInput | boolean
-    delete?: return_refundWhereInput | boolean
-    connect?: return_refundWhereUniqueInput
-    update?: XOR<XOR<return_refundUpdateToOneWithWhereWithoutOrderInput, return_refundUpdateWithoutOrderInput>, return_refundUncheckedUpdateWithoutOrderInput>
+  export type return_refundUncheckedUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput> | return_refundCreateWithoutOrderInput[] | return_refundUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: return_refundCreateOrConnectWithoutOrderInput | return_refundCreateOrConnectWithoutOrderInput[]
+    upsert?: return_refundUpsertWithWhereUniqueWithoutOrderInput | return_refundUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: return_refundCreateManyOrderInputEnvelope
+    set?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    disconnect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    delete?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    connect?: return_refundWhereUniqueInput | return_refundWhereUniqueInput[]
+    update?: return_refundUpdateWithWhereUniqueWithoutOrderInput | return_refundUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: return_refundUpdateManyWithWhereWithoutOrderInput | return_refundUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: return_refundScalarWhereInput | return_refundScalarWhereInput[]
   }
 
   export type omnichatCreateNestedManyWithoutOmnichat_userInput = {
@@ -30272,7 +30266,7 @@ export namespace Prisma {
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
     logistic?: logisticCreateNestedOneWithoutOrdersInput
     store?: storeCreateNestedOneWithoutOrdersInput
-    return_refund?: return_refundCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUncheckedCreateWithoutCustomersInput = {
@@ -30318,7 +30312,7 @@ export namespace Prisma {
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
-    return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type ordersCreateOrConnectWithoutCustomersInput = {
@@ -30669,7 +30663,7 @@ export namespace Prisma {
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
     customers?: customersCreateNestedOneWithoutOrdersInput
     logistic?: logisticCreateNestedOneWithoutOrdersInput
-    return_refund?: return_refundCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUncheckedCreateWithoutStoreInput = {
@@ -30715,7 +30709,7 @@ export namespace Prisma {
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
-    return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type ordersCreateOrConnectWithoutStoreInput = {
@@ -31139,7 +31133,7 @@ export namespace Prisma {
     customers?: customersCreateNestedOneWithoutOrdersInput
     logistic?: logisticCreateNestedOneWithoutOrdersInput
     store?: storeCreateNestedOneWithoutOrdersInput
-    return_refund?: return_refundCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUncheckedCreateWithoutOrder_itemsInput = {
@@ -31185,7 +31179,7 @@ export namespace Prisma {
     item_insurance_fee?: number | null
     total_amount?: number | null
     updatedAt?: Date | string
-    return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type ordersCreateOrConnectWithoutOrder_itemsInput = {
@@ -31315,7 +31309,7 @@ export namespace Prisma {
     customers?: customersUpdateOneWithoutOrdersNestedInput
     logistic?: logisticUpdateOneWithoutOrdersNestedInput
     store?: storeUpdateOneWithoutOrdersNestedInput
-    return_refund?: return_refundUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateWithoutOrder_itemsInput = {
@@ -31361,7 +31355,7 @@ export namespace Prisma {
     item_insurance_fee?: NullableIntFieldUpdateOperationsInput | number | null
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type productsUpsertWithoutOrder_itemsInput = {
@@ -31482,7 +31476,7 @@ export namespace Prisma {
     order_items?: order_itemsCreateNestedManyWithoutOrdersInput
     customers?: customersCreateNestedOneWithoutOrdersInput
     store?: storeCreateNestedOneWithoutOrdersInput
-    return_refund?: return_refundCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundCreateNestedManyWithoutOrderInput
   }
 
   export type ordersUncheckedCreateWithoutLogisticInput = {
@@ -31528,7 +31522,7 @@ export namespace Prisma {
     total_amount?: number | null
     updatedAt?: Date | string
     order_items?: order_itemsUncheckedCreateNestedManyWithoutOrdersInput
-    return_refund?: return_refundUncheckedCreateNestedOneWithoutOrderInput
+    return_refund?: return_refundUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type ordersCreateOrConnectWithoutLogisticInput = {
@@ -31686,6 +31680,11 @@ export namespace Prisma {
     create: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
   }
 
+  export type return_refundCreateManyOrderInputEnvelope = {
+    data: return_refundCreateManyOrderInput | return_refundCreateManyOrderInput[]
+    skipDuplicates?: boolean
+  }
+
   export type order_itemsUpsertWithWhereUniqueWithoutOrdersInput = {
     where: order_itemsWhereUniqueInput
     update: XOR<order_itemsUpdateWithoutOrdersInput, order_itemsUncheckedUpdateWithoutOrdersInput>
@@ -31790,34 +31789,33 @@ export namespace Prisma {
     products?: productsUncheckedUpdateManyWithoutStoreNestedInput
   }
 
-  export type return_refundUpsertWithoutOrderInput = {
+  export type return_refundUpsertWithWhereUniqueWithoutOrderInput = {
+    where: return_refundWhereUniqueInput
     update: XOR<return_refundUpdateWithoutOrderInput, return_refundUncheckedUpdateWithoutOrderInput>
     create: XOR<return_refundCreateWithoutOrderInput, return_refundUncheckedCreateWithoutOrderInput>
-    where?: return_refundWhereInput
   }
 
-  export type return_refundUpdateToOneWithWhereWithoutOrderInput = {
-    where?: return_refundWhereInput
+  export type return_refundUpdateWithWhereUniqueWithoutOrderInput = {
+    where: return_refundWhereUniqueInput
     data: XOR<return_refundUpdateWithoutOrderInput, return_refundUncheckedUpdateWithoutOrderInput>
   }
 
-  export type return_refundUpdateWithoutOrderInput = {
-    origin_id?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    total_amount?: IntFieldUpdateOperationsInput | number
-    return_type?: NullableStringFieldUpdateOperationsInput | string | null
-    return_reason?: NullableStringFieldUpdateOperationsInput | string | null
-    line_item?: return_line_itemUpdateManyWithoutReturn_refundNestedInput
+  export type return_refundUpdateManyWithWhereWithoutOrderInput = {
+    where: return_refundScalarWhereInput
+    data: XOR<return_refundUpdateManyMutationInput, return_refundUncheckedUpdateManyWithoutOrderInput>
   }
 
-  export type return_refundUncheckedUpdateWithoutOrderInput = {
-    id?: IntFieldUpdateOperationsInput | number
-    origin_id?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    total_amount?: IntFieldUpdateOperationsInput | number
-    return_type?: NullableStringFieldUpdateOperationsInput | string | null
-    return_reason?: NullableStringFieldUpdateOperationsInput | string | null
-    line_item?: return_line_itemUncheckedUpdateManyWithoutReturn_refundNestedInput
+  export type return_refundScalarWhereInput = {
+    AND?: return_refundScalarWhereInput | return_refundScalarWhereInput[]
+    OR?: return_refundScalarWhereInput[]
+    NOT?: return_refundScalarWhereInput | return_refundScalarWhereInput[]
+    id?: IntFilter<"return_refund"> | number
+    origin_id?: StringNullableFilter<"return_refund"> | string | null
+    status?: StringNullableFilter<"return_refund"> | string | null
+    total_amount?: IntFilter<"return_refund"> | number
+    return_type?: StringNullableFilter<"return_refund"> | string | null
+    return_reason?: StringNullableFilter<"return_refund"> | string | null
+    ordersId?: IntFilter<"return_refund"> | number
   }
 
   export type omnichatCreateWithoutOmnichat_userInput = {
@@ -32934,7 +32932,7 @@ export namespace Prisma {
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
     logistic?: logisticUpdateOneWithoutOrdersNestedInput
     store?: storeUpdateOneWithoutOrdersNestedInput
-    return_refund?: return_refundUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateWithoutCustomersInput = {
@@ -32980,7 +32978,7 @@ export namespace Prisma {
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
-    return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateManyWithoutCustomersInput = {
@@ -33227,7 +33225,7 @@ export namespace Prisma {
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
     customers?: customersUpdateOneWithoutOrdersNestedInput
     logistic?: logisticUpdateOneWithoutOrdersNestedInput
-    return_refund?: return_refundUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateWithoutStoreInput = {
@@ -33273,7 +33271,7 @@ export namespace Prisma {
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
-    return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateManyWithoutStoreInput = {
@@ -33588,7 +33586,7 @@ export namespace Prisma {
     order_items?: order_itemsUpdateManyWithoutOrdersNestedInput
     customers?: customersUpdateOneWithoutOrdersNestedInput
     store?: storeUpdateOneWithoutOrdersNestedInput
-    return_refund?: return_refundUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateWithoutLogisticInput = {
@@ -33634,7 +33632,7 @@ export namespace Prisma {
     total_amount?: NullableIntFieldUpdateOperationsInput | number | null
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     order_items?: order_itemsUncheckedUpdateManyWithoutOrdersNestedInput
-    return_refund?: return_refundUncheckedUpdateOneWithoutOrderNestedInput
+    return_refund?: return_refundUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type ordersUncheckedUpdateManyWithoutLogisticInput = {
@@ -33693,6 +33691,15 @@ export namespace Prisma {
     origin_id?: string | null
   }
 
+  export type return_refundCreateManyOrderInput = {
+    id?: number
+    origin_id?: string | null
+    status?: string | null
+    total_amount: number
+    return_type?: string | null
+    return_reason?: string | null
+  }
+
   export type order_itemsUpdateWithoutOrdersInput = {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     qty?: IntFieldUpdateOperationsInput | number
@@ -33728,6 +33735,34 @@ export namespace Prisma {
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     productsId?: NullableIntFieldUpdateOperationsInput | number | null
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type return_refundUpdateWithoutOrderInput = {
+    origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    total_amount?: IntFieldUpdateOperationsInput | number
+    return_type?: NullableStringFieldUpdateOperationsInput | string | null
+    return_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    line_item?: return_line_itemUpdateManyWithoutReturn_refundNestedInput
+  }
+
+  export type return_refundUncheckedUpdateWithoutOrderInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    total_amount?: IntFieldUpdateOperationsInput | number
+    return_type?: NullableStringFieldUpdateOperationsInput | string | null
+    return_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    line_item?: return_line_itemUncheckedUpdateManyWithoutReturn_refundNestedInput
+  }
+
+  export type return_refundUncheckedUpdateManyWithoutOrderInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    total_amount?: IntFieldUpdateOperationsInput | number
+    return_type?: NullableStringFieldUpdateOperationsInput | string | null
+    return_reason?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type omnichatCreateManyOmnichat_userInput = {

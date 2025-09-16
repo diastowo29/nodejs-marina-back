@@ -88,6 +88,21 @@ function APPROVE_REFUND (returnId, cipher, body) {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
 }
 
+function APPROVAL_RR (returnId, cipher, body, approved) {
+    const endpoint = `/return_refund/${apiVersion}/returns/${returnId}/${(approved) ? 'approve' : 'reject'}`;
+    const ts = Math.floor(Date.now()/1000);
+    const uid = randomUUID();
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: decryptData(cipher),
+        // shop_cipher: cipher,
+        idempotency_key: uid
+    };
+    const signed = getSigned(endpoint, params, body);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&idempotency_key=${uid}`;
+}
+
 function REJECT_REFUND (returnId, cipher, body) {
     const endpoint = `/return_refund/${apiVersion}/returns/${returnId}/reject`;
     const ts = Math.floor(Date.now()/1000);
@@ -260,5 +275,6 @@ module.exports = {
     APPROVE_REFUND,
     REJECT_REFUND,
     SEARCH_CANCELLATION,
-    GET_SHIP_TRACKING
+    GET_SHIP_TRACKING,
+    APPROVAL_RR
 }
