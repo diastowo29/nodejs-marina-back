@@ -352,11 +352,11 @@ async function suncoAgentMessage(payload, org_id){
         omnichat_origin_id: message.origin_id
     }
     if (lineText.includes('SEND_PRODUCT')) {
-        param.product_id = lineText.split('SEND_PRODUCT: ')[1];
+        param.product_id = lineText.split('\n')[0].split(': ')[1]
         param.chat_type = chatContentType.PRODUCT
     }
     if (lineText.includes('SEND_INVOICE')) {
-        param.invoice_id = lineText.split('SEND_INVOICE: ')[1];
+        param.invoice_id = lineText.split('\n')[0].split(': ')[1]
         param.chat_type = chatContentType.INVOICE
     }
 
