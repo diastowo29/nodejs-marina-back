@@ -544,27 +544,37 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "PRODUCT_CARD": 
-                prisma.products.findUnique({
-                    where: {
-                        origin_id: messageContent.product_id
-                    },
-                    select: {
-                        name: true,
-                        url: true,
-                        product_img: true
+                try {
+                    const product = await prisma.products.findFirst({
+                        where: {
+                            origin_id: {
+                                startsWith: messageContent.product_id
+                            }
+                        },
+                        select: {
+                            name: true,
+                            url: true,
+                            product_img: true
+                        }
+                    })
+                    if (product) {
+                        suncoMessagePayload.content = {
+                            type: "text",
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
+                        }
+                    } else {
+                        suncoMessagePayload.content = {
+                            type: "text",
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                        }
                     }
-                }).then((product) => {
-                    suncoMessagePayload.content = {
-                        type: "text",
-                        text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
-                    }
-                }).catch((err) => {
-                    console.log(err);
+                } catch (error) {
+                    console.log(error);
                     suncoMessagePayload.content = {
                         type: "text",
                         text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
                     }
-                })
+                }
                 break;
             case "ORDER_CARD": 
                 suncoMessagePayload.content = {
@@ -579,7 +589,8 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
-        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        console.log(suncoMessagePayload);
+        /* postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
@@ -600,7 +611,7 @@ async function forwardConversation (body, done) {
                     }
                 }
             }
-        })
+        }) */
     }
 
     if (findSf) {
