@@ -589,8 +589,8 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
-        console.log(suncoMessagePayload);
-        /* postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        // console.log(suncoMessagePayload);
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
@@ -611,7 +611,7 @@ async function forwardConversation (body, done) {
                     }
                 }
             }
-        }) */
+        })
     }
 
     if (findSf) {
