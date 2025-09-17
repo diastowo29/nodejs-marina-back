@@ -560,26 +560,26 @@ async function forwardConversation (body, done) {
                     if (product) {
                         suncoMessagePayload.content = {
                             type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
                         }
                     } else {
                         suncoMessagePayload.content = {
                             type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}` : '-- product sample -- '
                         }
                     }
                 } catch (error) {
                     console.log(error);
                     suncoMessagePayload.content = {
                         type: "text",
-                        text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                        text: (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- '
                     }
                 }
                 break;
             case "ORDER_CARD": 
                 suncoMessagePayload.content = {
                     type: "text",
-                    text: (messageContent.hasOwnProperty('order_id')) ? `Order: ${messageContent.order_id}` : '-- order sample -- '
+                    text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
                 }
                 break;
             default:
