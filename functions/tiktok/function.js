@@ -1,4 +1,4 @@
-const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION } = require("../../config/tiktok_apis");
+const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE } = require("../../config/tiktok_apis");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
@@ -85,6 +85,7 @@ async function collectTiktokOrder (body, done) {
                                             price: Number.parseInt(item.original_price),
                                             sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
                                             currency: item.currency,
+                                            url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
                                             storeId: body.m_shop_id
                                         }
                                     }
@@ -104,9 +105,51 @@ async function collectTiktokOrder (body, done) {
                         }
                     }
                 },
-                select: { id: true }
+                select: { 
+                    id: true,
+                    order_items: {
+                        select: {
+                            products: {
+                                select: {
+                                    id: true,
+                                    origin_id: true,
+                                    product_img: true
+                                }
+                            }
+                        }
+                    }
+                 }
             }).then((order) => {
                 console.log(`Worker order done: ${order.id}`);
+                if (body.syncProduct.length > 0) {
+                    console.log('Sync products')
+                    let productPromises = [];
+                    body.syncProduct.forEach(item => {
+                        productPromises.push(callTiktok('GET', GET_PRODUCT(item.split('-')[0], body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id))
+                    });
+                    Promise.all(productPromises).then((products) => {
+                        let productImgs = [];
+                        products.forEach(product => {
+                            const productData = product.data.data;                            
+                            productImgs.push({
+                                originalUrl: productData.main_images[0].urls[0],
+                                thumbnailUrl: productData.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${productData.id}`,
+                                productsId: order.order_items.find(item => item.products.origin_id.startsWith(productData.id)).products.id,
+                                height: productData.main_images[0].height,
+                                width: productData.main_images[0].width
+                            })
+                        });
+                        prisma.products_img.createMany({
+                            data: productImgs,
+                            skipDuplicates: true,
+                        }).then(() => {
+                            console.log('all product img updated');
+                        }, (err) => {
+                            console.log(err)
+                        });
+                    })
+                }
             }).catch(function(err) {
                 console.log(err);
                 console.log(JSON.stringify(tiktokOrderIdx));
@@ -412,35 +455,61 @@ async function forwardConversation (body, done) {
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
         const suncoAppSecret = findZd.credent.find(cred => cred.key == 'SUNCO_APP_SECRET').value;
-        const suncoMetadata = {
-            [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.omnichat_user.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
-            marina_org_id: body.org_id
-        }
         let defaultClient = SunshineConversationsClient.ApiClient.instance
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
+        let buyerName = body.userName;
         let suncoConvId;
+        if (body.syncCustomer) {
+            callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id).then((tiktokMessage) => {
+                // console.log(JSON.stringify(tiktokMessage.data.data));
+                tiktokMessage.data.data.messages.forEach(message => {
+                    let buyerFound = false;
+                    if (message.sender.im_user_id == body.message.customer.origin_id) {
+                        if (!buyerFound) {
+                            buyerName = message.sender.nickname;
+                            buyerFound = true;
+                            prisma.customers.update({
+                                where: {
+                                    origin_id: body.message.customer.origin_id
+                                },
+                                data: {
+                                    name: message.sender.nickname
+                                }
+                            }).then(() => {
+                                console.log('customer updated');
+                            }).catch((err) => {
+                                console.log(err);
+                                console.log('failed to update customer');
+                            });
+                        }
+                        
+                    }
+                });
+                
+            }).catch((err) => {
+                console.log(err);
+            })
+        }
         if (!body.message.externalId) {
-            let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+            const suncoMetadata = {
+                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.customer.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
+                marina_org_id: body.org_id
+            }
+            let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
             let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
             suncoConvId = suncoConversation.conversation.id;
-            // await Promise.all([
-                await prisma.omnichat.update({
-                    where:{ id: body.message.id },
-                    data:{ externalId: suncoConversation.conversation.id }
-                })
-                /* prisma.omnichat_user.update({
-                    where:{ id: body.message.omnichat_user.id },
-                    data:{ externalId: body.userExternalId }
-                }) */
-            // ])
+            await prisma.omnichat.update({
+                where:{ id: body.message.id },
+                data:{ externalId: suncoConversation.conversation.id }
+            })
         } else {
             suncoConvId = body.message.externalId;
         }
@@ -475,10 +544,27 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "PRODUCT_CARD": 
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
-                }
+                prisma.products.findUnique({
+                    where: {
+                        origin_id: messageContent.product_id
+                    },
+                    select: {
+                        name: true,
+                        url: true,
+                        product_img: true
+                    }
+                }).then((product) => {
+                    suncoMessagePayload.content = {
+                        type: "text",
+                        text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
+                    }
+                }).catch((err) => {
+                    console.log(err);
+                    suncoMessagePayload.content = {
+                        type: "text",
+                        text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                    }
+                })
                 break;
             case "ORDER_CARD": 
                 suncoMessagePayload.content = {

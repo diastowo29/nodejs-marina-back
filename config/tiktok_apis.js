@@ -43,6 +43,22 @@ function GET_AUTHORIZED_SHOP () {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}`;
 }
 
+function SEARCH_PRODUCTS (cipher, body) {
+    const endpoint = `/product/${apiVersion}/products/search`;
+    const ts = Math.floor(Date.now()/1000);
+    // const uid = randomUUID();
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: decryptData(cipher),
+        page_size: 100
+        // shop_cipher: cipher,
+        // idempotency_key: uid
+    };
+    const signed = getSigned(endpoint, params, body);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&page_size=100`;
+}
+
 function SEARCH_CANCELLATION (cipher, body) {
     const endpoint = `/return_refund/${apiVersion}/cancellations/search`;
     const ts = Math.floor(Date.now()/1000);
@@ -219,6 +235,19 @@ function GET_PRODUCT (productId, cipher) {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
+function GET_MESSAGE (convId, cipher) {
+    const endpoint = `/customer_service/${apiVersion}/conversations/${convId}/messages`;
+    const ts = Math.floor(Date.now()/1000);
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: decryptData(cipher),
+        page_size: 10
+    };
+    const signed = getSigned(endpoint, params);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&page_size=10`;
+}
+
 function SEND_MESSAGE (convId, body, cipher) {
     const endpoint = `/customer_service/${apiVersion}/conversations/${convId}/messages`;
     const ts = Math.floor(Date.now()/1000);
@@ -276,5 +305,7 @@ module.exports = {
     REJECT_REFUND,
     SEARCH_CANCELLATION,
     GET_SHIP_TRACKING,
-    APPROVAL_RR
+    APPROVAL_RR,
+    SEARCH_PRODUCTS,
+    GET_MESSAGE
 }

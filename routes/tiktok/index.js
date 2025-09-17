@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN } = require('../../config/tiktok_apis');
+const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
@@ -11,6 +11,7 @@ const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { encryptData } = require('../../functions/encryption');
 const { PrismaClient } = require('../../prisma/generated/client');
 const { dmmfToRuntimeDataModel } = require('../../prisma/generated/client/runtime/library');
+const { callTiktok } = require('../../functions/tiktok/function');
 const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
 let mPrisma = new PrismaClient();
@@ -95,7 +96,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     include: {
                         order_items: {
                             select: {
-                                id: true
+                                id: true,
+                                products: {
+                                    select: {
+                                        origin_id: true,
+                                        product_img: true
+                                    }
+                                }
                             }
                         },
                         store: {
@@ -107,6 +114,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 origin_id: true
                             }
                         }
+                    }
+                });
+                let syncProduct = [];
+                newOrder.order_items.forEach(item => {
+                    if (item.products.product_img.length == 0) {
+                        syncProduct.push(item.products.origin_id);
                     }
                 });
                 taskPayload = {
@@ -123,7 +136,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     returnId: newOrder.temp_id,
                     tenantDB: getTenantDB(org[1]),
                     status: jsonBody.data.status,
-                    org_id: org[0]
+                    org_id: org[0],
+                    syncProduct: syncProduct
                 }
                 /* if (jsonBody.type == 2) {
                     taskPayload = {
@@ -351,6 +365,17 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         update: {
                             last_message: jsonBody.data.content,
                             last_messageId: jsonBody.data.message_id,
+                            customer: {
+                                connectOrCreate: {
+                                    create: {
+                                        name: userName,
+                                        origin_id: jsonBody.data.sender.im_user_id
+                                    },
+                                    where: {
+                                        origin_id: jsonBody.data.sender.im_user_id
+                                    }
+                                }
+                            },
                             messages: {
                                 connectOrCreate: {
                                     where: {
@@ -361,6 +386,17 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         origin_id: jsonBody.data.message_id,
                                         author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
                                         chat_type: jsonBody.data.type,
+                                        customer: {
+                                            connectOrCreate: {
+                                                create: {
+                                                    name: userName,
+                                                    origin_id: jsonBody.data.sender.im_user_id
+                                                },
+                                                where: {
+                                                    origin_id: jsonBody.data.sender.im_user_id
+                                                }
+                                            }
+                                        } 
                                     }
                                 }
                             },
@@ -380,12 +416,23 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     origin_id: jsonBody.data.message_id,
                                     author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
                                     chat_type: jsonBody.data.type,
+                                    customer: {
+                                        connectOrCreate: {
+                                            create: {
+                                                name: userName,
+                                                origin_id: jsonBody.data.sender.im_user_id
+                                            },
+                                            where: {
+                                                origin_id: jsonBody.data.sender.im_user_id
+                                            }
+                                        }
+                                    }
                                 }
                             },
-                            omnichat_user: {
+                            customer: {
                                 connectOrCreate: {
                                     create: {
-                                        username: userName,
+                                        name: userName,
                                         origin_id: jsonBody.data.sender.im_user_id
                                     },
                                     where: {
@@ -398,17 +445,16 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             id: true,
                             origin_id: true,
                             externalId: true,
-                            omnichat_user: {
+                            customer: {
                                 select: {
+                                    name: true,
                                     id: true, 
-                                    origin_id: true
+                                    origin_id: true,
+                                    email: true
                                 }
                             },
                             store: {
-                                select: {
-                                    name: true,
-                                    id: true,
-                                    origin_id: true,
+                                include: {
                                     channel: {
                                         select: {
                                             client: {
@@ -437,10 +483,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 chat_type: jsonBody.data.type,
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
-                                userName: userName,
+                                userName: upsertMessage.customer.name,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
-                                org_id: org[1]
+                                org_id: org[1],
+                                syncCustomer: (upsertMessage.customer.name == userName) ? true : false
                             }
                             pushTask(env, taskPayload);
                         }
@@ -634,13 +681,10 @@ router.get(PATH_CANCELLATION, async function (req, res, next) {
 
 router.post(PATH_AUTH, async function(req, res, next) {
     mPrisma = req.prisma;
-    // const mPrisma = getPrismaClient(req.tenantDB);
-    // console.log(GET_TOKEN_API(req.body.auth_code));
     let token = await api.get(GET_TOKEN_API(req.body.auth_code)).catch(function (err) {
         res.status(400).send({error: err.response.data});
     });
     if (token.data.code == 0) {
-        // console.log(token.data);
         let accessToken = token.data.data.access_token;
         try {
             let shops = await api.get(GET_AUTHORIZED_SHOP(), {
@@ -751,53 +795,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         }
                     }
                 })
-            ])
-            /* let baseClient = await basePrisma.stores.upsert({
-                where: {
-                    origin_id: storeFound.id
-                },
-                create: {
-                    origin_id: storeFound.id,
-                    clients: {
-                        connectOrCreate: {
-                            where: {
-                                org_id: req.auth.payload.org_id
-                            }, 
-                            create: {
-                                org_id: req.auth.payload.org_id
-                            }
-                        }
-                    }
-                }
-            })
-            let store = await prisma.store.upsert({
-                where: {
-                    origin_id: storeFound.id
-                },
-                create: {
-                    origin_id: storeFound.id,
-                    name: token.data.data.seller_name,
-                    token: token.data.data.access_token,
-                    refresh_token: token.data.data.refresh_token,
-                    secondary_token: shops.data.data.shops[0].cipher,
-                    status: 'ACTIVE',
-                    channel: {
-                        connectOrCreate: {
-                            where: {
-                                name: 'tiktok'
-                            },
-                            create: {
-                                name: 'tiktok'
-                            }
-                        }
-                    }
-                },
-                update: {
-                    token: token.data.data.access_token,
-                    refresh_token: token.data.data.refresh_token,
-                    status: 'ACTIVE'
-                }
-            }); */
+            ]);
             res.status(200).send(clientStored);
         } catch (err) {
             console.log(err);

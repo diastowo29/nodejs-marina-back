@@ -168,6 +168,7 @@ exports.Prisma.ProductsScalarFieldEnum = {
   desc: 'desc',
   category: 'category',
   price: 'price',
+  url: 'url',
   currency: 'currency',
   createdAt: 'createdAt',
   weight: 'weight',
@@ -240,15 +241,6 @@ exports.Prisma.OrdersScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.Omnichat_userScalarFieldEnum = {
-  id: 'id',
-  username: 'username',
-  thumbnailUrl: 'thumbnailUrl',
-  origin_id: 'origin_id',
-  createdAt: 'createdAt',
-  externalId: 'externalId'
-};
-
 exports.Prisma.OmnichatScalarFieldEnum = {
   id: 'id',
   origin_id: 'origin_id',
@@ -257,8 +249,8 @@ exports.Prisma.OmnichatScalarFieldEnum = {
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   storeId: 'storeId',
-  omnichat_userId: 'omnichat_userId',
-  externalId: 'externalId'
+  externalId: 'externalId',
+  customersId: 'customersId'
 };
 
 exports.Prisma.Omnichat_lineScalarFieldEnum = {
@@ -268,8 +260,8 @@ exports.Prisma.Omnichat_lineScalarFieldEnum = {
   line_text: 'line_text',
   omnichatId: 'omnichatId',
   author: 'author',
-  omnichat_userId: 'omnichat_userId',
-  chat_type: 'chat_type'
+  chat_type: 'chat_type',
+  customersId: 'customersId'
 };
 
 exports.Prisma.ZdconnectorScalarFieldEnum = {
@@ -366,7 +358,6 @@ exports.Prisma.ModelName = {
   order_items: 'order_items',
   logistic: 'logistic',
   orders: 'orders',
-  omnichat_user: 'omnichat_user',
   omnichat: 'omnichat',
   omnichat_line: 'omnichat_line',
   zdconnector: 'zdconnector',
