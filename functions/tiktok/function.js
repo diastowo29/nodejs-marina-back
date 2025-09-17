@@ -462,35 +462,27 @@ async function forwardConversation (body, done) {
         let buyerName = body.userName;
         let suncoConvId;
         if (body.syncCustomer) {
-            callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id).then((tiktokMessage) => {
-                // console.log(JSON.stringify(tiktokMessage.data.data));
-                tiktokMessage.data.data.messages.forEach(message => {
-                    let buyerFound = false;
+            try {
+                console.log('Sync Customers');
+                const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                let buyerFound = false;
+                tiktokMessages.data.data.messages.forEach(async message => {
                     if (message.sender.im_user_id == body.message.customer.origin_id) {
                         if (!buyerFound) {
                             buyerName = message.sender.nickname;
                             buyerFound = true;
-                            prisma.customers.update({
-                                where: {
-                                    origin_id: body.message.customer.origin_id
-                                },
-                                data: {
-                                    name: message.sender.nickname
-                                }
-                            }).then(() => {
-                                console.log('customer updated');
-                            }).catch((err) => {
-                                console.log(err);
-                                console.log('failed to update customer');
-                            });
                         }
-                        
                     }
                 });
-                
-            }).catch((err) => {
-                console.log(err);
-            })
+                if (buyerFound) {
+                    await prisma.customers.update({
+                        where: { origin_id: body.message.customer.origin_id },
+                        data: { name: buyerName }
+                    })
+                }
+            } catch (error) {
+                console.log(error);
+            }
         }
         if (!body.message.externalId) {
             const suncoMetadata = {
@@ -589,6 +581,16 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
+        /* Promise.all([
+            prisma.customers.update({
+                where: { origin_id: body.message.customer.origin_id },
+                data: { name: buyerName }
+            }),
+            postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+        ]).then(() => {}, (error) => {
+            console.log(error);
+        }) */
+
         // console.log(suncoMessagePayload);
         postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
