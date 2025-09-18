@@ -516,17 +516,18 @@ async function processShopee(body, done) {
             }
         } else {
             console.log(products.data);
-    if (env !== 'production') {
-        done(null, {response: 'testing'});
+            if (env !== 'production') {
+                done(null, {response: 'testing'});
 
-    }
+            }
         }
+    } else if (body.code == 10) {
+        forwardConversation(body, done);
     } else {
         console.log('shopee code not supported: ', body.code);
-    if (env !== 'production') {
-        done(null, {response: 'testing'});
-    }
-
+        if (env !== 'production') {
+            done(null, {response: 'testing'});
+        }
     }
 
     /* let orderDetail = await api.get(

@@ -6,6 +6,7 @@ const SunshineConversationsClient = require('sunshine-conversations-client');
 const { createSuncoUser, createSuncoConversation, postMessage } = require("../sunco/function");
 const { createTicket } = require("../zendesk/function");
 const { PrismaClient } = require("../../prisma/generated/client");
+const { TIKTOK } = require("../../config/utils");
 let prisma = new PrismaClient();
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
@@ -458,7 +459,7 @@ async function forwardConversation (body, done) {
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
-        let buyerName = body.userName;
+        let buyerName = body.userName || body.message.customer.name || 'Marketplace Buyer';
         let suncoConvId;
         if (body.syncCustomer) {
             try {
@@ -506,13 +507,16 @@ async function forwardConversation (body, done) {
         }
         console.log('Sunco Conv ID: ' + suncoConvId);
         console.log('Sunco User External ID: ' + body.userExternalId);
-        let messageContent = JSON.parse(body.message_content);
+        let messageContent = body.message_content;
+        if (body.channel == TIKTOK) {
+            messageContent = JSON.parse(body.message_content);
+        }
         let suncoMessagePayload = {
             author: {
                 type: 'user',
                 userExternalId: body.userExternalId
             }
-        }        
+        }
         switch (body.chat_type) {
             case "TEXT":
                 suncoMessagePayload.content = {
