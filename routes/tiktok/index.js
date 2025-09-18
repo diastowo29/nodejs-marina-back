@@ -3,7 +3,7 @@ var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
 const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
-const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
+const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName, RRTiktokStatus } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
@@ -188,6 +188,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         origin_id: jsonBody.data.cancel_id,
                         return_type: 'CANCELLATION',
                         status: jsonBody.data.cancel_status,
+                        status_category: RRTiktokStatus(jsonBody.data.cancel_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -197,7 +198,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.cancel_status
+                        status: jsonBody.data.cancel_status,
+                        status_category: RRTiktokStatus(jsonBody.data.cancel_status),
                     },
                     include: {
                         line_item: true,
@@ -273,6 +275,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         origin_id: jsonBody.data.return_id,
                         return_type: jsonBody.data.return_type,
                         status: jsonBody.data.return_status,
+                        status_category: RRTiktokStatus(jsonBody.data.return_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -282,7 +285,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.return_status
+                        status: jsonBody.data.return_status,
+                        status_category: RRTiktokStatus(jsonBody.data.return_status),
                     },
                     include: {
                         order: {
@@ -385,18 +389,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         line_text: jsonBody.data.content,
                                         origin_id: jsonBody.data.message_id,
                                         author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                        chat_type: jsonBody.data.type,
-                                        customer: {
-                                            connectOrCreate: {
-                                                create: {
-                                                    name: userName,
-                                                    origin_id: jsonBody.data.sender.im_user_id
-                                                },
-                                                where: {
-                                                    origin_id: jsonBody.data.sender.im_user_id
-                                                }
-                                            }
-                                        } 
+                                        chat_type: jsonBody.data.type
                                     }
                                 }
                             },
@@ -415,18 +408,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     line_text: jsonBody.data.content,
                                     origin_id: jsonBody.data.message_id,
                                     author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                    chat_type: jsonBody.data.type,
-                                    customer: {
-                                        connectOrCreate: {
-                                            create: {
-                                                name: userName,
-                                                origin_id: jsonBody.data.sender.im_user_id
-                                            },
-                                            where: {
-                                                origin_id: jsonBody.data.sender.im_user_id
-                                            }
-                                        }
-                                    }
+                                    chat_type: jsonBody.data.type
                                 }
                             },
                             customer: {
