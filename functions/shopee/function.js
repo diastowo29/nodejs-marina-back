@@ -186,6 +186,7 @@ async function collectShopeeOrder (body, done) {
                 select: {
                     products: {
                         select: {
+                            id: true,
                             origin_id: true,
                             product_img: true
                         }
@@ -204,6 +205,27 @@ async function collectShopeeOrder (body, done) {
         });
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
             console.log(shopeeProducts.data);
+            if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
+                console.log('products not found');
+                return;
+            } else {
+                let productImgs = [];
+                shopeeProducts.data.response.item_list.forEach(item => {
+                    productImgs.push({
+                        originalUrl: item.image_url_list[0],
+                        origin_id: `IMG-${item.id}`,
+                        productsId: orderUpdate.order_items.find(item => item.products.origin_id.startsWith(item.id)).products.id
+                    })
+                });
+                prisma.products_img.createMany({
+                    skipDuplicates: true,
+                    data: productImgs
+                }).then(() => {
+                    console.log('all product img updated');
+                }, (err) => {
+                    console.log(err)
+                });
+            }
         }, (err) => {
             console.log(err);
         });
