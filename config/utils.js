@@ -31,22 +31,22 @@ function RRTiktokStatus (status) {
     let statusCategory = '';
     switch (status) {
         case 'RETURN_OR_REFUND_REQUEST_PENDING':
-            statusCategory = 'Return refund request pending'
+            statusCategory = 'Return refund - pending'
             break;
         case 'REQUEST_SUCCESS': 
-            statusCategory = 'Return refund success';
+            statusCategory = 'Return refund - success';
             break;
         case 'RETURN_OR_REFUND_REQUEST_SUCCESS':
-            statusCategory = 'Return refund request success'; 
+            statusCategory = 'Return refund - success'; 
             break;
         case 'REQUEST_REJECTED': 
-            statusCategory = 'Return refund rejected';
+            statusCategory = 'Return refund - rejected';
             break;
         case 'RETURN_OR_REFUND_CANCEL':
-            statusCategory = 'Return refund cancelled';
+            statusCategory = 'Return refund - cancelled';
             break;
         case 'RETURN_OR_REFUND_REQUEST_COMPLETE':
-            statusCategory = 'Return refund request complete';
+            statusCategory = 'Return refund - complete';
             break;
         case 'AWAITING_BUYER_SHIP':
             statusCategory = 'Awaiting buyer ship';
@@ -58,31 +58,31 @@ function RRTiktokStatus (status) {
             statusCategory = 'Receive rejected';
             break;
         case 'CANCELLATION_REQUEST_PENDING':
-            statusCategory = 'Cancellation pending';
+            statusCategory = 'Cancellation - pending';
             break;
         case 'CANCELLATION_REQUEST_SUCCESS':
-            statusCategory = 'Cancellation success';
+            statusCategory = 'Cancellation - success';
             break;
         case 'CANCELLATION_REQUEST_CANCELLED':
-            statusCategory = 'Cancellation cancelled';
+            statusCategory = 'Cancellation - cancelled';
             break;
         case 'CANCELLATION_REQUEST_COMPLETE':
-            statusCategory = 'Cancellation complete';
+            statusCategory = 'Cancellation - complete';
             break;
         case 'REJECT_RECEIVE_PACKAGE':
             statusCategory = 'Reject receive package';
             break;
         case 'REPLACEMENT_REQUEST_CANCEL': 
-            statusCategory = 'Replacement request cancelled';
+            statusCategory = 'Replacement - cancelled';
             break;
         case 'REPLACEMENT_REQUEST_COMPLETE':
-            statusCategory = 'Replacement request complete';
+            statusCategory = 'Replacement - complete';
             break;
         case 'REPLACEMENT_REQUEST_REFUND_SUCCESS':
-            statusCategory = 'Replacement request refund success';
+            statusCategory = 'Replacement - refund success';
             break;
         case 'REPLACEMENT_REQUEST_PENDING':
-            statusCategory = 'Replacement request pending';
+            statusCategory = 'Replacement - pending';
             break;
         default:
             statusCategory = status;
