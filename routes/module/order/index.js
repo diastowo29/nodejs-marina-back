@@ -193,7 +193,7 @@ router.get('/:id', async function(req, res, next) {
                             return_refund: {
                                 select: {
                                     status: true,
-                                    status_category: true,
+                                    system_status: true,
                                     return_type: true
                                 }
                             }
@@ -209,6 +209,9 @@ router.get('/:id', async function(req, res, next) {
                         refresh_token: true,
                         secondary_token: true,
                         secondary_refresh_token: true,
+                    },
+                    include: {
+                        channel: true
                     }
                 },
                 logistic: true
