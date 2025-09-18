@@ -52,7 +52,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
     }).then(async (mBase) => {
         console.log(JSON.stringify(jsonBody.data))
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
-        // console.log(org)
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
         let taskPayload = {};
         switch (jsonBody.type) {
@@ -80,6 +79,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     where: {
                                         origin_id: jsonBody.data.reverse_order_id
                                     }
+
                                 }
                             }
                         }, */

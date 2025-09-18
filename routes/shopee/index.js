@@ -54,9 +54,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const tenantDbUrl = getTenantDB(mBase.clients.org_id)
-        // const prisma = getPrismaClient(tenantDbUrl);
-        prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        const tenantDbUrl = getTenantDB(org[1]);
+        prisma = getPrismaClientForTenant(org[1], tenantDbUrl.url);
+        // prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
         console.log(JSON.stringify(jsonBody));
         let payloadCode = jsonBody.code;
         let response;
@@ -97,13 +98,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     shop_id: jsonBody.shop_id,
                     refresh_token: decryptData(newOrder.store.refresh_token),
                     tenantDB: tenantDbUrl,
-                    org_id: mBase.clients.org_id
+                    org_id: org[1]
                 }
                 if (newOrder.order_items.length == 0) {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
                         pushTask(env, taskPayload);
                     } else {
-                        console.log('Store %s Expired', newOrder.store.id);
+                        console.log('Shopee store: %s Expired', newOrder.store.id);
                     }
                 }
                 break;
@@ -192,15 +193,15 @@ function msgContainer (msgType, content) {
     return msgContent;
 }
 
-router.post('/order', async function(req, res, next) {
+/* router.post('/order', async function(req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
     res.status(200).send({});
-});
+}); */
 
-router.post(PATH_CHAT, async function(req, res, next) {
+/* router.post(PATH_CHAT, async function(req, res, next) {
     res.status(200).send({});
-});
+}); */
 
 router.put('/order/:id', async function(req, res, next) {
     prisma = req.prisma;
@@ -341,16 +342,21 @@ router.post(PATH_AUTH, async function(req, res, next) {
         partner_id: Number.parseInt(PARTNER_ID),
         shop_id: Number.parseInt(req.body.shop_id),
     }
-    const token = await api.post(
-        `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
-        JSON.stringify(bodyPayload),
-        {
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json'
+
+    /* Generate shopee access token */
+    let token = {};
+    try {
+        token = await api.post(
+            `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
+            JSON.stringify(bodyPayload),
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                }
             }
-        }
-    ).catch(function (err) {
+        )
+    } catch (err) {
         if (err.response) {
             console.log(err.response.data);
             return res.status(400).send({error: err.response.data});
@@ -358,7 +364,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(err);
             return res.status(400).send({error: 'Failed to connect to Shopee API'});
         }
-    });
+    }
 
     if (token.data) {
         if (token.data.error) {
@@ -369,19 +375,82 @@ router.post(PATH_AUTH, async function(req, res, next) {
         // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
         sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
         const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
-        let shopInfo = await api.get(
-            `${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`,
-        ).catch(function(err) {
+        let shopInfo = {};
+        try {
+            shopInfo = await api.get(`${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`)
+        } catch (err) {
             console.log(err.response.data);
             return res.status(400).send({error: err.response.data});
-        });
+        }
+        
         if (shopInfo.data) {
             if (shopInfo.data.error) {
                 console.log(shopInfo.data);
                 return res.status(400).send(shopInfo.data);
             }
             // console.log(shopInfo.data);
-            let newStore = await prisma.store.upsert({
+             
+            const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
+            let clientStored = await Promise.all([
+                prisma.store.upsert({
+                    where: {
+                        origin_id: req.body.shop_id.toString()
+                    },
+                    update: {
+                        status: 'ACTIVE',
+                        token: encryptData(token.data.access_token),
+                        refresh_token: encryptData(token.data.refresh_token)
+                    },
+                    create: {
+                        origin_id: req.body.shop_id.toString(),
+                        name: shopInfo.data.shop_name,
+                        token: encryptData(token.data.access_token),
+                        status: 'ACTIVE',
+                        refresh_token: encryptData(token.data.refresh_token),
+                        channel: {
+                            connectOrCreate: {
+                                where: {
+                                    name: SHOPEE
+                                },
+                                create: {
+                                    name: SHOPEE
+                                }
+                            }
+                        }
+                    }
+                }),
+                basePrisma.stores.upsert({
+                    where: {
+                        origin_id: req.body.shop_id.toString()
+                    },
+                    create: {
+                        origin_id: req.body.shop_id.toString(),
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                }, 
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    },
+                    update: {
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                },
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    }
+                })
+            ])
+            /* let newStore = await prisma.store.upsert({
                 where: {
                     origin_id: req.body.shop_id.toString()
                 },
@@ -410,9 +479,11 @@ router.post(PATH_AUTH, async function(req, res, next) {
             }).catch(function (err) {
                 console.log(err);
                 return res.status(400).send({error: err});
-            });
+            }); */
             // console.log(newStore);
-            if (newStore) {
+            console.log(clientStored[0]);
+            if (clientStored[0]) {
+                /* DO SYNC PRODUCTS */
                 let taskPayload = {
                     channel: SHOPEE,
                     code: 9999,
@@ -423,11 +494,15 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 }
                 // console.log(taskPayload);
                 pushTask(env, taskPayload)
-                res.status(200).send(newStore);
+                res.status(200).send(clientStored[0]);
             } else {
-                res.status(400).send(newStore);
+                res.status(400).send(clientStored[0]);
             }
+        } else {
+            return res.status(400).send({error: 'No response from Shopee API'});
         }
+    } else {
+        return res.status(400).send({error: 'No response from Shopee API'});
     }
 })
 

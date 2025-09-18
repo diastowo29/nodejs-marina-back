@@ -479,7 +479,6 @@ router.put('/:id', async function(req, res, next) {
             } else {
                 //GET SHIP PARAMS
                 try {
-
                     let accessToken = order.store.token;
                     const shipParams = await api.get(
                         GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id)).catch(async function (err) {
