@@ -260,8 +260,7 @@ exports.Prisma.Omnichat_lineScalarFieldEnum = {
   line_text: 'line_text',
   omnichatId: 'omnichatId',
   author: 'author',
-  chat_type: 'chat_type',
-  customersId: 'customersId'
+  chat_type: 'chat_type'
 };
 
 exports.Prisma.ZdconnectorScalarFieldEnum = {
@@ -327,6 +326,7 @@ exports.Prisma.Return_refundScalarFieldEnum = {
   id: 'id',
   origin_id: 'origin_id',
   status: 'status',
+  status_category: 'status_category',
   total_amount: 'total_amount',
   return_type: 'return_type',
   return_reason: 'return_reason',

@@ -290,7 +290,6 @@ async function collectReturnRequest (body, done) {
                 origin_id: body.returnId
             },
             data: {
-                status: returnData.cancellations[0].cancel_status,
                 return_reason: returnData.cancellations[0].cancel_reason_text,
                 total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
                 line_item: {

@@ -27,7 +27,42 @@ function lazGetSellerInfo (appKey) {
     }
 }
 
+function RRTiktokStatus (status) {
+    let statusCategory = '';
+    switch (status) {
+        case 'RETURN_OR_REFUND_REQUEST_PENDING':
+            statusCategory = 'Return refund request pending'
+            break;
+        case 'REQUEST_SUCCESS': 
+            statusCategory = 'Request success';
+            break;
+        case 'REQUEST_REJECTED': 
+            statusCategory = 'Request rejected';
+            break;
+        case 'RETURN_OR_REFUND_CANCEL':
+            statusCategory = 'Return refund cancelled';
+            break;
+        case 'RETURN_OR_REFUND_REQUEST_COMPLETE':
+            statusCategory = 'Return refund request complete';
+            break;
+        case 'AWAITING_BUYER_SHIP':
+            statusCategory = 'Awaiting buyer ship';
+            break;
+        case 'BUYER_SHIPPED_ITEM':
+            statusCategory = 'Buyer shipped item';
+            break;
+        case 'RECEIVE_REJECTED': 
+            statusCategory = 'Receive rejected';
+            break;
+        default:
+            statusCategory = status;
+            break;
+    }
+    return statusCategory;
+}
+
 module.exports = {
+    RRTiktokStatus,
     convertOrgName,
     lazGetToken,
     lazGetSellerInfo,

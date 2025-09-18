@@ -16,7 +16,6 @@ model customers {
   email         String?
   orders        orders[]
   omnichat      omnichat[]
-  omnichat_line omnichat_line[]
 }
 
 model products_img {
@@ -174,9 +173,7 @@ model omnichat_line {
   omnichatId  Int?
   author      String?
   chat_type   String?
-  customer    customers @relation(fields: [customersId], references: [id])
   omnichat    omnichat? @relation(fields: [omnichatId], references: [id])
-  customersId Int
 }
 
 model zdconnector {
@@ -249,6 +246,7 @@ model return_refund {
   id            Int                @id @default(autoincrement())
   origin_id     String?            @unique
   status        String?
+  status_category String?
   order         orders             @relation(fields: [ordersId], references: [id])
   line_item     return_line_item[]
   total_amount  Int
