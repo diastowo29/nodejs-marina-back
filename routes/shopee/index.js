@@ -184,7 +184,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 }
                             }
                         });
-                        // like about to error here v
                         if (upsertMessage.store.channel.client.integration.length > 0) {
                             if (jsonBody.data.content.business_type == 0) {
                                 let taskPayload = {
@@ -235,8 +234,59 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         origin_id: jsonBody.data.order_sn
                                     }
                                 }
+                            },
+                            include: {
+                                line_item: true,
+                                order: {
+                                    select: {
+                                        id: true,
+                                        origin_id: true,
+                                        customers: true,
+                                        store: {
+                                            include: {
+                                                channel: {
+                                                    select: {
+                                                        client: {
+                                                            select: {
+                                                                integration: {
+                                                                    select: {
+                                                                        baseUrl: true,
+                                                                        credent: true,
+                                                                        name: true,
+                                                                        notes: true
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         });
+                        if (returnRefund.line_item.length == 0) {
+                            let taskPayload = {
+                                tenantDB: tenantDbUrl,
+                                channel: SHOPEE,
+                                token: returnRefund.order.store.token,
+                                refresh_token: returnRefund.order.store.refresh_token,
+                                order_id: returnRefund.order.origin_id,
+                                cipher: returnRefund.order.store.secondary_token,
+                                m_shop_id: returnRefund.order.store.id,
+                                m_order_id: returnRefund.order.id,
+                                returnId: returnRefund.origin_id,
+                                status: 'RETURN_AND_REFUND',
+                                code: jsonBody.code,
+                                customer_id: returnRefund.order.customers.origin_id,
+                                shop_id: jsonBody.shop_id,
+                                integration: returnRefund.order.store.channel.client.integration,
+                                org_id: org[1]
+                            }
+                            console.log(taskPayload);
+                            // pushTask(env, taskPayload);
+                        }
                         res.status(200).send({message: {id: returnRefund.id}});
                     } catch (err) {
                         console.log(err);

@@ -517,6 +517,8 @@ async function forwardConversation (body, done) {
                 userExternalId: body.userExternalId
             }
         }
+
+        /* NEED TO SUPPORT SHOPEE */
         switch (body.chat_type) {
             case "TEXT":
                 suncoMessagePayload.content = {
@@ -584,17 +586,7 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
-        /* Promise.all([
-            prisma.customers.update({
-                where: { origin_id: body.message.customer.origin_id },
-                data: { name: buyerName }
-            }),
-            postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
-        ]).then(() => {}, (error) => {
-            console.log(error);
-        }) */
 
-        // console.log(suncoMessagePayload);
         postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
