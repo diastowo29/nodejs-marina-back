@@ -187,8 +187,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     create: {
                         origin_id: jsonBody.data.cancel_id,
                         return_type: 'CANCELLATION',
-                        status: jsonBody.data.cancel_status,
-                        status_category: RRTiktokStatus(jsonBody.data.cancel_status),
+                        system_status: jsonBody.data.cancel_status,
+                        status: RRTiktokStatus(jsonBody.data.cancel_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -198,8 +198,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.cancel_status,
-                        status_category: RRTiktokStatus(jsonBody.data.cancel_status),
+                        system_status: jsonBody.data.cancel_status,
+                        status: RRTiktokStatus(jsonBody.data.cancel_status),
                     },
                     include: {
                         line_item: true,
@@ -274,8 +274,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     create: {
                         origin_id: jsonBody.data.return_id,
                         return_type: jsonBody.data.return_type,
-                        status: jsonBody.data.return_status,
-                        status_category: RRTiktokStatus(jsonBody.data.return_status),
+                        system_status: jsonBody.data.return_status,
+                        status: RRTiktokStatus(jsonBody.data.return_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -285,8 +285,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.return_status,
-                        status_category: RRTiktokStatus(jsonBody.data.return_status),
+                        system_status: jsonBody.data.return_status,
+                        status: RRTiktokStatus(jsonBody.data.return_status),
                     },
                     include: {
                         order: {
