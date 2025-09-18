@@ -63,7 +63,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         origin_id: jsonBody.data.order_id
                     },
                     update: {
-                        status: jsonBody.data.status
+                        status: jsonBody.data.order_status
                         // temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
                         // ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
                         /* ...(jsonBody.data.reverse_event_type) && {
@@ -86,7 +86,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     },
                     create: {
                         origin_id: jsonBody.data.order_id,
-                        status: jsonBody.data.status,
+                        status: jsonBody.data.order_status,
                         store: {
                             connect: {
                                 origin_id: jsonBody.shop_id
