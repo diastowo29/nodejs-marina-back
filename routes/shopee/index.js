@@ -119,10 +119,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             store: {
                                 connect: {
                                     origin_id: jsonBody.shop_id.toString()
-                                    // origin_id: '138335'
                                 }
                             },
-                            omnichat_user: {
+                            customer: {
                                 connectOrCreate: {
                                     create: {
                                         origin_id: jsonBody.data.content.from_id.toString(),
@@ -156,6 +155,39 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         },
                         where: {
                             origin_id: jsonBody.data.content.conversation_id
+                        },
+                        select: {
+                            id: true,
+                            origin_id: true,
+                            externalId: true,
+                            customer: {
+                                select: {
+                                    name: true,
+                                    id: true, 
+                                    origin_id: true,
+                                    email: true
+                                }
+                            },
+                            store: {
+                                include: {
+                                    channel: {
+                                        select: {
+                                            client: {
+                                                select: {
+                                                    integration: {
+                                                        select: {
+                                                            name: true,
+                                                            notes: true,
+                                                            id: true,
+                                                            credent: true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     });
                     response = newMsg;
@@ -166,7 +198,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 response = jsonBody.data;
                 console.log('CODE: %s Not implemented yet!', payloadCode);
                 break;
-        }    
+        }
         res.status(200).send(response);
         
     }).catch((err) => {
