@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
-const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING } = require('../../../config/tiktok_apis');
+const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
@@ -65,6 +65,7 @@ router.get('/', async function(req, res, next) {
                 },
                 order_items: {
                     include: {
+                        return_line_item: true,
                         products: {
                             include: {
                                 product_img: true
@@ -187,7 +188,17 @@ router.get('/:id', async function(req, res, next) {
              include: {
                  order_items: {
                      include: {
-                         products: true
+                        return_line_item: {
+                            select: {
+                                return_refund: {
+                                    select: {
+                                        status: true,
+                                        return_type: true
+                                    }
+                                }
+                            }
+                        },
+                        products: true
                      }
                  },
                  return_refund: true,
@@ -287,9 +298,14 @@ router.put('/:id', async function(req, res, next) {
                     }
                 }
             },
-            return_refund: true,
+            return_refund: {
+                select: {
+                    id: true
+                }
+            },
             store: {
                 select: {
+                    id: true,
                     token: true,
                     refresh_token: true,
                     secondary_token: true,
@@ -317,6 +333,8 @@ router.put('/:id', async function(req, res, next) {
     let completeUrl;
     switch (order.store.channel.name) {
         case TIKTOK:
+            let isRR = false;
+            let decision = '';
             if (action == 'cancel') {
                 data = {
                     order_id: order.origin_id,
@@ -332,9 +350,6 @@ router.put('/:id', async function(req, res, next) {
                     })
                 }
                 completeUrl = CANCEL_ORDER(order.store.secondary_token, data);
-            } else if (action == 'reject') {
-                data = { reject_reason: req.body.cancel_reason }
-                completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'process') {
                 let packagesArray = [];
                 order.order_items.forEach(element => {
@@ -347,16 +362,33 @@ router.put('/:id', async function(req, res, next) {
                 }
                 completeUrl = SHIP_PACKAGE(order.store.secondary_token, data);
                 // goto line 172
+            } else if (action == 'reject') {
+                isRR = true;
+                decision = 'CANCEL_REJECTED';
+                data = { reject_reason: req.body.cancel_reason }
+                completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'approve') {
+                isRR = true;
+                decision = 'CANCEL_APPROVED';
                 completeUrl = APPROVE_CANCELLATION(order.temp_id, order.store.secondary_token, data);
-            } else if (action == 'approve_refund') {
-                data = { decision: 'APPROVE_REFUND'}; // https://partner.tiktokshop.com/docv2/page/650ab6c2c16ffe02b8f2efcf?external_id=650ab6c2c16ffe02b8f2efcf
+           /*  } else if (action == 'approve_refund') {
                 completeUrl = APPROVE_REFUND(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'reject_refund') {
-                data = { decision: 'REJECT_REFUND', reject_reason: 'reverse_reject_request_reason_4'};
-                completeUrl = REJECT_REFUND(order.temp_id, order.store.secondary_token, data);
+                completeUrl = REJECT_REFUND(order.temp_id, order.store.secondary_token, data); */
             } else {
-                console.log(`Unknown action: ${action}`);
+                if (action.includes('rr')) {
+                    if (req.body.rr_id) {
+                        isRR = true;
+                        const isApproved = (action.includes('approve')) ? true : false;
+                        if (req.body.rr_type == 'refund') {
+                            decision = (isApproved) ? 'APPROVE_REFUND' : 'REJECT_REFUND';
+                        } else {
+                            decision = (isApproved) ? 'APPROVE_RETURN' : 'REJECT_RETURN';
+                        }
+                        data = {decision: decision, ...(isApproved) ? {} : {reject_reason: req.body.reject_reason}}
+                        completeUrl = APPROVAL_RR(req.body.rr_id, order.store.secondary_token, data, isApproved)
+                    }
+                }
             }
             if (!completeUrl) {
                 return res.status(400).send({
@@ -368,23 +400,20 @@ router.put('/:id', async function(req, res, next) {
                 });
             }
             try {
-                const tiktokResponse = await api.post(completeUrl, data, {
+                const tiktokResponse = await callTiktok('POST', completeUrl, data, order.store.token, order.store.refresh_token, order.store.id, req.tenantDB, req.tenantId);
+                /* const tiktokResponse = await api.post(completeUrl, data, {
                     headers: {
                         'content-type': 'application/json',
                         'x-tts-access-token': decryptData(order.store.token)
                     }
-                });
+                }); */
                 statusCode = tiktokResponse.status;
                 responseCode = tiktokResponse.data.code;
                 responseData = tiktokResponse.data;
-                if (action == 'approve_refund') {
+                if (isRR) {
                     await mPrisma.return_refund.update({
-                        data: {
-                            status: 'success'
-                        },
-                        where: {
-                            id: order.return_refund.id 
-                        }
+                        data: { status: decision },
+                        where: { origin_id: req.body.rr_id }
                     });
                 }
             } catch (err) {
@@ -520,8 +549,8 @@ router.put('/:id', async function(req, res, next) {
             break;
         case BLIBLI:
             break;
-        case TOKOPEDIA:
-            break;
+        /* case TOKOPEDIA:
+            break; */
         default:
             break;
     }

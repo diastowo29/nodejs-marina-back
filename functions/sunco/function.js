@@ -22,7 +22,7 @@ function createSuncoUser(userExternalId, username, appId){
             }
         }, 
         function(error) {
-            console.log('user ext id', userExternalId);
+            console.log('user exist id', userExternalId);
             console.log(error.body)
             if (error.body) {
                 if (error.body.errors && error.body.errors[0] && error.body.errors[0].title && error.body.errors[0].title.includes('user already exists')) {
@@ -117,12 +117,13 @@ function postMessage(suncoAppId, conversationId, payload) {
             }
         } else {
             // console.log(`post message to ${conversationId} error: ${error.body.errors[0].title}`)
-            return {
+            throw new Error(JSON.stringify(error.body));
+            /* return {
                 error: {
                     title: error.body.errors[0].title,
                     data: error.body.errors[0]
                 }
-            }
+            } */
         }
     })
 }
