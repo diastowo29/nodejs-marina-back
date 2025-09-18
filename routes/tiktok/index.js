@@ -427,14 +427,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             id: true,
                             origin_id: true,
                             externalId: true,
-                            customer: {
-                                select: {
-                                    name: true,
-                                    id: true, 
-                                    origin_id: true,
-                                    email: true
-                                }
-                            },
+                            customer: true,
                             store: {
                                 include: {
                                     channel: {

@@ -27,71 +27,88 @@ function lazGetSellerInfo (appKey) {
     }
 }
 
-function RRTiktokStatus (status) {
-    let statusCategory = '';
-    switch (status) {
-        case 'RETURN_OR_REFUND_REQUEST_PENDING':
-            statusCategory = 'Return refund - pending'
+function RRShopeeStatus (systemStatus) {
+    let status = '';
+    switch (systemStatus) {
+        case 'JUDGING':
+            status = 'Return refund - judging'
             break;
-        case 'REQUEST_SUCCESS': 
-            statusCategory = 'Return refund - success';
-            break;
-        case 'RETURN_OR_REFUND_REQUEST_SUCCESS':
-            statusCategory = 'Return refund - success'; 
-            break;
-        case 'REQUEST_REJECTED': 
-            statusCategory = 'Return refund - rejected';
-            break;
-        case 'RETURN_OR_REFUND_CANCEL':
-            statusCategory = 'Return refund - cancelled';
-            break;
-        case 'RETURN_OR_REFUND_REQUEST_COMPLETE':
-            statusCategory = 'Return refund - complete';
-            break;
-        case 'AWAITING_BUYER_SHIP':
-            statusCategory = 'Awaiting buyer ship';
-            break;
-        case 'BUYER_SHIPPED_ITEM':
-            statusCategory = 'Buyer shipped item';
-            break;
-        case 'RECEIVE_REJECTED': 
-            statusCategory = 'Receive rejected';
-            break;
-        case 'CANCELLATION_REQUEST_PENDING':
-            statusCategory = 'Cancellation - pending';
-            break;
-        case 'CANCELLATION_REQUEST_SUCCESS':
-            statusCategory = 'Cancellation - success';
-            break;
-        case 'CANCELLATION_REQUEST_CANCELLED':
-            statusCategory = 'Cancellation - cancelled';
-            break;
-        case 'CANCELLATION_REQUEST_COMPLETE':
-            statusCategory = 'Cancellation - complete';
-            break;
-        case 'REJECT_RECEIVE_PACKAGE':
-            statusCategory = 'Reject receive package';
-            break;
-        case 'REPLACEMENT_REQUEST_CANCEL': 
-            statusCategory = 'Replacement - cancelled';
-            break;
-        case 'REPLACEMENT_REQUEST_COMPLETE':
-            statusCategory = 'Replacement - complete';
-            break;
-        case 'REPLACEMENT_REQUEST_REFUND_SUCCESS':
-            statusCategory = 'Replacement - refund success';
-            break;
-        case 'REPLACEMENT_REQUEST_PENDING':
-            statusCategory = 'Replacement - pending';
+        case 'PROCESSING':
+            status = 'Return refund - on process'
             break;
         default:
-            statusCategory = status;
+            status = systemStatus;
             break;
     }
-    return statusCategory;
+    return status;
+}
+
+function RRTiktokStatus (systemStatus) {
+    let status = '';
+    switch (systemStatus) {
+        case 'RETURN_OR_REFUND_REQUEST_PENDING':
+            status = 'Return refund - pending'
+            break;
+        case 'REQUEST_SUCCESS': 
+            status = 'Return refund - success';
+            break;
+        case 'RETURN_OR_REFUND_REQUEST_SUCCESS':
+            status = 'Return refund - success'; 
+            break;
+        case 'REQUEST_REJECTED': 
+            status = 'Return refund - rejected';
+            break;
+        case 'RETURN_OR_REFUND_CANCEL':
+            status = 'Return refund - cancelled';
+            break;
+        case 'RETURN_OR_REFUND_REQUEST_COMPLETE':
+            status = 'Return refund - complete';
+            break;
+        case 'AWAITING_BUYER_SHIP':
+            status = 'Awaiting buyer ship';
+            break;
+        case 'BUYER_SHIPPED_ITEM':
+            status = 'Buyer shipped item';
+            break;
+        case 'RECEIVE_REJECTED': 
+            status = 'Receive rejected';
+            break;
+        case 'CANCELLATION_REQUEST_PENDING':
+            status = 'Cancellation - pending';
+            break;
+        case 'CANCELLATION_REQUEST_SUCCESS':
+            status = 'Cancellation - success';
+            break;
+        case 'CANCELLATION_REQUEST_CANCELLED':
+            status = 'Cancellation - cancelled';
+            break;
+        case 'CANCELLATION_REQUEST_COMPLETE':
+            status = 'Cancellation - complete';
+            break;
+        case 'REJECT_RECEIVE_PACKAGE':
+            status = 'Reject receive package';
+            break;
+        case 'REPLACEMENT_REQUEST_CANCEL': 
+            status = 'Replacement - cancelled';
+            break;
+        case 'REPLACEMENT_REQUEST_COMPLETE':
+            status = 'Replacement - complete';
+            break;
+        case 'REPLACEMENT_REQUEST_REFUND_SUCCESS':
+            status = 'Replacement - refund success';
+            break;
+        case 'REPLACEMENT_REQUEST_PENDING':
+            status = 'Replacement - pending';
+            break;
+        default:
+            status = systemStatus;
+            break;
+    }
+    return status;
 }
 
 module.exports = {
+    RRShopeeStatus,
     RRTiktokStatus,
     convertOrgName,
     lazGetToken,

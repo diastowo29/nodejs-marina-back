@@ -5,13 +5,14 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/interceptor');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, PARTNER_KEY } = require('../../config/shopee_apis');
-const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses } = require('../../config/utils');
+const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses, RRShopeeStatus } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
 const { encryptData, decryptData } = require('../../functions/encryption');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { createHmac } = require('crypto');
 const { PrismaClient } = require('../../prisma/generated/client');
+const { ConversationLeaveEventAllOf } = require('sunshine-conversations-client');
 // const { PrismaClient: prismaMainClient } = require('../../../prisma/generated/client');
 var env = process.env.NODE_ENV || 'development';
 // const prisma = new PrismaClient();
@@ -60,7 +61,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         // prisma = getPrismaClientForTenant(mBase.clients.org_id, tenantDbUrl.url)
         console.log(JSON.stringify(jsonBody));
         let payloadCode = jsonBody.code;
-        let response;
         switch (payloadCode) {
             case 3:
                 let newOrder = await prisma.orders.upsert({
@@ -87,7 +87,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         }
                     }
                 });
-                response = newOrder;
                 let taskPayload = {
                     channel: SHOPEE, 
                     order_id: jsonBody.data.ordersn,
@@ -107,79 +106,75 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         console.log('Shopee store: %s Expired', newOrder.store.id);
                     }
                 }
+                res.status(200).send({message: {id: newOrder.id}});
                 break;
             case 10:
-                response = {};
                 if (jsonBody.data.type == 'message') {
-                    let newMsg = await prisma.omnichat.upsert({
-                        create: {
-                            origin_id: jsonBody.data.content.conversation_id,
-                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                            last_messageId: jsonBody.data.content.message_id,
-                            store: {
-                                connect: {
-                                    origin_id: jsonBody.shop_id.toString()
-                                }
-                            },
-                            customer: {
-                                connectOrCreate: {
+                    try {
+                        const userExternalId = `shopee-${jsonBody.data.content.from_id}-${jsonBody.shop_id}`
+                        let upsertMessage = await prisma.omnichat.upsert({
+                            create: {
+                                origin_id: jsonBody.data.content.conversation_id,
+                                last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                last_messageId: jsonBody.data.content.message_id,
+                                store: {
+                                    connect: {
+                                        origin_id: jsonBody.shop_id.toString()
+                                    }
+                                },
+                                customer: {
+                                    connectOrCreate: {
+                                        create: {
+                                            origin_id: jsonBody.data.content.from_id.toString(),
+                                            name: jsonBody.data.content.from_user_name,
+                                        },
+                                        where: {
+                                            origin_id: jsonBody.data.content.from_id.toString()
+                                        }
+                                    }
+                                },
+                                messages: {
                                     create: {
-                                        origin_id: jsonBody.data.content.from_id.toString(),
-                                        username: jsonBody.data.content.from_user_name,
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.content.from_id.toString()
+                                        line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                        chat_type: jsonBody.data.content.message_type,
+                                        origin_id: jsonBody.data.content.message_id,
+                                        author: jsonBody.data.content.from_id.toString()
                                     }
                                 }
                             },
-                            messages: {
-                                create: {
-                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                    chat_type: jsonBody.data.content.message_type,
-                                    origin_id: jsonBody.data.content.message_id,
-                                    author: jsonBody.data.content.from_id.toString()
-                                }
-                            }
-                        },
-                        update: {
-                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                            last_messageId: jsonBody.data.content.message_id,
-                            messages: {
-                                create: {
-                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                    chat_type: jsonBody.data.content.message_type,
-                                    origin_id: jsonBody.data.content.message_id,
-                                    author: jsonBody.data.content.from_id.toString()
-                                }
-                            }
-                        },
-                        where: {
-                            origin_id: jsonBody.data.content.conversation_id
-                        },
-                        select: {
-                            id: true,
-                            origin_id: true,
-                            externalId: true,
-                            customer: {
-                                select: {
-                                    name: true,
-                                    id: true, 
-                                    origin_id: true,
-                                    email: true
+                            update: {
+                                last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                last_messageId: jsonBody.data.content.message_id,
+                                messages: {
+                                    create: {
+                                        line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                                        chat_type: jsonBody.data.content.message_type,
+                                        origin_id: jsonBody.data.content.message_id,
+                                        author: jsonBody.data.content.from_id.toString()
+                                    }
                                 }
                             },
-                            store: {
-                                include: {
-                                    channel: {
-                                        select: {
-                                            client: {
-                                                select: {
-                                                    integration: {
-                                                        select: {
-                                                            name: true,
-                                                            notes: true,
-                                                            id: true,
-                                                            credent: true
+                            where: {
+                                origin_id: jsonBody.data.content.conversation_id
+                            },
+                            select: {
+                                id: true,
+                                origin_id: true,
+                                externalId: true,
+                                customer: true,
+                                store: {
+                                    include: {
+                                        channel: {
+                                            select: {
+                                                client: {
+                                                    select: {
+                                                        integration: {
+                                                            select: {
+                                                                name: true,
+                                                                notes: true,
+                                                                id: true,
+                                                                credent: true
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -188,29 +183,74 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     }
                                 }
                             }
+                        });
+                        // like about to error here v
+                        if (upsertMessage.store.channel.client.integration.length > 0) {
+                            if (jsonBody.data.content.business_type == 0) {
+                                let taskPayload = {
+                                    channel: SHOPEE,
+                                    code: jsonBody.code,
+                                    chat_type: jsonBody.data.content.message_type,
+                                    message: upsertMessage,
+                                    userExternalId: userExternalId,
+                                    message_content: jsonBody.data.content,
+                                    tenantDB: getTenantDB(org[1]),
+                                    org_id: org[1],
+                                    syncCustomer: false //shopee dont need to sync customer
+                                }
+                                pushTask(env, taskPayload);
+                            }
                         }
-                    });
-                    response = newMsg;
+                        res.status(200).send({message: {id: upsertMessage.id}});
+                    } catch (err) {
+                        console.log(err);
+                        console.log('Error upserting message for conversation %s', jsonBody.data.content.conversation_id);
+                        res.status(500).send({error: 'Internal Server Error'});
+                    }
                     /* no need to push to worker */
+                } else {
+                    res.status(200).send({message: 'Event type not message'});
                 }
                 break;
             case 29: 
-                /* let returnRefund = await prisma.return_refund.upsert({
-                    where: {
-                        origin_id: jsonBody.data.return_sn
-                    },
-                    update: {
-                        
+                const updatedReturn = jsonBody.data.updated_values.find(item => item.update_field == 'return_status');
+                if (updatedReturn) {
+                    const updatedStatus = (updatedReturn.new_value) ? updatedReturn.new_value : updatedReturn.old_value;
+                    try {
+                        let returnRefund = await prisma.return_refund.upsert({
+                            where: {
+                                origin_id: jsonBody.data.return_sn
+                            },
+                            update: {
+                                system_status: updatedStatus,
+                                status: RRShopeeStatus(updatedStatus),
+                            },
+                            create: {
+                                origin_id: jsonBody.data.return_sn,
+                                system_status: updatedStatus,
+                                total_amount: 0,
+                                status: RRShopeeStatus(updatedStatus),
+                                order: {
+                                    connect: {
+                                        origin_id: jsonBody.data.order_sn
+                                    }
+                                }
+                            }
+                        });
+                        res.status(200).send({message: {id: returnRefund.id}});
+                    } catch (err) {
+                        console.log(err);
+                        console.log('Error updating return/refund %s', jsonBody.data.return_sn);
+                        res.status(500).send({error: 'Internal Server Error'});
                     }
-                }) */
+                }
                 break;
             default:
                 response = jsonBody.data;
                 console.log('CODE: %s Not implemented yet!', payloadCode);
+                res.status(200).send({message: 'Code not implemented'});
                 break;
         }
-        res.status(200).send(response);
-        
     }).catch((err) => {
         console.log('Error fetching store: ', err);
         return res.status(500).send({ error: 'Internal Server Error' });
