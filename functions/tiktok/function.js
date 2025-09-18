@@ -1,4 +1,4 @@
-const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION } = require("../../config/tiktok_apis");
+const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE } = require("../../config/tiktok_apis");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
@@ -39,7 +39,7 @@ async function collectTiktokOrder (body, done) {
                         connectOrCreate: {
                             create: {
                                 name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type,
-                                type: tiktokOrderIdx.shipping_type
+                                type: tiktokOrderIdx.delivery_option_name || tiktokOrderIdx.delivery_type
                             },
                             where: {
                                 name: tiktokOrderIdx.shipping_provider || tiktokOrderIdx.shipping_type
@@ -56,6 +56,14 @@ async function collectTiktokOrder (body, done) {
                     recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
                     recp_phone: tiktokOrderIdx.recipient_address.phone_number,
                     recp_name: tiktokOrderIdx.recipient_address.name,
+                    seller_discount: Number.parseInt(tiktokOrderIdx.payment.seller_discount),
+                    platform_discount: Number.parseInt(tiktokOrderIdx.payment.platform_discount),
+                    shipping_seller_discount: Number.parseInt(tiktokOrderIdx.payment.shipping_fee_seller_discount),
+                    shipping_platform_discount: Number.parseInt(tiktokOrderIdx.payment.shipping_fee_platform_discount),
+                    buyer_service_fee: Number.parseInt(tiktokOrderIdx.payment.buyer_service_fee),
+                    handling_fee: Number.parseInt(tiktokOrderIdx.payment.handling_fee),
+                    shipping_insurance_fee: Number.parseInt(tiktokOrderIdx.payment.shipping_insurance_fee),
+                    item_insurance_fee: Number.parseInt(tiktokOrderIdx.payment.item_insurance_fee),
                     total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
                     total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
                     shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
@@ -77,6 +85,7 @@ async function collectTiktokOrder (body, done) {
                                             price: Number.parseInt(item.original_price),
                                             sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
                                             currency: item.currency,
+                                            url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
                                             storeId: body.m_shop_id
                                         }
                                     }
@@ -96,9 +105,51 @@ async function collectTiktokOrder (body, done) {
                         }
                     }
                 },
-                select: { id: true }
+                select: { 
+                    id: true,
+                    order_items: {
+                        select: {
+                            products: {
+                                select: {
+                                    id: true,
+                                    origin_id: true,
+                                    product_img: true
+                                }
+                            }
+                        }
+                    }
+                 }
             }).then((order) => {
                 console.log(`Worker order done: ${order.id}`);
+                if (body.syncProduct.length > 0) {
+                    console.log('Sync products')
+                    let productPromises = [];
+                    body.syncProduct.forEach(item => {
+                        productPromises.push(callTiktok('GET', GET_PRODUCT(item.split('-')[0], body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id))
+                    });
+                    Promise.all(productPromises).then((products) => {
+                        let productImgs = [];
+                        products.forEach(product => {
+                            const productData = product.data.data;                            
+                            productImgs.push({
+                                originalUrl: productData.main_images[0].urls[0],
+                                thumbnailUrl: productData.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${productData.id}`,
+                                productsId: order.order_items.find(item => item.products.origin_id.startsWith(productData.id)).products.id,
+                                height: productData.main_images[0].height,
+                                width: productData.main_images[0].width
+                            })
+                        });
+                        prisma.products_img.createMany({
+                            data: productImgs,
+                            skipDuplicates: true,
+                        }).then(() => {
+                            console.log('all product img updated');
+                        }, (err) => {
+                            console.log(err)
+                        });
+                    })
+                }
             }).catch(function(err) {
                 console.log(err);
                 console.log(JSON.stringify(tiktokOrderIdx));
@@ -114,37 +165,52 @@ async function collectReturnRequest (body, done) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     var data = {}
     var returnCancel = [];
-    if (body.status == 'ORDER_REFUND') {
+    let isRR = false;
+    if (body.status == 'RETURN_AND_REFUND' || body.status == 'REFUND') {
+        isRR = true;
+    }
+    if (isRR) {
         data = { order_ids: [body.order_id] };
         returnCancel = await Promise.all([
             callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
             callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id)
         ]);
-    } else if (body.status == 'ORDER_REQUEST_CANCEL') {
+    } else if (body.status == 'CANCELLATION') {
         data = { cancel_ids: [body.returnId] }
         returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     }
-    const returnData = (body.status == 'ORDER_REFUND') ? returnCancel[0].data.data : returnCancel.data.data;
-    const refundEvidence = (body.status == 'ORDER_REFUND') ? returnCancel[1].data.data : null;
-    console.log(JSON.stringify(returnData))
-    if (body.status == 'ORDER_REFUND') {
-        if (returnData && returnData.return_orders.length > 0) {
-            const returnOrder = returnData.return_orders[0];
-            await prisma.return_refund.create({
+    let returnData = (isRR) ? returnCancel[0].data.data : returnCancel.data.data;
+    const refundEvidence = (isRR) ? returnCancel[1].data.data : null;
+    // console.log(JSON.stringify(returnData));
+    if (isRR) {
+        let returnOrder = null;
+        if (returnData.return_orders && returnData.return_orders.length > 0) {
+            returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
+            if (returnData.return_orders && returnData.return_orders.length > 0) {
+                returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
+            }
+        }
+        if (returnOrder) {
+            // let rrRow = [];
+            // let rrItemRow = [];
+            // returnOrder.forEach(async (rrData) => {
+            prisma.return_refund.update({
+                where: {
+                    origin_id: returnOrder.return_id
+                },
                 data: {
-                    total_amount: Number.parseInt(returnOrder.refund_amount.refund_total),
-                    ordersId: body.m_order_id,
-                    origin_id: returnOrder.return_id,
-                    status: returnOrder.return_status,
-                    return_type: returnOrder.return_type,
-                    return_reason: returnOrder.return_reason,
+                    total_amount: (returnOrder.refund_amount) ? Number.parseInt(returnOrder.refund_amount.refund_total) : 0,
+                    return_reason: returnOrder.return_reason_text,
                     line_item: {
                         create: returnOrder.return_line_items.map(item => ({
                             origin_id: item.return_line_item_id,
-                            currency: item.refund_amount.currency,
-                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
+                            refund_service_fee:(item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                            refund_subtotal:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                            refund_total:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
                             item: {
                                 connect: {
                                     origin_id: item.order_line_item_id
@@ -152,28 +218,88 @@ async function collectReturnRequest (body, done) {
                             }
                         }))
                     }
+                },
+                select: {
+                    id: true
                 }
-            });    
+            }).then((rr) => {
+                console.log(rr);
+            }).catch((err) => {
+                console.log(err);
+            });
+                // await prisma.return_refund.create({
+                //     data: {
+                //         total_amount: (rrData.refund_amount) ? Number.parseInt(rrData.refund_amount.refund_total) : 0,
+                //         ordersId: body.m_order_id,
+                //         origin_id: rrData.return_id,
+                //         status: rrData.return_status,
+                //         return_type: rrData.return_type,
+                //         return_reason: rrData.return_reason_text,
+                //         line_item: {
+                //             create: rrData.return_line_items.map(item => ({
+                //                 origin_id: item.return_line_item_id,
+                //                 currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
+                //                 refund_service_fee:(item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                //                 refund_subtotal:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                //                 refund_total:(item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
+                //                 item: {
+                //                     connect: {
+                //                         origin_id: item.order_line_item_id
+                //                     }
+                //                 }
+                //             }))
+                //         }
+                //     },
+                //     select: {
+                //         id: true
+                //     }
+                // });
+               /*  rrRow.push({
+                    total_amount: (rrData.refund_amount) ? Number.parseInt(rrData.refund_amount.refund_total) : 0,
+                    ordersId: body.m_order_id,
+                    origin_id: rrData.return_id,
+                    status: rrData.return_status,
+                    return_type: rrData.return_type,
+                    return_reason: rrData.return_reason_text,
+                })
+                rrData.return_line_item.forEach(rrLineItem => {
+                    rrItemRow.push({
+                        origin_id: rrLineItem.return_line_item_id,
+                        currency: (rrLineItem.refund_amount) ? rrLineItem.refund_amount.currency : 'IDR',
+                        refund_service_fee:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.buyer_service_fee) : 0,
+                        refund_subtotal:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.refund_subtotal) : 0,
+                        refund_total:(rrLineItem.refund_amount) ? Number.parseInt(rrLineItem.refund_amount.refund_total) : 0,
+                    })
+                }); */
+            // });
+            
+
+           /*  let createRR = await prisma.return_refund.createManyAndReturn({
+                data: [rrRow]
+            })
+            let createRRLine = await prisma.return_line_item.createMany({
+                data: [rrItemRow]
+            }) */
+
+        } else {
+            console.log('still no return found -- ignoring for now');
         }
     } else {
-        await prisma.return_refund.upsert({
+        await prisma.return_refund.update({
             where: {
-                ordersId: body.m_order_id
+                origin_id: body.returnId
             },
-            create: {
-                ordersId: body.m_order_id,
-                origin_id: body.returnId,
+            data: {
                 status: returnData.cancellations[0].cancel_status,
-                return_type: returnData.cancellations[0].cancel_type,
                 return_reason: returnData.cancellations[0].cancel_reason_text,
-                total_amount: Number.parseInt(returnData.cancellations[0].refund_amount.refund_total),
+                total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
                 line_item: {
                     create: returnData.cancellations[0].cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
-                            currency: item.refund_amount.currency,
-                            refund_service_fee: Number.parseInt(item.refund_amount.buyer_service_fee),
-                            refund_subtotal: Number.parseInt(item.refund_amount.refund_subtotal),
-                            refund_total: Number.parseInt(item.refund_amount.refund_total),
+                            currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
+                            refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
+                            refund_subtotal: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_subtotal) : 0,
+                            refund_total: (item.refund_amount) ? Number.parseInt(item.refund_amount.refund_total) : 0,
                             item: {
                                 connect: {
                                     origin_id: item.order_line_item_id
@@ -183,28 +309,42 @@ async function collectReturnRequest (body, done) {
                     ))
                 }
             },
-            update: {
+            /* update: {
                 status: returnData.cancellations[0].cancel_status
-            }
+            } */
         }).then(() => {
             console.log('cancellation created')
-        })
+        }).catch((err) => {
+            console.log(err);
+        });
     }
 
     if (body.integration.length > 0) {
         let subject = '';
         let comment = '';
         let tags = [];
-        if ((body.status == 'ORDER_REQUEST_CANCEL')) {
-            subject = 'Cancellation Request: ' + body.order_id;
-            comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
-            tags.push('marina_cancellation');
-        } else {
-            subject = 'Refund Request: ' + body.order_id;
-            comment = `User request a refund to order: ${body.order_id}
-            Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
-            Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
-            tags.push('marina_return_refund');
+        switch (body.status) {
+            case 'CANCELLATION':
+                subject = 'Cancellation Request: ' + body.order_id;
+                comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
+                tags.push('marina_cancellation');
+                break;
+            case 'REFUND':
+                subject = 'Refund Request: ' + body.order_id;
+                comment = `User request a refund to order: ${body.order_id}
+                Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+                Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+                tags.push('marina_return_refund');
+                break;
+            case 'RETURN_AND_REFUND':
+                subject = 'Return Request: ' + body.order_id;
+                comment = `User request a return to order: ${body.order_id}
+                Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
+                Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
+                tags.push('marina_return_refund');
+                break;
+            default:
+                break;
         }
         const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
         if (findZd) {
@@ -235,6 +375,7 @@ async function collectReturnRequest (body, done) {
                     ]
                 }
             }
+            // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
@@ -314,38 +455,58 @@ async function forwardConversation (body, done) {
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
         const suncoAppSecret = findZd.credent.find(cred => cred.key == 'SUNCO_APP_SECRET').value;
-        const suncoMetadata = {
-            [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.omnichat_user.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
-            [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
-            marina_org_id: body.org_id
-        }
         let defaultClient = SunshineConversationsClient.ApiClient.instance
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
+        let buyerName = body.userName;
         let suncoConvId;
+        if (body.syncCustomer) {
+            try {
+                console.log('Sync Customers');
+                const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                let buyerFound = false;
+                tiktokMessages.data.data.messages.forEach(async message => {
+                    if (message.sender.im_user_id == body.message.customer.origin_id) {
+                        if (!buyerFound) {
+                            buyerName = message.sender.nickname;
+                            buyerFound = true;
+                        }
+                    }
+                });
+                if (buyerFound) {
+                    await prisma.customers.update({
+                        where: { origin_id: body.message.customer.origin_id },
+                        data: { name: buyerName }
+                    })
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        }
         if (!body.message.externalId) {
-            let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+            const suncoMetadata = {
+                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.customer.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
+                marina_org_id: body.org_id
+            }
+            let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
             let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
             suncoConvId = suncoConversation.conversation.id;
-            // await Promise.all([
-                await prisma.omnichat.update({
-                    where:{ id: body.message.id },
-                    data:{ externalId: suncoConversation.conversation.id }
-                })
-                /* prisma.omnichat_user.update({
-                    where:{ id: body.message.omnichat_user.id },
-                    data:{ externalId: body.userExternalId }
-                }) */
-            // ])
+            await prisma.omnichat.update({
+                where:{ id: body.message.id },
+                data:{ externalId: suncoConversation.conversation.id }
+            })
         } else {
             suncoConvId = body.message.externalId;
         }
+        console.log('Sunco Conv ID: ' + suncoConvId);
+        console.log('Sunco User External ID: ' + body.userExternalId);
         let messageContent = JSON.parse(body.message_content);
         let suncoMessagePayload = {
             author: {
@@ -375,15 +536,42 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "PRODUCT_CARD": 
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: (messageContent.hasOwnProperty('product_id')) ? `Product: ${messageContent.product_id}` : '-- product sample -- '
+                try {
+                    const product = await prisma.products.findFirst({
+                        where: {
+                            origin_id: {
+                                startsWith: messageContent.product_id
+                            }
+                        },
+                        select: {
+                            name: true,
+                            url: true,
+                            product_img: true
+                        }
+                    })
+                    if (product) {
+                        suncoMessagePayload.content = {
+                            type: "text",
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
+                        }
+                    } else {
+                        suncoMessagePayload.content = {
+                            type: "text",
+                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}` : '-- product sample -- '
+                        }
+                    }
+                } catch (error) {
+                    console.log(error);
+                    suncoMessagePayload.content = {
+                        type: "text",
+                        text: (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- '
+                    }
                 }
                 break;
             case "ORDER_CARD": 
                 suncoMessagePayload.content = {
                     type: "text",
-                    text: (messageContent.hasOwnProperty('order_id')) ? `Order: ${messageContent.order_id}` : '-- order sample -- '
+                    text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
                 }
                 break;
             default:
@@ -393,7 +581,39 @@ async function forwardConversation (body, done) {
                 }
                 break;
         }
-        await postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+        /* Promise.all([
+            prisma.customers.update({
+                where: { origin_id: body.message.customer.origin_id },
+                data: { name: buyerName }
+            }),
+            postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+        ]).then(() => {}, (error) => {
+            console.log(error);
+        }) */
+
+        // console.log(suncoMessagePayload);
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+            console.log('error here')
+            console.log(JSON.parse(error.message))
+            const errorMessage = JSON.parse(error.message);
+            if (errorMessage.errors && errorMessage.errors.length > 0) {
+                if (errorMessage.errors[0].code == 'conversation_not_found') {
+                    console.log('recreate conversation');
+                    let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+                    let conversationBody = suncoUser;
+                    conversationBody.metadata = suncoMetadata;
+                    let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+                    if (suncoConversation.conversation) {
+                        suncoConvId = suncoConversation.conversation.id;
+                        await prisma.omnichat.update({
+                            where:{ id: body.message.id },
+                            data:{ externalId: suncoConversation.conversation.id }
+                        })
+                        postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
+                    }
+                }
+            }
+        })
     }
 
     if (findSf) {
@@ -414,6 +634,7 @@ async function callTiktok (method, url, body, token, refreshToken, mShopId, tena
     }).catch(async function (err) {
         console.log(err.response.data)
         if (err.response.data.code == 105002) {
+            console.log('Refreshing token...');
             let newToken = await api.get(GET_REFRESH_TOKEN_API(decryptData(refreshToken)));
             // console.log(newToken.data);
             if (!newToken.data.data.access_token) {
