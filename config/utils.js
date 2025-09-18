@@ -34,10 +34,13 @@ function RRTiktokStatus (status) {
             statusCategory = 'Return refund request pending'
             break;
         case 'REQUEST_SUCCESS': 
-            statusCategory = 'Request success';
+            statusCategory = 'Return refund success';
+            break;
+        case 'RETURN_OR_REFUND_REQUEST_SUCCESS':
+            statusCategory = 'Return refund request success'; 
             break;
         case 'REQUEST_REJECTED': 
-            statusCategory = 'Request rejected';
+            statusCategory = 'Return refund rejected';
             break;
         case 'RETURN_OR_REFUND_CANCEL':
             statusCategory = 'Return refund cancelled';
@@ -53,6 +56,33 @@ function RRTiktokStatus (status) {
             break;
         case 'RECEIVE_REJECTED': 
             statusCategory = 'Receive rejected';
+            break;
+        case 'CANCELLATION_REQUEST_PENDING':
+            statusCategory = 'Cancellation pending';
+            break;
+        case 'CANCELLATION_REQUEST_SUCCESS':
+            statusCategory = 'Cancellation success';
+            break;
+        case 'CANCELLATION_REQUEST_CANCELLED':
+            statusCategory = 'Cancellation cancelled';
+            break;
+        case 'CANCELLATION_REQUEST_COMPLETE':
+            statusCategory = 'Cancellation complete';
+            break;
+        case 'REJECT_RECEIVE_PACKAGE':
+            statusCategory = 'Reject receive package';
+            break;
+        case 'REPLACEMENT_REQUEST_CANCEL': 
+            statusCategory = 'Replacement request cancelled';
+            break;
+        case 'REPLACEMENT_REQUEST_COMPLETE':
+            statusCategory = 'Replacement request complete';
+            break;
+        case 'REPLACEMENT_REQUEST_REFUND_SUCCESS':
+            statusCategory = 'Replacement request refund success';
+            break;
+        case 'REPLACEMENT_REQUEST_PENDING':
+            statusCategory = 'Replacement request pending';
             break;
         default:
             statusCategory = status;
