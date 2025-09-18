@@ -186,31 +186,32 @@ router.get('/:id', async function(req, res, next) {
                  id: Number.parseInt(req.params.id)
              },
              include: {
-                 order_items: {
-                     include: {
-                        return_line_item: {
-                            select: {
-                                return_refund: {
-                                    select: {
-                                        status: true,
-                                        return_type: true
-                                    }
+                order_items: {
+                    include: {
+                    return_line_item: {
+                        select: {
+                            return_refund: {
+                                select: {
+                                    status: true,
+                                    status_category: true,
+                                    return_type: true
                                 }
                             }
-                        },
-                        products: true
-                     }
-                 },
-                 return_refund: true,
-                 store: {
-                     select: {
-                         id: true,
-                         name: true,
-                         status: true,
-                         channel: true
-                     }
-                 },
-                 logistic: true
+                        }
+                    },
+                    products: true
+                    }
+                },
+                return_refund: true,
+                store: {
+                    omit: {
+                        token: true,
+                        refresh_token: true,
+                        secondary_token: true,
+                        secondary_refresh_token: true,
+                    }
+                },
+                logistic: true
              }
          });
          if (!order) {
