@@ -325,8 +325,8 @@ exports.Prisma.Return_line_itemScalarFieldEnum = {
 exports.Prisma.Return_refundScalarFieldEnum = {
   id: 'id',
   origin_id: 'origin_id',
+  system_status: 'system_status',
   status: 'status',
-  status_category: 'status_category',
   total_amount: 'total_amount',
   return_type: 'return_type',
   return_reason: 'return_reason',

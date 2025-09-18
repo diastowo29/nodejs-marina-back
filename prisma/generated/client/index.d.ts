@@ -21921,8 +21921,8 @@ export namespace Prisma {
   export type Return_refundMinAggregateOutputType = {
     id: number | null
     origin_id: string | null
+    system_status: string | null
     status: string | null
-    status_category: string | null
     total_amount: number | null
     return_type: string | null
     return_reason: string | null
@@ -21932,8 +21932,8 @@ export namespace Prisma {
   export type Return_refundMaxAggregateOutputType = {
     id: number | null
     origin_id: string | null
+    system_status: string | null
     status: string | null
-    status_category: string | null
     total_amount: number | null
     return_type: string | null
     return_reason: string | null
@@ -21943,8 +21943,8 @@ export namespace Prisma {
   export type Return_refundCountAggregateOutputType = {
     id: number
     origin_id: number
+    system_status: number
     status: number
-    status_category: number
     total_amount: number
     return_type: number
     return_reason: number
@@ -21968,8 +21968,8 @@ export namespace Prisma {
   export type Return_refundMinAggregateInputType = {
     id?: true
     origin_id?: true
+    system_status?: true
     status?: true
-    status_category?: true
     total_amount?: true
     return_type?: true
     return_reason?: true
@@ -21979,8 +21979,8 @@ export namespace Prisma {
   export type Return_refundMaxAggregateInputType = {
     id?: true
     origin_id?: true
+    system_status?: true
     status?: true
-    status_category?: true
     total_amount?: true
     return_type?: true
     return_reason?: true
@@ -21990,8 +21990,8 @@ export namespace Prisma {
   export type Return_refundCountAggregateInputType = {
     id?: true
     origin_id?: true
+    system_status?: true
     status?: true
-    status_category?: true
     total_amount?: true
     return_type?: true
     return_reason?: true
@@ -22088,8 +22088,8 @@ export namespace Prisma {
   export type Return_refundGroupByOutputType = {
     id: number
     origin_id: string | null
+    system_status: string | null
     status: string | null
-    status_category: string | null
     total_amount: number
     return_type: string | null
     return_reason: string | null
@@ -22118,8 +22118,8 @@ export namespace Prisma {
   export type return_refundSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     origin_id?: boolean
+    system_status?: boolean
     status?: boolean
-    status_category?: boolean
     total_amount?: boolean
     return_type?: boolean
     return_reason?: boolean
@@ -22132,8 +22132,8 @@ export namespace Prisma {
   export type return_refundSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     origin_id?: boolean
+    system_status?: boolean
     status?: boolean
-    status_category?: boolean
     total_amount?: boolean
     return_type?: boolean
     return_reason?: boolean
@@ -22144,8 +22144,8 @@ export namespace Prisma {
   export type return_refundSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     origin_id?: boolean
+    system_status?: boolean
     status?: boolean
-    status_category?: boolean
     total_amount?: boolean
     return_type?: boolean
     return_reason?: boolean
@@ -22156,15 +22156,15 @@ export namespace Prisma {
   export type return_refundSelectScalar = {
     id?: boolean
     origin_id?: boolean
+    system_status?: boolean
     status?: boolean
-    status_category?: boolean
     total_amount?: boolean
     return_type?: boolean
     return_reason?: boolean
     ordersId?: boolean
   }
 
-  export type return_refundOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "origin_id" | "status" | "status_category" | "total_amount" | "return_type" | "return_reason" | "ordersId", ExtArgs["result"]["return_refund"]>
+  export type return_refundOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "origin_id" | "system_status" | "status" | "total_amount" | "return_type" | "return_reason" | "ordersId", ExtArgs["result"]["return_refund"]>
   export type return_refundInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     order?: boolean | ordersDefaultArgs<ExtArgs>
     line_item?: boolean | return_refund$line_itemArgs<ExtArgs>
@@ -22186,8 +22186,8 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: number
       origin_id: string | null
+      system_status: string | null
       status: string | null
-      status_category: string | null
       total_amount: number
       return_type: string | null
       return_reason: string | null
@@ -22619,8 +22619,8 @@ export namespace Prisma {
   interface return_refundFieldRefs {
     readonly id: FieldRef<"return_refund", 'Int'>
     readonly origin_id: FieldRef<"return_refund", 'String'>
+    readonly system_status: FieldRef<"return_refund", 'String'>
     readonly status: FieldRef<"return_refund", 'String'>
-    readonly status_category: FieldRef<"return_refund", 'String'>
     readonly total_amount: FieldRef<"return_refund", 'Int'>
     readonly return_type: FieldRef<"return_refund", 'String'>
     readonly return_reason: FieldRef<"return_refund", 'String'>
@@ -23330,8 +23330,8 @@ export namespace Prisma {
   export const Return_refundScalarFieldEnum: {
     id: 'id',
     origin_id: 'origin_id',
+    system_status: 'system_status',
     status: 'status',
-    status_category: 'status_category',
     total_amount: 'total_amount',
     return_type: 'return_type',
     return_reason: 'return_reason',
@@ -24772,8 +24772,8 @@ export namespace Prisma {
     NOT?: return_refundWhereInput | return_refundWhereInput[]
     id?: IntFilter<"return_refund"> | number
     origin_id?: StringNullableFilter<"return_refund"> | string | null
+    system_status?: StringNullableFilter<"return_refund"> | string | null
     status?: StringNullableFilter<"return_refund"> | string | null
-    status_category?: StringNullableFilter<"return_refund"> | string | null
     total_amount?: IntFilter<"return_refund"> | number
     return_type?: StringNullableFilter<"return_refund"> | string | null
     return_reason?: StringNullableFilter<"return_refund"> | string | null
@@ -24785,8 +24785,8 @@ export namespace Prisma {
   export type return_refundOrderByWithRelationInput = {
     id?: SortOrder
     origin_id?: SortOrderInput | SortOrder
+    system_status?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
-    status_category?: SortOrderInput | SortOrder
     total_amount?: SortOrder
     return_type?: SortOrderInput | SortOrder
     return_reason?: SortOrderInput | SortOrder
@@ -24801,8 +24801,8 @@ export namespace Prisma {
     AND?: return_refundWhereInput | return_refundWhereInput[]
     OR?: return_refundWhereInput[]
     NOT?: return_refundWhereInput | return_refundWhereInput[]
+    system_status?: StringNullableFilter<"return_refund"> | string | null
     status?: StringNullableFilter<"return_refund"> | string | null
-    status_category?: StringNullableFilter<"return_refund"> | string | null
     total_amount?: IntFilter<"return_refund"> | number
     return_type?: StringNullableFilter<"return_refund"> | string | null
     return_reason?: StringNullableFilter<"return_refund"> | string | null
@@ -24814,8 +24814,8 @@ export namespace Prisma {
   export type return_refundOrderByWithAggregationInput = {
     id?: SortOrder
     origin_id?: SortOrderInput | SortOrder
+    system_status?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
-    status_category?: SortOrderInput | SortOrder
     total_amount?: SortOrder
     return_type?: SortOrderInput | SortOrder
     return_reason?: SortOrderInput | SortOrder
@@ -24833,8 +24833,8 @@ export namespace Prisma {
     NOT?: return_refundScalarWhereWithAggregatesInput | return_refundScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"return_refund"> | number
     origin_id?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
+    system_status?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
     status?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
-    status_category?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
     total_amount?: IntWithAggregatesFilter<"return_refund"> | number
     return_type?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
     return_reason?: StringNullableWithAggregatesFilter<"return_refund"> | string | null
@@ -26257,8 +26257,8 @@ export namespace Prisma {
 
   export type return_refundCreateInput = {
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -26269,8 +26269,8 @@ export namespace Prisma {
   export type return_refundUncheckedCreateInput = {
     id?: number
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -26280,8 +26280,8 @@ export namespace Prisma {
 
   export type return_refundUpdateInput = {
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -26292,8 +26292,8 @@ export namespace Prisma {
   export type return_refundUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -26304,8 +26304,8 @@ export namespace Prisma {
   export type return_refundCreateManyInput = {
     id?: number
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -26314,8 +26314,8 @@ export namespace Prisma {
 
   export type return_refundUpdateManyMutationInput = {
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -26324,8 +26324,8 @@ export namespace Prisma {
   export type return_refundUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -27497,8 +27497,8 @@ export namespace Prisma {
   export type return_refundCountOrderByAggregateInput = {
     id?: SortOrder
     origin_id?: SortOrder
+    system_status?: SortOrder
     status?: SortOrder
-    status_category?: SortOrder
     total_amount?: SortOrder
     return_type?: SortOrder
     return_reason?: SortOrder
@@ -27514,8 +27514,8 @@ export namespace Prisma {
   export type return_refundMaxOrderByAggregateInput = {
     id?: SortOrder
     origin_id?: SortOrder
+    system_status?: SortOrder
     status?: SortOrder
-    status_category?: SortOrder
     total_amount?: SortOrder
     return_type?: SortOrder
     return_reason?: SortOrder
@@ -27525,8 +27525,8 @@ export namespace Prisma {
   export type return_refundMinOrderByAggregateInput = {
     id?: SortOrder
     origin_id?: SortOrder
+    system_status?: SortOrder
     status?: SortOrder
-    status_category?: SortOrder
     total_amount?: SortOrder
     return_type?: SortOrder
     return_reason?: SortOrder
@@ -30223,8 +30223,8 @@ export namespace Prisma {
 
   export type return_refundCreateWithoutOrderInput = {
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -30234,8 +30234,8 @@ export namespace Prisma {
   export type return_refundUncheckedCreateWithoutOrderInput = {
     id?: number
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -30380,8 +30380,8 @@ export namespace Prisma {
     NOT?: return_refundScalarWhereInput | return_refundScalarWhereInput[]
     id?: IntFilter<"return_refund"> | number
     origin_id?: StringNullableFilter<"return_refund"> | string | null
+    system_status?: StringNullableFilter<"return_refund"> | string | null
     status?: StringNullableFilter<"return_refund"> | string | null
-    status_category?: StringNullableFilter<"return_refund"> | string | null
     total_amount?: IntFilter<"return_refund"> | number
     return_type?: StringNullableFilter<"return_refund"> | string | null
     return_reason?: StringNullableFilter<"return_refund"> | string | null
@@ -30930,8 +30930,8 @@ export namespace Prisma {
 
   export type return_refundCreateWithoutLine_itemInput = {
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -30941,8 +30941,8 @@ export namespace Prisma {
   export type return_refundUncheckedCreateWithoutLine_itemInput = {
     id?: number
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -31003,8 +31003,8 @@ export namespace Prisma {
 
   export type return_refundUpdateWithoutLine_itemInput = {
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -31014,8 +31014,8 @@ export namespace Prisma {
   export type return_refundUncheckedUpdateWithoutLine_itemInput = {
     id?: IntFieldUpdateOperationsInput | number
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -32162,8 +32162,8 @@ export namespace Prisma {
   export type return_refundCreateManyOrderInput = {
     id?: number
     origin_id?: string | null
+    system_status?: string | null
     status?: string | null
-    status_category?: string | null
     total_amount: number
     return_type?: string | null
     return_reason?: string | null
@@ -32208,8 +32208,8 @@ export namespace Prisma {
 
   export type return_refundUpdateWithoutOrderInput = {
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -32219,8 +32219,8 @@ export namespace Prisma {
   export type return_refundUncheckedUpdateWithoutOrderInput = {
     id?: IntFieldUpdateOperationsInput | number
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null
@@ -32230,8 +32230,8 @@ export namespace Prisma {
   export type return_refundUncheckedUpdateManyWithoutOrderInput = {
     id?: IntFieldUpdateOperationsInput | number
     origin_id?: NullableStringFieldUpdateOperationsInput | string | null
+    system_status?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
-    status_category?: NullableStringFieldUpdateOperationsInput | string | null
     total_amount?: IntFieldUpdateOperationsInput | number
     return_type?: NullableStringFieldUpdateOperationsInput | string | null
     return_reason?: NullableStringFieldUpdateOperationsInput | string | null

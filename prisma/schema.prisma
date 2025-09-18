@@ -245,8 +245,8 @@ model return_line_item {
 model return_refund {
   id            Int                @id @default(autoincrement())
   origin_id     String?            @unique
-  status        String?
-  status_category String?
+  system_status        String?
+  status String?
   order         orders             @relation(fields: [ordersId], references: [id])
   line_item     return_line_item[]
   total_amount  Int
