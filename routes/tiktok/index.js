@@ -243,8 +243,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     if (rr.line_item.length == 0) {
                         const data = { cancel_ids: [body.returnId] }
                         callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
-                            if (tiktokCancel.data.data) {
-                                if (tiktokCancel.data.data.cancellations && tiktokCancel.data.data.cancellations.length > 0) {
+                            const ccData = tiktokCancel.data.data;
+                            if (ccData) {
+                                if (ccData.cancellations && ccData.cancellations.length > 0) {
                                     taskPayload = {
                                         tenantDB: getTenantDB(org[1]),
                                         channel: TIKTOK,
@@ -343,8 +344,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
                         const body = {order_ids: [jsonBody.data.order_id]}
                         callTiktok('POST', SEARCH_RETURN(rr.order.store.secondary_token, body), body, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokRr) => {
-                            if (tiktokRr.data.data) {
-                                if (tiktokRr.data.data.return_orders && tiktokRr.data.data.return_orders.length > 0) {
+                            const rrData = tiktokRr.data.data;
+                            if (rrData) {
+                                if (rrData.return_orders && rrData.return_orders.length > 0) {
                                     taskPayload = {
                                         tenantDB: getTenantDB(org[1]),
                                         channel: TIKTOK,

@@ -285,15 +285,16 @@ async function collectReturnRequest (body, done) {
             console.log('still no return found -- ignoring for now');
         }
     } else {
+        const ccData = returnData.cancellations.find(cc => cc.cancel_id == body.returnId)
         await prisma.return_refund.update({
             where: {
                 origin_id: body.returnId
             },
             data: {
-                return_reason: returnData.cancellations[0].cancel_reason_text,
-                total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
+                return_reason: ccData.cancel_reason_text,
+                total_amount: (ccData.refund_amount) ? Number.parseInt(ccData.refund_amount.refund_total) : 0,
                 line_item: {
-                    create: returnData.cancellations[0].cancel_line_items.map(item => ({
+                    create: ccData.cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
                             currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
                             refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
@@ -307,10 +308,7 @@ async function collectReturnRequest (body, done) {
                         }
                     ))
                 }
-            },
-            /* update: {
-                status: returnData.cancellations[0].cancel_status
-            } */
+            }
         }).then(() => {
             console.log('cancellation created')
         }).catch((err) => {
