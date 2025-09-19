@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS } = require('../../config/tiktok_apis');
+const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS, SEARCH_CANCELLATION } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName, RRTiktokStatus } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
@@ -241,24 +241,38 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (rr.line_item.length == 0) {
-                        taskPayload = {
-                            tenantDB: getTenantDB(org[1]),
-                            channel: TIKTOK,
-                            token: rr.order.store.token,
-                            refresh_token: rr.order.store.refresh_token,
-                            order_id: jsonBody.data.order_id,
-                            cipher: rr.order.store.secondary_token,
-                            m_shop_id: rr.order.store.id,
-                            m_order_id: rr.order.id,
-                            returnId: jsonBody.data.cancel_id,
-                            status: 'CANCELLATION',
-                            code: jsonBody.type,
-                            customer_id: rr.order.customers.origin_id,
-                            shop_id: jsonBody.shop_id,
-                            integration: rr.order.store.channel.client.integration,
-                            org_id: org[0]
-                        }
-                        pushTask(env, taskPayload);
+                        const data = { cancel_ids: [body.returnId] }
+                        callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
+                            if (tiktokCancel.data.data) {
+                                if (tiktokCancel.data.data.cancellations && tiktokCancel.data.data.cancellations.length > 0) {
+                                    taskPayload = {
+                                        tenantDB: getTenantDB(org[1]),
+                                        channel: TIKTOK,
+                                        token: rr.order.store.token,
+                                        refresh_token: rr.order.store.refresh_token,
+                                        order_id: jsonBody.data.order_id,
+                                        cipher: rr.order.store.secondary_token,
+                                        m_shop_id: rr.order.store.id,
+                                        m_order_id: rr.order.id,
+                                        returnId: jsonBody.data.cancel_id,
+                                        status: 'CANCELLATION',
+                                        code: jsonBody.type,
+                                        customer_id: rr.order.customers.origin_id,
+                                        shop_id: jsonBody.shop_id,
+                                        integration: rr.order.store.channel.client.integration,
+                                        org_id: org[0]
+                                    }
+                                    pushTask(env, taskPayload);
+                                } else {
+                                    res.status(400).send({error: 'No return/refund data found'});
+                                }
+                            } else {
+                                res.status(400).send({error: 'No return/refund data found'});
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                            res.status(400).send({error: err});
+                        })
                     }
                     res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
@@ -327,26 +341,41 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
-                        taskPayload = {
-                            tenantDB: getTenantDB(org[1]),
-                            channel: TIKTOK,
-                            token: rr.order.store.token,
-                            refresh_token: rr.order.store.refresh_token,
-                            order_id: jsonBody.data.order_id,
-                            cipher: rr.order.store.secondary_token,
-                            m_shop_id: rr.order.store.id,
-                            m_order_id: rr.order.id,
-                            returnId: jsonBody.data.return_id,
-                            status: jsonBody.data.return_type,
-                            code: jsonBody.type,
-                            customer_id: rr.order.customers.origin_id,
-                            shop_id: jsonBody.shop_id,
-                            integration: rr.order.store.channel.client.integration,
-                            org_id: org[0]
-                        }
-                        pushTask(env, taskPayload);
+                        const body = {order_ids: [jsonBody.data.order_id]}
+                        callTiktok('POST', SEARCH_RETURN(rr.order.store.secondary_token, body), body, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokRr) => {
+                            if (tiktokRr.data.data) {
+                                if (tiktokRr.data.data.return_orders && tiktokRr.data.data.return_orders.length > 0) {
+                                    taskPayload = {
+                                        tenantDB: getTenantDB(org[1]),
+                                        channel: TIKTOK,
+                                        token: rr.order.store.token,
+                                        refresh_token: rr.order.store.refresh_token,
+                                        order_id: jsonBody.data.order_id,
+                                        cipher: rr.order.store.secondary_token,
+                                        m_shop_id: rr.order.store.id,
+                                        m_order_id: rr.order.id,
+                                        returnId: jsonBody.data.return_id,
+                                        status: jsonBody.data.return_type,
+                                        code: jsonBody.type,
+                                        customer_id: rr.order.customers.origin_id,
+                                        shop_id: jsonBody.shop_id,
+                                        integration: rr.order.store.channel.client.integration,
+                                        org_id: org[1]
+                                    }
+                                    // console.log('goto worker')
+                                    pushTask(env, taskPayload);
+                                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
+                                } else {
+                                    res.status(400).send({error: 'No return/refund data found'});
+                                }
+                            } else {
+                                res.status(400).send({error: 'No return/refund data found'});
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                            res.status(400).send({error: err});
+                        })
                     }
-                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
                     console.log(err);
                     res.status(400).send({error: err});
