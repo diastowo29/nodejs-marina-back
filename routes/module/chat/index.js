@@ -148,11 +148,12 @@ router.post('/sunco/event', async function(req, res, next){
     let payload = req.body.events[0].payload;
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;
-    console.log(JSON.stringify(payload));
     try {
         if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
             console.log('message author is bussines')
           if (payload.conversation?.metadata?.origin_source_integration) {
+            console.log('origin_source_integration is missing')
+            console.log(JSON.stringify(payload));
             return res.status(200).send({});
           }
 
@@ -163,12 +164,15 @@ router.post('/sunco/event', async function(req, res, next){
             let sendMessage =  await sendMessageToBuyer(body, org_id);
             return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
           } else {
+            console.log('metadata is missing')
+            console.log(JSON.stringify(payload));
             return res.status(200).send({});
           }
         }
         res.status(200).send({});
     } catch (err) {
         console.log(err);
+        console.log(JSON.stringify(payload));
         res.status(500).send({error: err});
     }
   
