@@ -413,11 +413,12 @@ async function collectTiktokProduct (body, done) {
     const tiktokProduct = productData.data.data;
     // console.log(tiktokProduct)
     if (tiktokProduct) {
-        prisma.products.createMany({
+        prisma.products.createManyAndReturn({
             skipDuplicates: true,
             data: tiktokProduct.skus.map(item => ({
                 origin_id: `${tiktokProduct.id}-${item.id}`,
                 name: tiktokProduct.title,
+                url: `https://www.tiktok.com/view/product/${tiktokProduct.id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
                 status: tiktokProduct.status,
                 condition: tiktokProduct.is_pre_owned ? 2 : 1,
                 desc: tiktokProduct.description,
@@ -427,16 +428,41 @@ async function collectTiktokProduct (body, done) {
                 stock: item.inventory[0].quantity,
                 storeId: tiktokStore.id,
                 weight: tiktokProduct.package_weight.value ? Number(tiktokProduct.package_weight.value): 0,
-            }))
+            })),
+            select: {
+                id: true,
+                origin_id: true
+            }
         }).then(function(newProduct) {
-            console.log(newProduct.count);
+            let productImgs = [];
+            if (newProduct.length > 0) {
+                tiktokProduct.skus.forEach(sku => {
+                    productImgs.push({
+                        originalUrl: tiktokProduct.main_images[0].urls[0],
+                        thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                        origin_id: `IMG-${tiktokProduct.id}`,
+                        productsId: newProduct.find(item => item.origin_id.endsWith(sku.id)).id,
+                        height: tiktokProduct.main_images[0].height,
+                        width: tiktokProduct.main_images[0].width
+                    })
+                });
+                prisma.products_img.createMany({
+                    data: productImgs
+                }).then((imgCreated) => {
+                    console.log(imgCreated);
+                }).catch((imgFail) => {
+                    console.log(imgFail);
+                })
+            } else {
+                console.log('no product created')
+            }
             // done(null, {response: 'testing'});
         }).catch(function(err) {
             console.log(err);
             // done(new Error(err));
         })
     } else {
-        console.log('product not found');
+        console.log('product not found %s', body.product_id);
     }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {

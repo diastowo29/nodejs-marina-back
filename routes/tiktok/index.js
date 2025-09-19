@@ -515,16 +515,17 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 }
                 break;
             case 16: 
+                const productId = (BigInt(jsonBody.data.product_id) + 44n).toString();
                 taskPayload = {
                     tenantDB: getTenantDB(org[1]),
                     channel: TIKTOK,
                     code: jsonBody.type,
-                    product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
+                    product_id: productId,
                     shop_id: jsonBody.shop_id,
-                    org_id: org[0]
+                    org_id: org[1]
                 }
                 pushTask(env, taskPayload);
-                res.status(200).send({})
+                res.status(200).send({bigint: productId, id:jsonBody.data.product_id })
                 break;
             default:
                 res.status(200).send({message: 'event type not handled: ' + jsonBody.type});
