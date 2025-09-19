@@ -447,6 +447,7 @@ async function collectTiktokProduct (body, done) {
                     })
                 });
                 prisma.products_img.createMany({
+                    skipDuplicates: true,
                     data: productImgs
                 }).then((imgCreated) => {
                     console.log(imgCreated);

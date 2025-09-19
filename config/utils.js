@@ -36,6 +36,9 @@ function RRTiktokStatus (status) {
         case 'REQUEST_SUCCESS': 
             statusCategory = 'Return refund - success';
             break;
+        case 'REFUND_OR_RETURN_REQUEST_REJECT':
+            statusCategory = 'Return refund - rejected'
+            break;
         case 'RETURN_OR_REFUND_REQUEST_SUCCESS':
             statusCategory = 'Return refund - success'; 
             break;
