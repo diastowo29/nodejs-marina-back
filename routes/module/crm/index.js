@@ -26,8 +26,7 @@ router.get('/', async function(req, res, next) {
 
 router.delete('/:id', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
-    /* SHOULD DELETE ALL EXTERNAL ID FROM OMNICHAT AND WEBHOOK */
-    /* DELETE TICKET FIELDS AND SUNCO WEBHOOK ASWELL */
+    /* DELETE TICKET FIELDS AND SUNCO WEBHOOK */
     try {
         let credent = prisma.credent.deleteMany({
             where: {
@@ -39,9 +38,22 @@ router.delete('/:id', async function(req, res, next) {
                 id: parseInt(req.params.id)
             }
         });
-        const deletedIntegration = await prisma.$transaction([credent, integration]);
+        let deleteExtId = prisma.omnichat.updateMany({
+            where: {
+                AND: [{ externalId: { not: null }},
+                    { externalId: { not: ''}}]
+            },
+            data: {
+                externalId: null
+            }
+        })
+        prisma.$transaction([credent, integration, deleteExtId]).then((trx) => {
+            res.status(200).send({success: true, deleted: trx});
+        }).catch((err) => {
+            console.log(err);
+            res.status(500).send({error: err})
+        })
         // console.log(deletedIntegration)
-        res.status(200).send({success: true, deleted: deletedIntegration});
     } catch (err) {
         console.log(err);
         res.status(400).send({failed: err});

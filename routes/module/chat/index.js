@@ -149,7 +149,7 @@ router.post('/sunco/event', async function(req, res, next){
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;
     try {
-        if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
+        if (messageAuthor == 'business' && (sourceType == 'zd:agentWorkspace' || sourceType == 'ultimate' || sourceType == 'zd:agentCopilot' || sourceType == 'api:conversations')) {
             console.log('message author is bussines')
           if (payload.conversation?.metadata?.origin_source_integration) {
             console.log('origin_source_integration is missing')
