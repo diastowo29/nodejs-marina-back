@@ -241,7 +241,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (rr.line_item.length == 0) {
-                        const data = { cancel_ids: [body.returnId] }
+                        const data = { cancel_ids: [jsonBody.data.cancel_id] }
                         callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
                             const ccData = tiktokCancel.data.data;
                             if (ccData) {

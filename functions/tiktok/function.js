@@ -392,6 +392,7 @@ async function collectTiktokProduct (body, done) {
     let tiktokStore = await prisma.store.findUnique({
         where: { origin_id: body.shop_id }
     });
+    // console.log(tiktokStore);
     const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB, body.org_id);
     // const productData = response.data.data;
     /* let data = productData.skus.map(item => ({
@@ -408,28 +409,35 @@ async function collectTiktokProduct (body, done) {
             weight: productData.package_weight.value ? Number(productData.package_weight.value): 0,
         }))
     console.log(data); */
-    prisma.products.createMany({
-        skipDuplicates: true,
-        data: productData.skus.map(item => ({
-            origin_id: `${productData.id}-${item.id}`,
-            name: productData.title,
-            status: productData.status,
-            condition: productData.is_pre_owned ? 2 : 1,
-            desc: productData.description,
-            price: Number(item.price.sale_price),
-            currency: item.price.currency,
-            sku: item.seller_sku,
-            stock: item.inventory[0].quantity,
-            storeId: tiktokStore.id,
-            weight: productData.package_weight.value ? Number(productData.package_weight.value): 0,
-        }))
-    }).then(function(newProduct) {
-        console.log(newProduct.count);
-        // done(null, {response: 'testing'});
-    }).catch(function(err) {
-        console.log(err);
-        // done(new Error(err));
-    })
+    console.log(productData.data);
+    const tiktokProduct = productData.data.data;
+    // console.log(tiktokProduct)
+    if (tiktokProduct) {
+        prisma.products.createMany({
+            skipDuplicates: true,
+            data: tiktokProduct.skus.map(item => ({
+                origin_id: `${tiktokProduct.id}-${item.id}`,
+                name: tiktokProduct.title,
+                status: tiktokProduct.status,
+                condition: tiktokProduct.is_pre_owned ? 2 : 1,
+                desc: tiktokProduct.description,
+                price: Number(item.price.sale_price),
+                currency: item.price.currency,
+                sku: item.seller_sku,
+                stock: item.inventory[0].quantity,
+                storeId: tiktokStore.id,
+                weight: tiktokProduct.package_weight.value ? Number(tiktokProduct.package_weight.value): 0,
+            }))
+        }).then(function(newProduct) {
+            console.log(newProduct.count);
+            // done(null, {response: 'testing'});
+        }).catch(function(err) {
+            console.log(err);
+            // done(new Error(err));
+        })
+    } else {
+        console.log('product not found');
+    }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {
             'x-tts-access-token' : tiktokStore.token,

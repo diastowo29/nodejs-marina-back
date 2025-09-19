@@ -175,12 +175,12 @@ function suncoApiConfig (appId, token) {
     }
 }
 
-router.get('/products', async function(req, res, next) {
+/* router.get('/products', async function(req, res, next) {
     const mPrisma = getPrismaClient(req.tenantDB);
     let channels = await mPrisma.store.findMany({
         include : { products: true }
     })
     res.status(200).send(channels);
 })
-
+ */
 module.exports = router;
