@@ -351,17 +351,26 @@ async function suncoAgentMessage(payload, org_id){
         omnichat: message,
         omnichat_origin_id: message.origin_id
     }
-    if (lineText.includes('SEND_PRODUCT')) {
-        param.product_id = lineText.split('\n')[0].split(': ')[1]
-        param.chat_type = chatContentType.PRODUCT
-    }
-    if (lineText.includes('SEND_INVOICE')) {
-        param.invoice_id = lineText.split('\n')[0].split(': ')[1]
-        param.chat_type = chatContentType.INVOICE
+
+    if (lineText.includes('SEND_PRODUCT') || lineText.includes('SEND_INVOICE')) {
+        const linesId = lineText.split('\n')[0].split(': ')[1]; // <=== get line from comments
+        if (lineText.includes('SEND_PRODUCT')) {
+            param.product_id = linesId.split('-')[0] // <=== get product id
+            param.chat_type = chatContentType.PRODUCT
+        }
+        if (lineText.includes('SEND_INVOICE')) {
+            param.invoice_id = linesId
+            param.chat_type = chatContentType.INVOICE
+        }
     }
 
-    if (chatType == 'image') param.file_path = payload.message.content.mediaUrl
-
+    if (chatType == 'image') {
+        if (lineText) {
+            if (!lineText.includes('SEND_PRODUCT')) {
+                param.file_path = payload.message.content.mediaUrl   
+            }
+        }
+    }
     if (channelName == 'lazada') {
         // const mPrisma = getPrismaClient(org_id);
         let originId = payload.conversation.metadata['lazada_origin_id']
