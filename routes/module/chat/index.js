@@ -153,26 +153,26 @@ router.post('/sunco/event', async function(req, res, next){
             console.log('message author is bussines')
           if (payload.conversation?.metadata?.origin_source_integration) {
             console.log('origin_source_integration is missing')
-            console.log(JSON.stringify(payload));
+            console.log(JSON.stringify(req.body));
             return res.status(200).send({});
           }
 
           if (payload.conversation.metadata.marina_org_id) {
             const org_id = payload.conversation.metadata.marina_org_id;
             let body = await suncoAgentMessage(payload, org_id);
-            console.log(JSON.stringify(body));
+            // console.log(JSON.stringify(body));
             let sendMessage =  await sendMessageToBuyer(body, org_id);
             return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
           } else {
             console.log('metadata is missing')
-            console.log(JSON.stringify(payload));
+            console.log(JSON.stringify(req.body));
             return res.status(200).send({});
           }
         }
         res.status(200).send({});
     } catch (err) {
         console.log(err);
-        console.log(JSON.stringify(payload));
+        console.log(JSON.stringify(req.body));
         res.status(500).send({error: err});
     }
   
