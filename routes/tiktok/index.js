@@ -264,6 +264,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         org_id: org[0]
                                     }
                                     pushTask(env, taskPayload);
+                                    res.status(200).send({})
                                 } else {
                                     res.status(400).send({error: 'No return/refund data found'});
                                 }
@@ -394,7 +395,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 }
                 try {
                     const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
-                    const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                    // const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
                     console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
                     let upsertMessage = await mPrisma.omnichat.upsert({
                         where: {
@@ -403,17 +404,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         update: {
                             last_message: jsonBody.data.content,
                             last_messageId: jsonBody.data.message_id,
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
-                                }
-                            },
                             messages: {
                                 connectOrCreate: {
                                     where: {
@@ -444,31 +434,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
                                     chat_type: jsonBody.data.type
                                 }
-                            },
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
-                                }
                             }
                         },
                         select: {
                             id: true,
                             origin_id: true,
                             externalId: true,
-                            customer: {
-                                select: {
-                                    name: true,
-                                    id: true, 
-                                    origin_id: true,
-                                    email: true
-                                }
-                            },
+                            customer: true,
                             store: {
                                 include: {
                                     channel: {
@@ -499,11 +471,13 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 chat_type: jsonBody.data.type,
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
-                                userName: upsertMessage.customer.name,
+                                imUserId: jsonBody.data.sender.im_user_id,
+                                // userName: upsertMessage.customer.name,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
                                 org_id: org[1],
-                                syncCustomer: (upsertMessage.customer.name == userName) ? true : false
+                                // syncCustomer: (upsertMessage.customer) ? false : true,
+                                syncCustomer: true
                             }
                             pushTask(env, taskPayload);
                         }

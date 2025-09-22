@@ -235,6 +235,19 @@ function GET_PRODUCT (productId, cipher) {
     return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}`;
 }
 
+function GET_CONVERSATION (cipher) {
+    const endpoint = `/customer_service/${apiVersion}/conversations`;
+    const ts = Math.floor(Date.now()/1000);
+    const params = {
+        timestamp: ts,
+        app_key: APP_KEY,
+        shop_cipher: decryptData(cipher),
+        page_size: 5
+    };
+    const signed = getSigned(endpoint, params);
+    return `${OPEN_HOST}${endpoint}?app_key=${APP_KEY}&sign=${signed}&timestamp=${ts}&shop_cipher=${decryptData(cipher)}&page_size=5`;
+}
+
 function GET_MESSAGE (convId, cipher) {
     const endpoint = `/customer_service/${apiVersion}/conversations/${convId}/messages`;
     const ts = Math.floor(Date.now()/1000);
@@ -307,5 +320,6 @@ module.exports = {
     GET_SHIP_TRACKING,
     APPROVAL_RR,
     SEARCH_PRODUCTS,
-    GET_MESSAGE
+    GET_MESSAGE,
+    GET_CONVERSATION
 }

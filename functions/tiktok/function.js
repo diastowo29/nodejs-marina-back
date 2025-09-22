@@ -1,4 +1,4 @@
-const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE } = require("../../config/tiktok_apis");
+const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE, GET_CONVERSATION } = require("../../config/tiktok_apis");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
@@ -350,7 +350,10 @@ async function collectReturnRequest (body, done) {
                     subject: subject,
                     comment: { body: comment },
                     tags: tags,
-                    requester: { external_id: `${body.channel}-${body.customer_id}-${body.shop_id}` },
+                    requester: { 
+                        name: `Customer ${body.customer_id}`,
+                        external_id: `${body.channel}-${body.customer_id}-${body.shop_id}`
+                    },
                     custom_fields: [
                         {
                             id: findZd.notes.split('-')[0],
@@ -371,11 +374,13 @@ async function collectReturnRequest (body, done) {
                     ]
                 }
             }
-            // console.log(ticketData)
+            console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
-                console.log(err.response.data);
+                if (err.response && err.response.data) {
+                    console.log(JSON.stringify(err.response.data));
+                }
             })
         }
     }
@@ -578,25 +583,66 @@ async function forwardConversation (body, done) {
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
-        let buyerName = body.userName;
+        let buyerName = '';
+        let buyerId = '';
         let suncoConvId;
         if (body.syncCustomer) {
             try {
                 console.log('Sync Customers');
-                const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                // console.log(JSON.stringify(tiktokConvList.data.data));
                 let buyerFound = false;
-                tiktokMessages.data.data.messages.forEach(async message => {
+                tiktokConvList.data.data.conversations.forEach(conversation => {
+                    if (conversation.id == body.message.origin_id) {
+                        conversation.participants.forEach(participant => {
+                            if (participant.im_user_id == body.imUserId) {
+                                buyerFound = true;
+                                buyerName = participant.nickname;
+                                buyerId = participant.user_id;
+                            }
+                        });
+                    }
+                });
+                /* tiktokConvList.data.data.messages.forEach(async message => {
                     if (message.sender.im_user_id == body.message.customer.origin_id) {
                         if (!buyerFound) {
                             buyerName = message.sender.nickname;
                             buyerFound = true;
                         }
                     }
-                });
+                }); */
                 if (buyerFound) {
-                    await prisma.customers.update({
+                    /* await prisma.customers.update({
                         where: { origin_id: body.message.customer.origin_id },
                         data: { name: buyerName }
+                    }) */
+                    prisma.customers.upsert({
+                        where: {
+                            origin_id: buyerId
+                        },
+                        create: {
+                            origin_id: buyerId,
+                            name: buyerName
+                        },
+                        update: {
+                            name: buyerName
+                        }
+                    }).then(() => {
+                        prisma.omnichat.update({
+                            where: {
+                                origin_id: body.message.origin_id
+                            },
+                            data: {
+                                customer: {
+                                    connect: {
+                                        origin_id: buyerId
+                                    }
+                                }
+                            }
+                        }).then((omnichat) => {
+                            console.log("omnichat updated");
+                        })
                     })
                 }
             } catch (error) {
@@ -605,7 +651,7 @@ async function forwardConversation (body, done) {
         }
         if (!body.message.externalId) {
             const suncoMetadata = {
-                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.customer.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: (body.message.customer) ? body.message.customer.origin_id : buyerId,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
@@ -688,9 +734,30 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "ORDER_CARD": 
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
+                try {
+                    if (messageContent.hasOwnProperty('order_id')) {
+                        prisma.orders.findUnique({
+                            where: {
+                                origin_id: messageContent.order_id
+                            }
+                        }).then((order) => {
+                            suncoMessagePayload.content = {
+                                type: "text",
+                                text:`Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}`
+                            }
+                        }).catch((err) => {
+                            console.log(err)
+                            suncoMessagePayload.content = {
+                                type: "text",
+                                text:`Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}`
+                            }
+                        })
+                    }
+                } catch (err) {
+                    suncoMessagePayload.content = {
+                        type: "text",
+                        text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
+                    }
                 }
                 break;
             default:
@@ -711,14 +778,14 @@ async function forwardConversation (body, done) {
         }) */
 
         // console.log(suncoMessagePayload);
-        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        /* postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('recreate conversation');
-                    let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+                    let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
                     conversationBody.metadata = suncoMetadata;
                     let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
@@ -732,7 +799,7 @@ async function forwardConversation (body, done) {
                     }
                 }
             }
-        })
+        }) */
     }
 
     if (findSf) {

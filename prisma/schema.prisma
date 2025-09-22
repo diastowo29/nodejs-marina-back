@@ -12,6 +12,7 @@ model customers {
   id            Int             @id @default(autoincrement())
   name          String?
   origin_id     String?         @unique
+  im_origin_id String? @unique
   phone         String?
   email         String?
   orders        orders[]
@@ -159,7 +160,7 @@ model omnichat {
   updatedAt      DateTime        @default(now())
   storeId        Int?
   externalId     String?
-  customer       customers       @relation(fields: [customersId], references: [id])
+  customer       customers?       @relation(fields: [customersId], references: [id])
   store          store?          @relation(fields: [storeId], references: [id])
   messages       omnichat_line[]
   customersId    Int
