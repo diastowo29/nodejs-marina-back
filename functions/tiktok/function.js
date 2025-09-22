@@ -700,7 +700,7 @@ async function forwardConversation (body, done) {
                 type: 'user',
                 userExternalId: body.userExternalId
             }
-        }        
+        }
         switch (body.chat_type) {
             case "TEXT":
                 suncoMessagePayload.content = {
@@ -723,6 +723,7 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "PRODUCT_CARD": 
+                var content = (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- ';
                 try {
                     const product = await prisma.products.findFirst({
                         where: {
@@ -737,25 +738,18 @@ async function forwardConversation (body, done) {
                         }
                     })
                     if (product) {
-                        suncoMessagePayload.content = {
-                            type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
-                        }
-                    } else {
-                        suncoMessagePayload.content = {
-                            type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}` : '-- product sample -- '
-                        }
+                        content = `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}`;
                     }
                 } catch (error) {
                     console.log(error);
-                    suncoMessagePayload.content = {
-                        type: "text",
-                        text: (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- '
-                    }
+                }
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: content
                 }
                 break;
             case "ORDER_CARD": 
+                var content = (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- ';
                 try {
                     if (messageContent.hasOwnProperty('order_id')) {
                         prisma.orders.findUnique({
@@ -763,23 +757,17 @@ async function forwardConversation (body, done) {
                                 origin_id: messageContent.order_id
                             }
                         }).then((order) => {
-                            suncoMessagePayload.content = {
-                                type: "text",
-                                text:`Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}`
-                            }
+                            content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}` 
                         }).catch((err) => {
                             console.log(err)
-                            suncoMessagePayload.content = {
-                                type: "text",
-                                text:`Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}`
-                            }
                         })
                     }
                 } catch (err) {
-                    suncoMessagePayload.content = {
-                        type: "text",
-                        text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
-                    }
+                    console.log(err);
+                }
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: content
                 }
                 break;
             default:
@@ -799,8 +787,7 @@ async function forwardConversation (body, done) {
             console.log(error);
         }) */
 
-        // console.log(suncoMessagePayload);
-        /* postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
@@ -821,7 +808,7 @@ async function forwardConversation (body, done) {
                     }
                 }
             }
-        }) */
+        })
     }
 
     if (findSf) {
