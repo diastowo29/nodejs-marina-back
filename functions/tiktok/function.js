@@ -583,8 +583,8 @@ async function forwardConversation (body, done) {
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
-        let buyerName = '';
-        let buyerId = '';
+        let buyerName = `Customer ${body.imUserId}`;
+        let buyerId = body.imUserId;
         let suncoConvId;
         if (body.syncCustomer) {
             try {
@@ -640,9 +640,31 @@ async function forwardConversation (body, done) {
                                     }
                                 }
                             }
-                        }).then((omnichat) => {
+                        }).then(() => {
                             console.log("omnichat updated");
                         })
+                    })
+                } else {
+                    console.log('=== Buyer not found, replace using default im_user_id ===')
+                    prisma.omnichat.update({
+                        where: {
+                            origin_id: body.message.origin_id
+                        },
+                        data: {
+                            customer: {
+                                connectOrCreate: {
+                                    create: {
+                                        name: buyerName,
+                                        origin_id: buyerId
+                                    },
+                                    where: {
+                                        origin_id: buyerId
+                                    }
+                                }
+                            }
+                        }
+                    }).then(() => {
+                        console.log("omnichat updated");
                     })
                 }
             } catch (error) {

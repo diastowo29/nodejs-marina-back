@@ -472,12 +472,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
                                 imUserId: jsonBody.data.sender.im_user_id,
-                                // userName: upsertMessage.customer.name,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
                                 org_id: org[1],
-                                // syncCustomer: (upsertMessage.customer) ? false : true,
-                                syncCustomer: true
+                                syncCustomer: (upsertMessage.customer) ? false : true
                             }
                             pushTask(env, taskPayload);
                         }
