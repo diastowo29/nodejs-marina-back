@@ -319,22 +319,22 @@ async function collectReturnRequest (body, done) {
     if (body.integration.length > 0) {
         let subject = '';
         let comment = '';
-        let tags = [];
+        let tags = [`m_${body.channel}`];
         switch (body.status) {
             case 'CANCELLATION':
-                subject = 'Cancellation Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Cancellation Request: ${body.order_id}`;
                 comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
                 tags.push('marina_cancellation');
                 break;
             case 'REFUND':
-                subject = 'Refund Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Refund Request: ${body.order_id}`;
                 comment = `User request a refund to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
                 Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
-                tags.push('marina_return_refund');
+                tags.push('marina_refund');
                 break;
             case 'RETURN_AND_REFUND':
-                subject = 'Return Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Return Request: ${body.order_id}`;
                 comment = `User request a return to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
                 Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
@@ -349,9 +349,8 @@ async function collectReturnRequest (body, done) {
                 ticket: {
                     subject: subject,
                     comment: { body: comment },
-                    // requester: { external_id: `6972710759960723714-7530485791072960776-7495813365286538189` },
                     tags: tags,
-                    requester: { external_id: `tiktok-${body.customer_id}-${body.shop_id}` },
+                    requester: { external_id: `${body.channel}-${body.customer_id}-${body.shop_id}` },
                     custom_fields: [
                         {
                             id: findZd.notes.split('-')[0],
@@ -364,7 +363,7 @@ async function collectReturnRequest (body, done) {
                             value: body.shop_id
                         },{
                             id: findZd.notes.split('-')[3],
-                            value: 'tiktok'
+                            value: body.channel
                         },{
                             id: findZd.notes.split('-')[4],
                             value: body.shop_id
