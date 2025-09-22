@@ -575,7 +575,7 @@ async function forwardConversation (body, done) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
-        let userExternalId = `tiktok-${body.imUserId}-${body.shopId}`
+        let userExternalId = (body.message.customer) ? `tiktok-${body.message.customer.origin_id}-${body.shopId}` : `tiktok-${body.imUserId}-${body.shopId}`
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;

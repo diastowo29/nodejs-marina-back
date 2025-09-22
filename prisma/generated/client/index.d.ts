@@ -13027,7 +13027,7 @@ export namespace Prisma {
     updatedAt: Date
     storeId: number | null
     externalId: string | null
-    customersId: number
+    customersId: number | null
     _count: OmnichatCountAggregateOutputType | null
     _avg: OmnichatAvgAggregateOutputType | null
     _sum: OmnichatSumAggregateOutputType | null
@@ -13137,7 +13137,7 @@ export namespace Prisma {
       updatedAt: Date
       storeId: number | null
       externalId: string | null
-      customersId: number
+      customersId: number | null
     }, ExtArgs["result"]["omnichat"]>
     composites: {}
   }
@@ -24266,7 +24266,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"omnichat"> | Date | string
     storeId?: IntNullableFilter<"omnichat"> | number | null
     externalId?: StringNullableFilter<"omnichat"> | string | null
-    customersId?: IntFilter<"omnichat"> | number
+    customersId?: IntNullableFilter<"omnichat"> | number | null
     customer?: XOR<CustomersNullableScalarRelationFilter, customersWhereInput> | null
     store?: XOR<StoreNullableScalarRelationFilter, storeWhereInput> | null
     messages?: Omnichat_lineListRelationFilter
@@ -24281,7 +24281,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     storeId?: SortOrderInput | SortOrder
     externalId?: SortOrderInput | SortOrder
-    customersId?: SortOrder
+    customersId?: SortOrderInput | SortOrder
     customer?: customersOrderByWithRelationInput
     store?: storeOrderByWithRelationInput
     messages?: omnichat_lineOrderByRelationAggregateInput
@@ -24299,7 +24299,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"omnichat"> | Date | string
     storeId?: IntNullableFilter<"omnichat"> | number | null
     externalId?: StringNullableFilter<"omnichat"> | string | null
-    customersId?: IntFilter<"omnichat"> | number
+    customersId?: IntNullableFilter<"omnichat"> | number | null
     customer?: XOR<CustomersNullableScalarRelationFilter, customersWhereInput> | null
     store?: XOR<StoreNullableScalarRelationFilter, storeWhereInput> | null
     messages?: Omnichat_lineListRelationFilter
@@ -24314,7 +24314,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     storeId?: SortOrderInput | SortOrder
     externalId?: SortOrderInput | SortOrder
-    customersId?: SortOrder
+    customersId?: SortOrderInput | SortOrder
     _count?: omnichatCountOrderByAggregateInput
     _avg?: omnichatAvgOrderByAggregateInput
     _max?: omnichatMaxOrderByAggregateInput
@@ -24334,7 +24334,7 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"omnichat"> | Date | string
     storeId?: IntNullableWithAggregatesFilter<"omnichat"> | number | null
     externalId?: StringNullableWithAggregatesFilter<"omnichat"> | string | null
-    customersId?: IntWithAggregatesFilter<"omnichat"> | number
+    customersId?: IntNullableWithAggregatesFilter<"omnichat"> | number | null
   }
 
   export type omnichat_lineWhereInput = {
@@ -25769,7 +25769,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     storeId?: number | null
     externalId?: string | null
-    customersId: number
+    customersId?: number | null
     messages?: omnichat_lineUncheckedCreateNestedManyWithoutOmnichatInput
   }
 
@@ -25794,7 +25794,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     storeId?: NullableIntFieldUpdateOperationsInput | number | null
     externalId?: NullableStringFieldUpdateOperationsInput | string | null
-    customersId?: IntFieldUpdateOperationsInput | number
+    customersId?: NullableIntFieldUpdateOperationsInput | number | null
     messages?: omnichat_lineUncheckedUpdateManyWithoutOmnichatNestedInput
   }
 
@@ -25807,7 +25807,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     storeId?: number | null
     externalId?: string | null
-    customersId: number
+    customersId?: number | null
   }
 
   export type omnichatUpdateManyMutationInput = {
@@ -25828,7 +25828,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     storeId?: NullableIntFieldUpdateOperationsInput | number | null
     externalId?: NullableStringFieldUpdateOperationsInput | string | null
-    customersId?: IntFieldUpdateOperationsInput | number
+    customersId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type omnichat_lineCreateInput = {
@@ -28998,7 +28998,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"omnichat"> | Date | string
     storeId?: IntNullableFilter<"omnichat"> | number | null
     externalId?: StringNullableFilter<"omnichat"> | string | null
-    customersId?: IntFilter<"omnichat"> | number
+    customersId?: IntNullableFilter<"omnichat"> | number | null
   }
 
   export type productsCreateWithoutProduct_imgInput = {
@@ -29223,7 +29223,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     externalId?: string | null
-    customersId: number
+    customersId?: number | null
     messages?: omnichat_lineUncheckedCreateNestedManyWithoutOmnichatInput
   }
 
@@ -30641,7 +30641,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     storeId?: number | null
     externalId?: string | null
-    customersId: number
+    customersId?: number | null
   }
 
   export type omnichatCreateOrConnectWithoutMessagesInput = {
@@ -30680,7 +30680,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     storeId?: NullableIntFieldUpdateOperationsInput | number | null
     externalId?: NullableStringFieldUpdateOperationsInput | string | null
-    customersId?: IntFieldUpdateOperationsInput | number
+    customersId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type channelCreateWithoutClientInput = {
@@ -31603,7 +31603,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     externalId?: string | null
-    customersId: number
+    customersId?: number | null
   }
 
   export type ordersCreateManyStoreInput = {
@@ -31686,7 +31686,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     externalId?: NullableStringFieldUpdateOperationsInput | string | null
-    customersId?: IntFieldUpdateOperationsInput | number
+    customersId?: NullableIntFieldUpdateOperationsInput | number | null
     messages?: omnichat_lineUncheckedUpdateManyWithoutOmnichatNestedInput
   }
 
@@ -31698,7 +31698,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     externalId?: NullableStringFieldUpdateOperationsInput | string | null
-    customersId?: IntFieldUpdateOperationsInput | number
+    customersId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type ordersUpdateWithoutStoreInput = {
