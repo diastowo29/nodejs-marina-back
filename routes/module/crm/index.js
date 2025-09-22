@@ -75,10 +75,10 @@ router.post('/', async function(req, res, next) {
     if (req.body.crm == 'zendesk') {
         try {
             const zdConfig = await Promise.all([
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_USER_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina User ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Message ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Store ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Channel')),
                 axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'MM_SHOP', storeOptions)),
                 axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
