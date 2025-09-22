@@ -474,6 +474,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 imUserId: jsonBody.data.sender.im_user_id,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
+                                shopId: jsonBody.shop_id,
                                 org_id: org[1],
                                 syncCustomer: (upsertMessage.customer) ? false : true
                             }

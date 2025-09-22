@@ -575,6 +575,7 @@ async function forwardConversation (body, done) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
+        let userExternalId = `tiktok-${body.imUserId}-${body.shopId}`
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
@@ -600,6 +601,7 @@ async function forwardConversation (body, done) {
                                 buyerFound = true;
                                 buyerName = participant.nickname;
                                 buyerId = participant.user_id;
+                                userExternalId = `tiktok-${buyerId}-${body.shopId}`
                             }
                         });
                     }
@@ -680,10 +682,10 @@ async function forwardConversation (body, done) {
                 [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
                 marina_org_id: body.org_id
             }
-            let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
+            let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId);
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
-            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody);
             suncoConvId = suncoConversation.conversation.id;
             await prisma.omnichat.update({
                 where:{ id: body.message.id },
@@ -693,12 +695,12 @@ async function forwardConversation (body, done) {
             suncoConvId = body.message.externalId;
         }
         console.log('Sunco Conv ID: ' + suncoConvId);
-        console.log('Sunco User External ID: ' + body.userExternalId);
+        console.log('Sunco User External ID: ' + userExternalId);
         let messageContent = JSON.parse(body.message_content);
         let suncoMessagePayload = {
             author: {
                 type: 'user',
-                userExternalId: body.userExternalId
+                userExternalId: userExternalId
             }
         }
         switch (body.chat_type) {
@@ -794,7 +796,7 @@ async function forwardConversation (body, done) {
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('recreate conversation');
-                    let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
+                    let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
                     conversationBody.metadata = suncoMetadata;
                     let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
