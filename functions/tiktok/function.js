@@ -441,29 +441,32 @@ async function collectTiktokProduct (body, done) {
                     })
                 )
             });
-            const updatedProduts = await Promise.all(updatedPromises);
-            // console.log(updatedProduts);
-            updatedProduts.forEach(product => {
-                if (product.product_img.length == 0) {
-                    tiktokProduct.skus.forEach(sku => {
-                        needImgList.push({
-                            originalUrl: tiktokProduct.main_images[0].urls[0],
-                            thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
-                            origin_id: `IMG-${tiktokProduct.id}`,
-                            productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
-                            height: tiktokProduct.main_images[0].height,
-                            width: tiktokProduct.main_images[0].width
-                        })
-                    });
+            Promise.all(updatedPromises).then((updatedProduts) => {
+                let needImgList = [];
+                updatedProduts.forEach(product => {
+                    if (product.product_img.length == 0) {
+                        tiktokProduct.skus.forEach(sku => {
+                            needImgList.push({
+                                originalUrl: tiktokProduct.main_images[0].urls[0],
+                                thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${tiktokProduct.id}`,
+                                productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
+                                height: tiktokProduct.main_images[0].height,
+                                width: tiktokProduct.main_images[0].width
+                            })
+                        });
+                    }
+                });
+                if (needImgList.length > 0) {
+                    prisma.products_img.createMany({
+                        data: needImgList
+                    }).then(() => {
+                        console.log('img synced');
+                    })
                 }
+            }).catch((err) => {
+                console.log(err);
             });
-            if (needImgList.length > 0) {
-                prisma.products_img.createMany({
-                    data: needImgList
-                }).then(() => {
-                    console.log('img synced');
-                })
-            }
             /* prisma.products.findMany({
                 where: {
                     OR: findQuery
