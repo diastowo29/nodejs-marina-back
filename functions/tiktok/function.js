@@ -409,10 +409,51 @@ async function collectTiktokProduct (body, done) {
             weight: productData.package_weight.value ? Number(productData.package_weight.value): 0,
         }))
     console.log(data); */
-    console.log(productData.data);
+    // console.log(productData.data);
     const tiktokProduct = productData.data.data;
     // console.log(tiktokProduct)
     if (tiktokProduct) {
+        if (body.code == 15) {
+            let findQuery = [];
+            tiktokProduct.skus.forEach(sku => {
+                findQuery.push({
+                    origin_id: `${tiktokProduct.id}-${sku.id}`
+                })
+            });
+            prisma.products.findMany({
+                where: {
+                    OR: findQuery
+                },
+                select: {
+                    id: true,
+                    origin_id: true,
+                    product_img: true
+                }
+            }).then((products) => {
+                // console.log(products);
+                let needImgList = [];
+                /* looking for missing image */
+                products.forEach(product => {
+                    if (product.product_img.length == 0) {
+                        tiktokProduct.skus.forEach(sku => {
+                            needImgList.push({
+                                originalUrl: tiktokProduct.main_images[0].urls[0],
+                                thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${tiktokProduct.id}`,
+                                productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
+                                height: tiktokProduct.main_images[0].height,
+                                width: tiktokProduct.main_images[0].width
+                            })
+                        });
+                    }
+                });
+                prisma.products_img.createMany({
+                    data: needImgList
+                }).then(() => {
+                    console.log('img synced');
+                })
+            })
+        }
         prisma.products.createManyAndReturn({
             skipDuplicates: true,
             data: tiktokProduct.skus.map(item => ({
