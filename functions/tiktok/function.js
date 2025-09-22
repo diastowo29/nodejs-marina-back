@@ -415,12 +415,56 @@ async function collectTiktokProduct (body, done) {
     if (tiktokProduct) {
         if (body.code == 15) {
             let findQuery = [];
+            let updatedPromises = [];
             tiktokProduct.skus.forEach(sku => {
                 findQuery.push({
                     origin_id: `${tiktokProduct.id}-${sku.id}`
                 })
+                updatedPromises.push(
+                    prisma.products.update({
+                        data: {
+                            name: tiktokProduct.title,
+                            condition: tiktokProduct.is_pre_owned ? 2 : 1,
+                            desc: tiktokProduct.description,
+                            price: Number(sku.price.sale_price),
+                            sku: sku.seller_sku,
+                            stock: sku.inventory[0].quantity,
+                        },
+                        where: {
+                            origin_id: `${tiktokProduct.id}-${sku.id}`
+                        },
+                        select: {
+                            id: true,
+                            product_img: true,
+                            origin_id: true
+                        }
+                    })
+                )
             });
-            prisma.products.findMany({
+            const updatedProduts = await Promise.all(updatedPromises);
+            // console.log(updatedProduts);
+            updatedProduts.forEach(product => {
+                if (product.product_img.length == 0) {
+                    tiktokProduct.skus.forEach(sku => {
+                        needImgList.push({
+                            originalUrl: tiktokProduct.main_images[0].urls[0],
+                            thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                            origin_id: `IMG-${tiktokProduct.id}`,
+                            productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
+                            height: tiktokProduct.main_images[0].height,
+                            width: tiktokProduct.main_images[0].width
+                        })
+                    });
+                }
+            });
+            if (needImgList.length > 0) {
+                prisma.products_img.createMany({
+                    data: needImgList
+                }).then(() => {
+                    console.log('img synced');
+                })
+            }
+            /* prisma.products.findMany({
                 where: {
                     OR: findQuery
                 },
@@ -430,9 +474,7 @@ async function collectTiktokProduct (body, done) {
                     product_img: true
                 }
             }).then((products) => {
-                // console.log(products);
                 let needImgList = [];
-                /* looking for missing image */
                 products.forEach(product => {
                     if (product.product_img.length == 0) {
                         tiktokProduct.skus.forEach(sku => {
@@ -447,12 +489,14 @@ async function collectTiktokProduct (body, done) {
                         });
                     }
                 });
-                prisma.products_img.createMany({
-                    data: needImgList
-                }).then(() => {
-                    console.log('img synced');
-                })
-            })
+                if (needImgList.length > 0) {
+                    prisma.products_img.createMany({
+                        data: needImgList
+                    }).then(() => {
+                        console.log('img synced');
+                    })
+                }
+            }) */
         }
         prisma.products.createManyAndReturn({
             skipDuplicates: true,
