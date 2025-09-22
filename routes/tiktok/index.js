@@ -514,8 +514,25 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     res.status(400).send({error: err});
                 }
                 break;
+            case 15:
+                console.log('get product id: ' + jsonBody.data.product_id);
+                const productUpdtId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
+                taskPayload = {
+                    tenantDB: getTenantDB(org[1]),
+                    channel: TIKTOK,
+                    code: jsonBody.type,
+                    product_id: productUpdtId,
+                    shop_id: jsonBody.shop_id,
+                    org_id: org[1]
+                }
+                pushTask(env, taskPayload);
+                res.status(200).send({bigint: productUpdtId, id:jsonBody.data.product_id })
+                break;
             case 16: 
+                console.log('get product id: ' + jsonBody.data.product_id);
                 const productId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
                 taskPayload = {
                     tenantDB: getTenantDB(org[1]),
                     channel: TIKTOK,
