@@ -374,7 +374,7 @@ async function collectReturnRequest (body, done) {
                     ]
                 }
             }
-            console.log(ticketData)
+            // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
@@ -575,7 +575,7 @@ async function forwardConversation (body, done) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
-        let userExternalId = (body.message.customer) ? `tiktok-${body.message.customer.origin_id}-${body.shopId}` : `tiktok-${body.imUserId}-${body.shopId}`
+        let userExternalId = (body.syncCustomer) ? `tiktok-${body.imUserId}-${body.shopId}` : `tiktok-${body.message.customer.origin_id}-${body.shopId}`
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
@@ -584,53 +584,20 @@ async function forwardConversation (body, done) {
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
-        let buyerName = `Customer ${body.imUserId}`;
-        let buyerId = body.imUserId;
+        let buyerId = (body.syncCustomer) ?  body.imUserId : body.message.customer.origin_id;
+        let imUserId = '';
+        let buyerName = (body.syncCustomer) ? `Customer ${body.imUserId}` : body.message.customer.name;
         let suncoConvId;
         if (body.syncCustomer) {
             try {
-                console.log('Sync Customers');
-                // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
-                const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
-                // console.log(JSON.stringify(tiktokConvList.data.data));
-                let buyerFound = false;
-                tiktokConvList.data.data.conversations.forEach(conversation => {
-                    if (conversation.id == body.message.origin_id) {
-                        conversation.participants.forEach(participant => {
-                            if (participant.im_user_id == body.imUserId) {
-                                buyerFound = true;
-                                buyerName = participant.nickname;
-                                buyerId = participant.user_id;
-                                userExternalId = `tiktok-${buyerId}-${body.shopId}`
-                            }
-                        });
+                prisma.customers.findUnique({
+                    where: {
+                        im_origin_id: body.imUserId
                     }
-                });
-                /* tiktokConvList.data.data.messages.forEach(async message => {
-                    if (message.sender.im_user_id == body.message.customer.origin_id) {
-                        if (!buyerFound) {
-                            buyerName = message.sender.nickname;
-                            buyerFound = true;
-                        }
-                    }
-                }); */
-                if (buyerFound) {
-                    /* await prisma.customers.update({
-                        where: { origin_id: body.message.customer.origin_id },
-                        data: { name: buyerName }
-                    }) */
-                    prisma.customers.upsert({
-                        where: {
-                            origin_id: buyerId
-                        },
-                        create: {
-                            origin_id: buyerId,
-                            name: buyerName
-                        },
-                        update: {
-                            name: buyerName
-                        }
-                    }).then(() => {
+                }).then(async (customers) => {
+                    if (customers) {
+                        buyerId = customers.origin_id;
+                        buyerName = customers.name || `Customer ${buyerId}`
                         prisma.omnichat.update({
                             where: {
                                 origin_id: body.message.origin_id
@@ -638,44 +605,95 @@ async function forwardConversation (body, done) {
                             data: {
                                 customer: {
                                     connect: {
-                                        origin_id: buyerId
+                                        id: customers.id
                                     }
                                 }
                             }
                         }).then(() => {
                             console.log("omnichat updated");
                         })
-                    })
-                } else {
-                    console.log('=== Buyer not found, replace using default im_user_id ===')
-                    prisma.omnichat.update({
-                        where: {
-                            origin_id: body.message.origin_id
-                        },
-                        data: {
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: buyerName,
-                                        origin_id: buyerId
-                                    },
+                    } else {
+                        console.log('Sync Customers');
+                        // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                        const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                        // console.log(JSON.stringify(tiktokConvList.data.data));
+                        let buyerFound = false;
+                        tiktokConvList.data.data.conversations.forEach(conversation => {
+                            if (conversation.id == body.message.origin_id) {
+                                conversation.participants.forEach(participant => {
+                                    if (participant.im_user_id == body.imUserId) {
+                                        buyerFound = true;
+                                        imUserId = participant.im_user_id
+                                        buyerName = participant.nickname;
+                                        buyerId = participant.user_id;
+                                        userExternalId = `tiktok-${buyerId}-${body.shopId}`
+                                    }
+                                });
+                            }
+                        })
+                        if (buyerFound) {
+                            prisma.customers.upsert({
+                                where: {
+                                    origin_id: buyerId
+                                },
+                                create: {
+                                    origin_id: buyerId,
+                                    im_origin_id: imUserId,
+                                    name: buyerName || `Customer ${buyerId}`
+                                },
+                                update: {
+                                    name: buyerName,
+                                    im_origin_id: imUserId
+                                }
+                            }).then(() => {
+                                prisma.omnichat.update({
                                     where: {
-                                        origin_id: buyerId
+                                        origin_id: body.message.origin_id
+                                    },
+                                    data: {
+                                        customer: {
+                                            connect: {
+                                                origin_id: buyerId
+                                            }
+                                        }
+                                    }
+                                }).then(() => {
+                                    console.log("omnichat updated");
+                                })
+                            })
+                        } else {
+                            console.log('=== Buyer not found, replace using default im_user_id ===')
+                            prisma.omnichat.update({
+                                where: {
+                                    origin_id: body.message.origin_id
+                                },
+                                data: {
+                                    customer: {
+                                        connectOrCreate: {
+                                            create: {
+                                                name: buyerName,
+                                                origin_id: buyerId
+                                            },
+                                            where: {
+                                                origin_id: buyerId
+                                            }
+                                        }
                                     }
                                 }
-                            }
+                            }).then(() => {
+                                console.log("omnichat updated");
+                            })
                         }
-                    }).then(() => {
-                        console.log("omnichat updated");
-                    })
-                }
+                    }
+                })
             } catch (error) {
                 console.log(error);
             }
         }
         if (!body.message.externalId) {
+            const customerOriginId = (body.message.customer) ? body.message.customer.origin_id : buyerId
             const suncoMetadata = {
-                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: (body.message.customer) ? body.message.customer.origin_id : buyerId,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: customerOriginId,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
@@ -759,7 +777,9 @@ async function forwardConversation (body, done) {
                                 origin_id: messageContent.order_id
                             }
                         }).then((order) => {
-                            content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}` 
+                            if (order) {
+                                content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}` 
+                            }
                         }).catch((err) => {
                             console.log(err)
                         })
