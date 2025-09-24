@@ -195,7 +195,6 @@ async function collectShopeeOrder (body, done) {
             }
         }
     }).then(async (orderUpdate) => {
-        console.log(orderUpdate);
         let productsToFetch = [];
         orderUpdate.order_items.forEach(item => {
             if (item.products.product_img.length == 0) {
@@ -204,7 +203,6 @@ async function collectShopeeOrder (body, done) {
             }
         });
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
-            console.log(shopeeProducts.data);
             if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
                 console.log('products not found');
                 return;
@@ -212,10 +210,10 @@ async function collectShopeeOrder (body, done) {
                 let productImgs = [];
                 shopeeProducts.data.response.item_list.forEach(item => {
                     productImgs.push({
-                        originalUrl: item.image_url_list[0],
-                        origin_id: `IMG-${item.id}`,
-                        productsId: orderUpdate.order_items.find(item => item.products.origin_id.startsWith(item.id)).products.id
-                    })
+                        originalUrl: item.image.image_url_list[0],
+                        origin_id: `IMG-${item.item_id}`,
+                        productsId: orderUpdate.order_items.find((orderItem) => orderItem.products.origin_id.startsWith(item.item_id.toString())).products.id
+                    });
                 });
                 prisma.products_img.createMany({
                     skipDuplicates: true,

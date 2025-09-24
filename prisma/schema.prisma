@@ -71,11 +71,26 @@ model products {
   createdAt   DateTime       @default(now())
   weight      Int?
   stock       Int?
+  pre_order   Boolean?
   sku         String?
   storeId     Int?
   order_items order_items[]
   store       store?         @relation(fields: [storeId], references: [id])
   product_img products_img[]
+  varian      varian[]
+}
+
+model varian {
+  id         Int      @id @default(autoincrement())
+  origin_id  String?  @unique
+  product    products @relation(fields: [productsOriginId], references: [origin_id])
+  price      Int
+  name       String
+  sku        String?
+  stock      Int?
+  status     String?
+  pre_order  Boolean?
+  productsOriginId String
 }
 
 model order_items {

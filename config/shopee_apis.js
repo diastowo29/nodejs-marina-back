@@ -16,13 +16,19 @@ const GET_SHOPEE_REFRESH_TOKEN = '/api/v2/auth/access_token/get';
 function GET_SHOPEE_PRODUCTS_LIST (accessToken, shopId) {
     const path = '/api/v2/product/get_item_list';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
-    return `${SHOPEE_HOST}${path}?${shopSignedParam}&offset=0&page_size=50&item_status=NORMAL`;
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}&offset=0&page_size=20&item_status=NORMAL`;
 }
 
 function GET_SHOPEE_PRODUCTS_INFO (accessToken, productIds, shopId) {
     const path = '/api/v2/product/get_item_base_info';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
     return `${SHOPEE_HOST}${path}?${shopSignedParam}&item_id_list=${productIds.toString()}`;
+}
+
+function GET_SHOPEE_PRODUCTS_MODEL (accessToken, productId, shopId) {
+    const path = '/api/v2/product/get_model_list';
+    let shopSignedParam = shopeeSign(path, accessToken, shopId);
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}&item_id=${productId.toString()}`;
 }
 
 function GET_SHOPEE_ORDER_DETAIL (accessToken, orderId, shopId) {
@@ -72,5 +78,6 @@ module.exports = {
     SHOPEE_CANCEL_ORDER,
     SHOPEE_SHIP_ORDER,
     GET_SHOPEE_REFRESH_TOKEN,
-    GET_SHOPEE_SHIP_PARAMS
+    GET_SHOPEE_SHIP_PARAMS,
+    GET_SHOPEE_PRODUCTS_MODEL
 }

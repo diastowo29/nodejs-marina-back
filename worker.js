@@ -18,7 +18,7 @@ let suncoKeyId = process.env.SUNCO_KEY_ID
 let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 
 const express = require('express');
-const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL } = require('./config/shopee_apis');
+const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
@@ -27,6 +27,9 @@ const { getPrismaClient, getPrismaClientForTenant } = require('./services/prisma
 const { Prisma } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
 const { PrismaClient } = require('./prisma/generated/client');
+const { encryptData } = require('./functions/encryption');
+const { url } = require('inspector');
+const { mode } = require('crypto-js');
 const app = express();
 let prisma = new PrismaClient();
 if (env == 'production') {
@@ -435,7 +438,7 @@ async function processTokopediaChat(body, done) {
 }
 
 async function processShopee(body, done) {
-    console.log(JSON.stringify(body));
+    // console.log(JSON.stringify(body));
     /* WORKER PART */
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const tenantConfig = {
@@ -458,10 +461,9 @@ async function processShopee(body, done) {
                 let newToken = await generateShopeeToken(body.shop_id, refToken, tenantConfig);
                 accToken = newToken.access_token;
                 refToken = newToken.refresh_token;
-                console.log(newToken);
                 if (newToken.access_token) {
                     return api.get(
-                        GET_SHOPEE_PRODUCTS_LIST(newToken.access_token, body.shop_id)
+                        GET_SHOPEE_PRODUCTS_LIST(encryptData(newToken.access_token), body.shop_id)
                     );
                 }
             }
@@ -469,6 +471,7 @@ async function processShopee(body, done) {
         if ((!products) || (!products.data.error)) {
             let productIds = products.data.response.item.map(item => item.item_id);
             // console.log(GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id))
+            console.log('getting base info total %s product', productIds.length);
             const productsInfo = await api.get(
                 GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id)
             ).catch(function (err) {
@@ -479,29 +482,74 @@ async function processShopee(body, done) {
                     skipDuplicates: true,
                     data: productsInfo.data.response.item_list.map(item => ({
                         condition: (item.condition == 'NEW') ? 1 : 2,
-                        currency: item.price_info.currency,
+                        currency: (item.price_info) ? item.price_info[0].currency : "",
                         name: item.item_name,
                         origin_id: item.item_id.toString(),
                         category: item.category_id,
-                        desc: item.description_info.extended_description.field_list[0].text,
-                        price: item.price_info[0].original_price,
+                        desc: item.description || item.description_info.extended_description.field_list[0].text,
+                        price: (item.price_info) ? item.price_info[0].original_price : 0,
                         sku: item.item_sku,
                         status: item.item_status,
-                        stock: item.stock_info_v2.summary_info.total_available_stock,
+                        stock: (item.stock_info_v2) ? item.stock_info_v2.summary_info.total_available_stock : 0,
                         weight: Number.parseInt(item.weight),
-                        storeId: body.m_shop_id
+                        storeId: body.m_shop_id,
+                        url: `https://shopee.co.id/product/${body.shop_id}/${item.item_id}`
                     }))
                 }).then(async (newProducts) => {
-                    if (newProducts.length > 0) {
-                        await prisma.products_img.createManyAndReturn({
-                            skipDuplicates: true,
-                            data: productsInfo.data.response.item_list.map(item => ({
-                                filename: item.item_name,
-                                origin_id: item.image.image_id_list[0],
-                                originalUrl: item.image.image_url_list[0],
-                                productsId: newProducts.find(product => product.origin_id == item.item_id.toString()).id,
-                            }))
+                    /* GET PRODUCT VARIANT */
+                    try {
+                        const getModelIdsPromises = [];
+                        const getModelProductIds = [];
+                        productsInfo.data.response.item_list.forEach(item => {
+                            if (item.has_model) {
+                                getModelProductIds.push(item.item_id);
+                                getModelIdsPromises.push(
+                                    api.get(GET_SHOPEE_PRODUCTS_MODEL(accToken, item.item_id, body.shop_id))
+                                );
+                            }
                         });
+                        const productsModel = await Promise.all(getModelIdsPromises);
+                        // console.log(JSON.stringify(productsModel[0].data.response));
+                        const modelToCreate = [];
+                        getModelProductIds.forEach((id, i) => {
+                            if (productsModel[i].data && productsModel[i].data.response) {
+                                const modelData = productsModel[i].data.response;
+                                modelData.model.forEach(model => {
+                                    modelToCreate.push({
+                                        name: model.model_name,
+                                        price: model.price_info[0].current_price || model.price_info[0].original_price,
+                                        origin_id: model.model_id.toString(),
+                                        pre_order: model.pre_order.is_pre_order,
+                                        sku: model.model_sku,
+                                        status: model.model_status,
+                                        productsOriginId: id.toString(),
+                                        stock: model.stock_info_v2.summary_info.total_available_stock
+                                    });
+                                });
+                            }
+                        });
+                        prisma.varian.createMany({
+                            skipDuplicates: true,
+                            data: modelToCreate
+                        }).then((varian) => {
+                            console.log(varian);
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+                        if (newProducts.length > 0) {
+                            await prisma.products_img.createManyAndReturn({
+                                skipDuplicates: true,
+                                data: productsInfo.data.response.item_list.map(item => ({
+                                    filename: item.item_name,
+                                    origin_id: item.image.image_id_list[0],
+                                    originalUrl: item.image.image_url_list[0],
+                                    productsId: newProducts.find(product => product.origin_id == item.item_id.toString()).id,
+                                }))
+                            });
+                        }
+                    } catch (err) {
+                        console.log(err);
+                        console.log('Error getting list of model');
                     }
                     if (env !== 'production') {
                         done(null, {response: 'testing'});

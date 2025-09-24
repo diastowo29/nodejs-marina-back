@@ -5,7 +5,7 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { api } = require('../../functions/axios/interceptor');
 const { GET_SHOPEE_TOKEN, GET_SHOPEE_SHOP_INFO_PATH, SHOPEE_HOST, GET_SHOPEE_SHIP_PARAMS, SHOPEE_CANCEL_ORDER, SHOPEE_SHIP_ORDER, GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, PARTNER_KEY } = require('../../config/shopee_apis');
-const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses, RRShopeeStatus } = require('../../config/utils');
+const { SHOPEE, PATH_AUTH, PATH_CHAT, PATH_WEBHOOK, storeStatuses, RRShopeeStatus, convertOrgName } = require('../../config/utils');
 const { generateShopeeToken } = require('../../functions/shopee/function');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
 const { encryptData, decryptData } = require('../../functions/encryption');
@@ -55,6 +55,10 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
+        console.log(JSON.stringify(jsonBody));
+        if (!mBase) {
+            return res.status(200).send({message: 'clients not found'});
+        }
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
         const tenantDbUrl = getTenantDB(org[1]);
         prisma = getPrismaClientForTenant(org[1], tenantDbUrl.url);
@@ -91,11 +95,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     channel: SHOPEE, 
                     order_id: jsonBody.data.ordersn,
                     id: newOrder.id,
-                    token: decryptData(newOrder.store.token),
+                    token: newOrder.store.token,
                     code: payloadCode,
                     m_shop_id: newOrder.store.id,
                     shop_id: jsonBody.shop_id,
-                    refresh_token: decryptData(newOrder.store.refresh_token),
+                    refresh_token: newOrder.store.refresh_token,
                     tenantDB: tenantDbUrl,
                     org_id: org[1]
                 }
@@ -620,9 +624,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     channel: SHOPEE,
                     code: 9999,
                     shop_id: req.body.shop_id,
-                    token: token.data.access_token,
-                    refresh_token: token.data.refresh_token,
-                    org_id: req.auth.payload.org_id
+                    token: encryptData(token.data.access_token),
+                    refresh_token: encryptData(token.data.refresh_token),
+                    org_id: req.tenantId,
+                    tenantDB: req.tenantDB
                 }
                 // console.log(taskPayload);
                 pushTask(env, taskPayload)
