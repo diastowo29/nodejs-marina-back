@@ -1,18 +1,16 @@
 // const { PrismaClient, Prisma } = require("@prisma/client");
-const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST } = require("../../config/shopee_apis");
+const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO } = require("../../config/shopee_apis");
 const { api } = require("../axios/interceptor");
 // const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
-// const { TOKO_SHOPINFO } = require("../../config/toko_apis");
 const { storeStatuses } = require("../../config/utils");
-const { getPrismaClient, getPrismaClientForTenant } = require("../../services/prismaServices");
+const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { encryptData } = require("../encryption");
 const { PrismaClient } = require("../../prisma/generated/client");
 let prisma = new PrismaClient();
 
 async function collectShopeeOrder (body, done) {
-    // const prisma = getPrismaClient(body.tenantDB);
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
@@ -44,6 +42,7 @@ async function collectShopeeOrder (body, done) {
     let orderData = order.data.response.order_list[0];
     console.log('GOT ORDER DETAILS');
 
+    /* ==== soon need to be optimized ===== */
     /* const orderUpdate = prisma.orders.update({
         where: {
             origin_id: body.order_id.toString()
@@ -116,8 +115,9 @@ async function collectShopeeOrder (body, done) {
     trxArray.push(orderUpdate);
     const orderTrx = await prisma.$transaction(trxArray);
     console.log(orderTrx); */
+    /* ==== soon need to be optimized ===== */
 
-    let orderUpdate = await prisma.orders.update({
+    prisma.orders.update({
         where: {
             origin_id: body.order_id.toString()
         },
@@ -181,10 +181,57 @@ async function collectShopeeOrder (body, done) {
             }
         },
         select: {
-            id: true
+            id: true,
+            order_items: {
+                select: {
+                    products: {
+                        select: {
+                            id: true,
+                            origin_id: true,
+                            product_img: true
+                        }
+                    }
+                }
+            }
         }
-    });
-    console.log(orderUpdate);
+    }).then(async (orderUpdate) => {
+        console.log(orderUpdate);
+        let productsToFetch = [];
+        orderUpdate.order_items.forEach(item => {
+            if (item.products.product_img.length == 0) {
+                console.log('No image for this product, need to fetch');
+                productsToFetch.push(item.products.origin_id.split('-')[0]);
+            }
+        });
+        api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
+            console.log(shopeeProducts.data);
+            if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
+                console.log('products not found');
+                return;
+            } else {
+                let productImgs = [];
+                shopeeProducts.data.response.item_list.forEach(item => {
+                    productImgs.push({
+                        originalUrl: item.image_url_list[0],
+                        origin_id: `IMG-${item.id}`,
+                        productsId: orderUpdate.order_items.find(item => item.products.origin_id.startsWith(item.id)).products.id
+                    })
+                });
+                prisma.products_img.createMany({
+                    skipDuplicates: true,
+                    data: productImgs
+                }).then(() => {
+                    console.log('all product img updated');
+                }, (err) => {
+                    console.log(err)
+                });
+            }
+        }, (err) => {
+            console.log(err);
+        });
+    }).catch((err) => {
+        console.log(err);
+    })
     // done(null, {response: 'testing'});
 }
 
@@ -202,18 +249,23 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
             shop_id: Number.parseInt(shop_id),
         },
     }).catch(async function (err) {
-        console.log(err.response.data);
-        if (err.response.data.error == 'shop_access_expired') {
-            await prisma.store.update({
-                where: {
-                    origin_id: shop_id.toString()
-                },
-                data: {
-                    status: storeStatuses.EXPIRED
-                }
-            })
+        if (err.response) {
+            console.log(err.response.data);
+            if (err.response.data.error == 'shop_access_expired') {
+                await prisma.store.update({
+                    where: {
+                        origin_id: shop_id.toString()
+                    },
+                    data: {
+                        status: storeStatuses.EXPIRED
+                    }
+                })
+            }
+            return err.response.data;
+        } else {
+            console.log(err);
+            return err;
         }
-        return err.response.data;
     });
     if ((token.data) && (token.data.access_token)) {
         await prisma.store.update({
