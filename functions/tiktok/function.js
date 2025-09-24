@@ -1,4 +1,4 @@
-const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE } = require("../../config/tiktok_apis");
+const { GET_ORDER_API, GET_PRODUCT, GET_REFRESH_TOKEN_API, SEARCH_RETURN, GET_RETURN_RECORDS, SEARCH_CANCELLATION, SEND_MESSAGE, GET_MESSAGE, GET_CONVERSATION } = require("../../config/tiktok_apis");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { api } = require("../axios/interceptor");
 const { decryptData, encryptData } = require("../encryption");
@@ -286,15 +286,16 @@ async function collectReturnRequest (body, done) {
             console.log('still no return found -- ignoring for now');
         }
     } else {
+        const ccData = returnData.cancellations.find(cc => cc.cancel_id == body.returnId)
         await prisma.return_refund.update({
             where: {
                 origin_id: body.returnId
             },
             data: {
-                return_reason: returnData.cancellations[0].cancel_reason_text,
-                total_amount: (returnData.cancellations[0].refund_amount) ? Number.parseInt(returnData.cancellations[0].refund_amount.refund_total) : 0,
+                return_reason: ccData.cancel_reason_text,
+                total_amount: (ccData.refund_amount) ? Number.parseInt(ccData.refund_amount.refund_total) : 0,
                 line_item: {
-                    create: returnData.cancellations[0].cancel_line_items.map(item => ({
+                    create: ccData.cancel_line_items.map(item => ({
                             origin_id: item.cancel_line_item_id,
                             currency: (item.refund_amount) ? item.refund_amount.currency : 'IDR',
                             refund_service_fee: (item.refund_amount) ? Number.parseInt(item.refund_amount.buyer_service_fee) : 0,
@@ -308,10 +309,7 @@ async function collectReturnRequest (body, done) {
                         }
                     ))
                 }
-            },
-            /* update: {
-                status: returnData.cancellations[0].cancel_status
-            } */
+            }
         }).then(() => {
             console.log('cancellation created')
         }).catch((err) => {
@@ -322,22 +320,22 @@ async function collectReturnRequest (body, done) {
     if (body.integration.length > 0) {
         let subject = '';
         let comment = '';
-        let tags = [];
+        let tags = [`m_${body.channel}`];
         switch (body.status) {
             case 'CANCELLATION':
-                subject = 'Cancellation Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Cancellation Request: ${body.order_id}`;
                 comment = `User request a cancellation to order: ${body.order_id} with Reason: ${returnData.cancellations[0].cancel_reason_text}`;
                 tags.push('marina_cancellation');
                 break;
             case 'REFUND':
-                subject = 'Refund Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Refund Request: ${body.order_id}`;
                 comment = `User request a refund to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
                 Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
-                tags.push('marina_return_refund');
+                tags.push('marina_refund');
                 break;
             case 'RETURN_AND_REFUND':
-                subject = 'Return Request: ' + body.order_id;
+                subject = `[${body.channel.toString().toUpperCase()}] Return Request: ${body.order_id}`;
                 comment = `User request a return to order: ${body.order_id}
                 Image Evidence: ${(refundEvidence.records[0].images && refundEvidence.records[0].images.length > 0) ? refundEvidence.records[0].images.map(img => img.url).join('\n') : 'No image provided'}
                 Video Evidence: ` + (refundEvidence.records[0].videos && refundEvidence.records[0].videos.length > 0 ? refundEvidence.records[0].videos.map(vid => vid.url).join('\n') : 'No video provided');
@@ -352,9 +350,11 @@ async function collectReturnRequest (body, done) {
                 ticket: {
                     subject: subject,
                     comment: { body: comment },
-                    // requester: { external_id: `6972710759960723714-7530485791072960776-7495813365286538189` },
                     tags: tags,
-                    requester: { external_id: `tiktok-${body.customer_id}-${body.shop_id}` },
+                    requester: { 
+                        name: `Customer ${body.customer_id}`,
+                        external_id: `${body.channel}-${body.customer_id}-${body.shop_id}`
+                    },
                     custom_fields: [
                         {
                             id: findZd.notes.split('-')[0],
@@ -367,7 +367,7 @@ async function collectReturnRequest (body, done) {
                             value: body.shop_id
                         },{
                             id: findZd.notes.split('-')[3],
-                            value: 'tiktok'
+                            value: body.channel
                         },{
                             id: findZd.notes.split('-')[4],
                             value: body.shop_id
@@ -379,7 +379,9 @@ async function collectReturnRequest (body, done) {
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
             }).catch((err) => {
-                console.log(err.response.data);
+                if (err.response && err.response.data) {
+                    console.log(JSON.stringify(err.response.data));
+                }
             })
         }
     }
@@ -395,6 +397,7 @@ async function collectTiktokProduct (body, done) {
     let tiktokStore = await prisma.store.findUnique({
         where: { origin_id: body.shop_id }
     });
+    // console.log(tiktokStore);
     const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB, body.org_id);
     // const productData = response.data.data;
     /* let data = productData.skus.map(item => ({
@@ -411,28 +414,150 @@ async function collectTiktokProduct (body, done) {
             weight: productData.package_weight.value ? Number(productData.package_weight.value): 0,
         }))
     console.log(data); */
-    prisma.products.createMany({
-        skipDuplicates: true,
-        data: productData.skus.map(item => ({
-            origin_id: `${productData.id}-${item.id}`,
-            name: productData.title,
-            status: productData.status,
-            condition: productData.is_pre_owned ? 2 : 1,
-            desc: productData.description,
-            price: Number(item.price.sale_price),
-            currency: item.price.currency,
-            sku: item.seller_sku,
-            stock: item.inventory[0].quantity,
-            storeId: tiktokStore.id,
-            weight: productData.package_weight.value ? Number(productData.package_weight.value): 0,
-        }))
-    }).then(function(newProduct) {
-        console.log(newProduct.count);
-        // done(null, {response: 'testing'});
-    }).catch(function(err) {
-        console.log(err);
-        // done(new Error(err));
-    })
+    // console.log(productData.data);
+    const tiktokProduct = productData.data.data;
+    // console.log(tiktokProduct)
+    if (tiktokProduct) {
+        if (body.code == 15) {
+            let findQuery = [];
+            let updatedPromises = [];
+            tiktokProduct.skus.forEach(sku => {
+                findQuery.push({
+                    origin_id: `${tiktokProduct.id}-${sku.id}`
+                })
+                updatedPromises.push(
+                    prisma.products.update({
+                        data: {
+                            name: tiktokProduct.title,
+                            condition: tiktokProduct.is_pre_owned ? 2 : 1,
+                            desc: tiktokProduct.description,
+                            price: Number(sku.price.sale_price),
+                            sku: sku.seller_sku,
+                            stock: sku.inventory[0].quantity,
+                        },
+                        where: {
+                            origin_id: `${tiktokProduct.id}-${sku.id}`
+                        },
+                        select: {
+                            id: true,
+                            product_img: true,
+                            origin_id: true
+                        }
+                    })
+                )
+            });
+            Promise.all(updatedPromises).then((updatedProduts) => {
+                let needImgList = [];
+                updatedProduts.forEach(product => {
+                    if (product.product_img.length == 0) {
+                        tiktokProduct.skus.forEach(sku => {
+                            needImgList.push({
+                                originalUrl: tiktokProduct.main_images[0].urls[0],
+                                thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${tiktokProduct.id}`,
+                                productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
+                                height: tiktokProduct.main_images[0].height,
+                                width: tiktokProduct.main_images[0].width
+                            })
+                        });
+                    }
+                });
+                if (needImgList.length > 0) {
+                    prisma.products_img.createMany({
+                        data: needImgList
+                    }).then(() => {
+                        console.log('img synced');
+                    })
+                }
+            }).catch((err) => {
+                console.log(err);
+            });
+            /* prisma.products.findMany({
+                where: {
+                    OR: findQuery
+                },
+                select: {
+                    id: true,
+                    origin_id: true,
+                    product_img: true
+                }
+            }).then((products) => {
+                let needImgList = [];
+                products.forEach(product => {
+                    if (product.product_img.length == 0) {
+                        tiktokProduct.skus.forEach(sku => {
+                            needImgList.push({
+                                originalUrl: tiktokProduct.main_images[0].urls[0],
+                                thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                                origin_id: `IMG-${tiktokProduct.id}`,
+                                productsId: products.find(item => item.origin_id.endsWith(sku.id)).id,
+                                height: tiktokProduct.main_images[0].height,
+                                width: tiktokProduct.main_images[0].width
+                            })
+                        });
+                    }
+                });
+                if (needImgList.length > 0) {
+                    prisma.products_img.createMany({
+                        data: needImgList
+                    }).then(() => {
+                        console.log('img synced');
+                    })
+                }
+            }) */
+        }
+        prisma.products.createManyAndReturn({
+            skipDuplicates: true,
+            data: tiktokProduct.skus.map(item => ({
+                origin_id: `${tiktokProduct.id}-${item.id}`,
+                name: tiktokProduct.title,
+                url: `https://www.tiktok.com/view/product/${tiktokProduct.id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
+                status: tiktokProduct.status,
+                condition: tiktokProduct.is_pre_owned ? 2 : 1,
+                desc: tiktokProduct.description,
+                price: Number(item.price.sale_price),
+                currency: item.price.currency,
+                sku: item.seller_sku,
+                stock: item.inventory[0].quantity,
+                storeId: tiktokStore.id,
+                weight: tiktokProduct.package_weight.value ? Number(tiktokProduct.package_weight.value): 0,
+            })),
+            select: {
+                id: true,
+                origin_id: true
+            }
+        }).then(function(newProduct) {
+            let productImgs = [];
+            if (newProduct.length > 0) {
+                tiktokProduct.skus.forEach(sku => {
+                    productImgs.push({
+                        originalUrl: tiktokProduct.main_images[0].urls[0],
+                        thumbnailUrl: tiktokProduct.main_images[0].thumb_urls[0],
+                        origin_id: `IMG-${tiktokProduct.id}`,
+                        productsId: newProduct.find(item => item.origin_id.endsWith(sku.id)).id,
+                        height: tiktokProduct.main_images[0].height,
+                        width: tiktokProduct.main_images[0].width
+                    })
+                });
+                prisma.products_img.createMany({
+                    skipDuplicates: true,
+                    data: productImgs
+                }).then((imgCreated) => {
+                    console.log(imgCreated);
+                }).catch((imgFail) => {
+                    console.log(imgFail);
+                })
+            } else {
+                console.log('no product created')
+            }
+            // done(null, {response: 'testing'});
+        }).catch(function(err) {
+            console.log(err);
+            // done(new Error(err));
+        })
+    } else {
+        console.log('product not found %s', body.product_id);
+    }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {
             'x-tts-access-token' : tiktokStore.token,
@@ -451,6 +576,7 @@ async function forwardConversation (body, done) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
+        let userExternalId = (body.syncCustomer) ? `tiktok-${body.imUserId}-${body.shopId}` : `tiktok-${body.message.customer.origin_id}-${body.shopId}`
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
@@ -459,44 +585,126 @@ async function forwardConversation (body, done) {
         let basicAuth = defaultClient.authentications['basicAuth']
         basicAuth.username = decryptData(suncoAppKey);
         basicAuth.password = decryptData(suncoAppSecret);
-        let buyerName = body.userName || body.message.customer.name || 'Marketplace Buyer';
+        let buyerId = (body.syncCustomer) ?  body.imUserId : body.message.customer.origin_id;
+        let imUserId = '';
+        let buyerName = (body.syncCustomer) ? `Customer ${body.imUserId}` : body.message.customer.name;
         let suncoConvId;
         if (body.syncCustomer) {
             try {
-                console.log('Sync Customers');
-                const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
-                let buyerFound = false;
-                tiktokMessages.data.data.messages.forEach(async message => {
-                    if (message.sender.im_user_id == body.message.customer.origin_id) {
-                        if (!buyerFound) {
-                            buyerName = message.sender.nickname;
-                            buyerFound = true;
+                prisma.customers.findUnique({
+                    where: {
+                        im_origin_id: body.imUserId
+                    }
+                }).then(async (customers) => {
+                    if (customers) {
+                        buyerId = customers.origin_id;
+                        buyerName = customers.name || `Customer ${buyerId}`
+                        prisma.omnichat.update({
+                            where: {
+                                origin_id: body.message.origin_id
+                            },
+                            data: {
+                                customer: {
+                                    connect: {
+                                        id: customers.id
+                                    }
+                                }
+                            }
+                        }).then(() => {
+                            console.log("omnichat updated");
+                        })
+                    } else {
+                        console.log('Sync Customers');
+                        // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                        const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                        // console.log(JSON.stringify(tiktokConvList.data.data));
+                        let buyerFound = false;
+                        tiktokConvList.data.data.conversations.forEach(conversation => {
+                            if (conversation.id == body.message.origin_id) {
+                                conversation.participants.forEach(participant => {
+                                    if (participant.im_user_id == body.imUserId) {
+                                        buyerFound = true;
+                                        imUserId = participant.im_user_id
+                                        buyerName = participant.nickname;
+                                        buyerId = participant.user_id;
+                                        userExternalId = `tiktok-${buyerId}-${body.shopId}`
+                                    }
+                                });
+                            }
+                        })
+                        if (buyerFound) {
+                            prisma.customers.upsert({
+                                where: {
+                                    origin_id: buyerId
+                                },
+                                create: {
+                                    origin_id: buyerId,
+                                    im_origin_id: imUserId,
+                                    name: buyerName || `Customer ${buyerId}`
+                                },
+                                update: {
+                                    name: buyerName,
+                                    im_origin_id: imUserId
+                                }
+                            }).then(() => {
+                                prisma.omnichat.update({
+                                    where: {
+                                        origin_id: body.message.origin_id
+                                    },
+                                    data: {
+                                        customer: {
+                                            connect: {
+                                                origin_id: buyerId
+                                            }
+                                        }
+                                    }
+                                }).then(() => {
+                                    console.log("omnichat updated");
+                                })
+                            })
+                        } else {
+                            console.log('=== Buyer not found, replace using default im_user_id ===')
+                            prisma.omnichat.update({
+                                where: {
+                                    origin_id: body.message.origin_id
+                                },
+                                data: {
+                                    customer: {
+                                        connectOrCreate: {
+                                            create: {
+                                                name: buyerName,
+                                                origin_id: buyerId
+                                            },
+                                            where: {
+                                                origin_id: buyerId
+                                            }
+                                        }
+                                    }
+                                }
+                            }).then(() => {
+                                console.log("omnichat updated");
+                            })
                         }
                     }
-                });
-                if (buyerFound) {
-                    await prisma.customers.update({
-                        where: { origin_id: body.message.customer.origin_id },
-                        data: { name: buyerName }
-                    })
-                }
+                })
             } catch (error) {
                 console.log(error);
             }
         }
         if (!body.message.externalId) {
+            const customerOriginId = (body.message.customer) ? body.message.customer.origin_id : buyerId
             const suncoMetadata = {
-                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: body.message.customer.origin_id,
+                [`dataCapture.ticketField.${findZd.notes.split('-')[0]}`]: customerOriginId,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[1]}`]: body.message.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
                 marina_org_id: body.org_id
             }
-            let suncoUser = await createSuncoUser(body.userExternalId, buyerName, suncoAppId)
+            let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId);
             let conversationBody = suncoUser;
             conversationBody.metadata = suncoMetadata;
-            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)
+            let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody);
             suncoConvId = suncoConversation.conversation.id;
             await prisma.omnichat.update({
                 where:{ id: body.message.id },
@@ -506,15 +714,13 @@ async function forwardConversation (body, done) {
             suncoConvId = body.message.externalId;
         }
         console.log('Sunco Conv ID: ' + suncoConvId);
-        console.log('Sunco User External ID: ' + body.userExternalId);
-        let messageContent = body.message_content;
-        if (body.channel == TIKTOK) {
-            messageContent = JSON.parse(body.message_content);
-        }
+        console.log('Sunco User External ID: ' + userExternalId);
+        let messageContent = JSON.parse(body.message_content);
+
         let suncoMessagePayload = {
             author: {
                 type: 'user',
-                userExternalId: body.userExternalId
+                userExternalId: userExternalId
             }
         }
 
@@ -541,6 +747,7 @@ async function forwardConversation (body, done) {
                 }
                 break;
             case "PRODUCT_CARD": 
+                var content = (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- ';
                 try {
                     const product = await prisma.products.findFirst({
                         where: {
@@ -555,28 +762,38 @@ async function forwardConversation (body, done) {
                         }
                     })
                     if (product) {
-                        suncoMessagePayload.content = {
-                            type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}` : '-- product sample -- '
-                        }
-                    } else {
-                        suncoMessagePayload.content = {
-                            type: "text",
-                            text: (messageContent.hasOwnProperty('product_id')) ? `Buyer send a Product\n\nProduct: ${messageContent.product_id}` : '-- product sample -- '
-                        }
+                        content = `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}`;
                     }
                 } catch (error) {
                     console.log(error);
-                    suncoMessagePayload.content = {
-                        type: "text",
-                        text: (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- '
-                    }
+                }
+                suncoMessagePayload.content = {
+                    type: "text",
+                    text: content
                 }
                 break;
             case "ORDER_CARD": 
+                var content = (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- ';
+                try {
+                    if (messageContent.hasOwnProperty('order_id')) {
+                        prisma.orders.findUnique({
+                            where: {
+                                origin_id: messageContent.order_id
+                            }
+                        }).then((order) => {
+                            if (order) {
+                                content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}` 
+                            }
+                        }).catch((err) => {
+                            console.log(err)
+                        })
+                    }
+                } catch (err) {
+                    console.log(err);
+                }
                 suncoMessagePayload.content = {
                     type: "text",
-                    text: (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- '
+                    text: content
                 }
                 break;
             default:
@@ -594,7 +811,7 @@ async function forwardConversation (body, done) {
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('recreate conversation');
-                    let suncoUser = await createSuncoUser(body.userExternalId, body.userName, suncoAppId)
+                    let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
                     conversationBody.metadata = suncoMetadata;
                     let suncoConversation = await createSuncoConversation(suncoAppId, conversationBody)

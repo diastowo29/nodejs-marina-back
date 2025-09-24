@@ -370,11 +370,11 @@ router.put('/:id', async function(req, res, next) {
                 isRR = true;
                 decision = 'CANCEL_REJECTED';
                 data = { reject_reason: req.body.cancel_reason }
-                completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
+                completeUrl = REJECT_CANCELLATION(order.return_refund[0].origin_id, order.store.secondary_token, data);
             } else if (action == 'approve') {
                 isRR = true;
                 decision = 'CANCEL_APPROVED';
-                completeUrl = APPROVE_CANCELLATION(order.temp_id, order.store.secondary_token, data);
+                completeUrl = APPROVE_CANCELLATION(order.return_refund[0].origin_id, order.store.secondary_token, data);
            /*  } else if (action == 'approve_refund') {
                 completeUrl = APPROVE_REFUND(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'reject_refund') {

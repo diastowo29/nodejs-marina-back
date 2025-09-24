@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient } = require('../../../prisma/generated/client');
+const { TIKTOK } = require('../../../config/utils');
 let mPrisma = new PrismaClient();
 
 router.get('/', async function(req, res, next) {
@@ -32,6 +33,36 @@ router.get('/', async function(req, res, next) {
     });
     res.status(200).send(products);
 });
+
+router.get('/sku/:id', async function(req, res, next) {
+    const sku = req.params.id;
+    if (!sku) {
+        res.status(400).send({message: 'parameter is missing'});
+    }
+    mPrisma = req.prisma;
+    mPrisma.products.findFirst({
+        where: {
+            sku: sku
+        },
+        select: {
+            origin_id: true,
+            store: {
+                select: {
+                    channel: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            }
+        }
+    }).then((product) => {
+        let productId = (product.store.channel.name == TIKTOK) ? product.origin_id.split('-')[0] : product.origin_id;
+        res.status(200).send({id: productId});
+    }).catch((err) => {
+        res.status(500).send({error: err});
+    })
+})
 
 router.get('/find', async function(req, res, next) {
     // return 400 if there is no valid params

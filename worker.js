@@ -615,7 +615,7 @@ async function processTiktok(body, done) {
         if (body.status != 'UNPAID') {
             collectTiktokOrder(body, done);
         }
-    } else if (body.code == 16) {
+    } else if (body.code == 16 || body.code == 15) {
         /* PRODUCT STATUS UPDATE */
         collectTiktokProduct(body, done);
     } else if (body.code == 12 || body.code == 11) {

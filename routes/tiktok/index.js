@@ -241,10 +241,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (rr.line_item.length == 0) {
-                        const data = { cancel_ids: [body.returnId] }
+                        const data = { cancel_ids: [jsonBody.data.cancel_id] }
                         callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
-                            if (tiktokCancel.data.data) {
-                                if (tiktokCancel.data.data.cancellations && tiktokCancel.data.data.cancellations.length > 0) {
+                            const ccData = tiktokCancel.data.data;
+                            if (ccData) {
+                                if (ccData.cancellations && ccData.cancellations.length > 0) {
                                     taskPayload = {
                                         tenantDB: getTenantDB(org[1]),
                                         channel: TIKTOK,
@@ -263,6 +264,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         org_id: org[0]
                                     }
                                     pushTask(env, taskPayload);
+                                    res.status(200).send({})
                                 } else {
                                     res.status(400).send({error: 'No return/refund data found'});
                                 }
@@ -273,8 +275,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             console.log(err);
                             res.status(400).send({error: err});
                         })
+                    } else {
+                        res.status(200).send({})
                     }
-                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
                     console.log(err);
                     res.status(400).send({error: err});
@@ -343,8 +346,9 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
                         const body = {order_ids: [jsonBody.data.order_id]}
                         callTiktok('POST', SEARCH_RETURN(rr.order.store.secondary_token, body), body, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokRr) => {
-                            if (tiktokRr.data.data) {
-                                if (tiktokRr.data.data.return_orders && tiktokRr.data.data.return_orders.length > 0) {
+                            const rrData = tiktokRr.data.data;
+                            if (rrData) {
+                                if (rrData.return_orders && rrData.return_orders.length > 0) {
                                     taskPayload = {
                                         tenantDB: getTenantDB(org[1]),
                                         channel: TIKTOK,
@@ -375,6 +379,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             console.log(err);
                             res.status(400).send({error: err});
                         })
+                    } else {
+                        res.status(200).send({})
                     }
                 }).catch ((err) => {
                     console.log(err);
@@ -389,7 +395,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 }
                 try {
                     const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
-                    const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                    // const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
                     console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
                     let upsertMessage = await mPrisma.omnichat.upsert({
                         where: {
@@ -398,17 +404,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         update: {
                             last_message: jsonBody.data.content,
                             last_messageId: jsonBody.data.message_id,
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
-                                }
-                            },
                             messages: {
                                 connectOrCreate: {
                                     where: {
@@ -438,17 +433,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     origin_id: jsonBody.data.message_id,
                                     author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
                                     chat_type: jsonBody.data.type
-                                }
-                            },
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
                                 }
                             }
                         },
@@ -487,11 +471,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 chat_type: jsonBody.data.type,
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
-                                userName: upsertMessage.customer.name,
+                                imUserId: jsonBody.data.sender.im_user_id,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
+                                shopId: jsonBody.shop_id,
                                 org_id: org[1],
-                                syncCustomer: (upsertMessage.customer.name == userName) ? true : false
+                                syncCustomer: (upsertMessage.customer) ? false : true
                             }
                             pushTask(env, taskPayload);
                         }
@@ -502,17 +487,35 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     res.status(400).send({error: err});
                 }
                 break;
-            case 16: 
+            case 15:
+                console.log('get product id: ' + jsonBody.data.product_id);
+                const productUpdtId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
                 taskPayload = {
                     tenantDB: getTenantDB(org[1]),
                     channel: TIKTOK,
                     code: jsonBody.type,
-                    product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
+                    product_id: productUpdtId,
                     shop_id: jsonBody.shop_id,
-                    org_id: org[0]
+                    org_id: org[1]
                 }
                 pushTask(env, taskPayload);
-                res.status(200).send({})
+                res.status(200).send({bigint: productUpdtId, id:jsonBody.data.product_id })
+                break;
+            case 16: 
+                console.log('get product id: ' + jsonBody.data.product_id);
+                const productId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
+                taskPayload = {
+                    tenantDB: getTenantDB(org[1]),
+                    channel: TIKTOK,
+                    code: jsonBody.type,
+                    product_id: productId,
+                    shop_id: jsonBody.shop_id,
+                    org_id: org[1]
+                }
+                pushTask(env, taskPayload);
+                res.status(200).send({bigint: productId, id:jsonBody.data.product_id })
                 break;
             default:
                 res.status(200).send({message: 'event type not handled: ' + jsonBody.type});
