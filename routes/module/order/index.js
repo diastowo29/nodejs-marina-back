@@ -186,31 +186,35 @@ router.get('/:id', async function(req, res, next) {
                  id: Number.parseInt(req.params.id)
              },
              include: {
-                 order_items: {
-                     include: {
-                        return_line_item: {
-                            select: {
-                                return_refund: {
-                                    select: {
-                                        status: true,
-                                        return_type: true
-                                    }
+                order_items: {
+                    include: {
+                    return_line_item: {
+                        select: {
+                            return_refund: {
+                                select: {
+                                    status: true,
+                                    system_status: true,
+                                    return_type: true
                                 }
                             }
-                        },
-                        products: true
-                     }
-                 },
-                 return_refund: true,
-                 store: {
-                     select: {
-                         id: true,
-                         name: true,
-                         status: true,
-                         channel: true
-                     }
-                 },
-                 logistic: true
+                        }
+                    },
+                    products: true
+                    }
+                },
+                return_refund: true,
+                store: {
+                    omit: {
+                        token: true,
+                        refresh_token: true,
+                        secondary_token: true,
+                        secondary_refresh_token: true,
+                    },
+                    include: {
+                        channel: true
+                    }
+                },
+                logistic: true
              }
          });
          if (!order) {
@@ -366,11 +370,11 @@ router.put('/:id', async function(req, res, next) {
                 isRR = true;
                 decision = 'CANCEL_REJECTED';
                 data = { reject_reason: req.body.cancel_reason }
-                completeUrl = REJECT_CANCELLATION(order.temp_id, order.store.secondary_token, data);
+                completeUrl = REJECT_CANCELLATION(order.return_refund[0].origin_id, order.store.secondary_token, data);
             } else if (action == 'approve') {
                 isRR = true;
                 decision = 'CANCEL_APPROVED';
-                completeUrl = APPROVE_CANCELLATION(order.temp_id, order.store.secondary_token, data);
+                completeUrl = APPROVE_CANCELLATION(order.return_refund[0].origin_id, order.store.secondary_token, data);
            /*  } else if (action == 'approve_refund') {
                 completeUrl = APPROVE_REFUND(order.temp_id, order.store.secondary_token, data);
             } else if (action == 'reject_refund') {

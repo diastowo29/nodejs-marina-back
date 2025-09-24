@@ -26,8 +26,7 @@ router.get('/', async function(req, res, next) {
 
 router.delete('/:id', async function(req, res, next) {
     const prisma = getPrismaClient(req.tenantDB);
-    /* SHOULD DELETE ALL EXTERNAL ID FROM OMNICHAT AND WEBHOOK */
-    /* DELETE TICKET FIELDS AND SUNCO WEBHOOK ASWELL */
+    /* DELETE TICKET FIELDS AND SUNCO WEBHOOK */
     try {
         let credent = prisma.credent.deleteMany({
             where: {
@@ -39,9 +38,22 @@ router.delete('/:id', async function(req, res, next) {
                 id: parseInt(req.params.id)
             }
         });
-        const deletedIntegration = await prisma.$transaction([credent, integration]);
+        let deleteExtId = prisma.omnichat.updateMany({
+            where: {
+                AND: [{ externalId: { not: null }},
+                    { externalId: { not: ''}}]
+            },
+            data: {
+                externalId: null
+            }
+        })
+        prisma.$transaction([credent, integration, deleteExtId]).then((trx) => {
+            res.status(200).send({success: true, deleted: trx});
+        }).catch((err) => {
+            console.log(err);
+            res.status(500).send({error: err})
+        })
         // console.log(deletedIntegration)
-        res.status(200).send({success: true, deleted: deletedIntegration});
     } catch (err) {
         console.log(err);
         res.status(400).send({failed: err});
@@ -63,10 +75,10 @@ router.post('/', async function(req, res, next) {
     if (req.body.crm == 'zendesk') {
         try {
             const zdConfig = await Promise.all([
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_USER_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_MSG_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_SHOP_ID')),
-                axios(zdApiConfig(req.body.host, req.body.apiToken, 'MM_CHANNEL')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina User ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Message ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Store ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Channel')),
                 axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'MM_SHOP', storeOptions)),
                 axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
@@ -175,12 +187,12 @@ function suncoApiConfig (appId, token) {
     }
 }
 
-router.get('/products', async function(req, res, next) {
+/* router.get('/products', async function(req, res, next) {
     const mPrisma = getPrismaClient(req.tenantDB);
     let channels = await mPrisma.store.findMany({
         include : { products: true }
     })
     res.status(200).send(channels);
 })
-
+ */
 module.exports = router;

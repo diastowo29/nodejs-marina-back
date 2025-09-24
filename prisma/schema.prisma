@@ -9,14 +9,14 @@ datasource db {
 }
 
 model customers {
-  id            Int             @id @default(autoincrement())
-  name          String?
-  origin_id     String?         @unique
-  phone         String?
-  email         String?
-  orders        orders[]
-  omnichat      omnichat[]
-  omnichat_line omnichat_line[]
+  id           Int        @id @default(autoincrement())
+  name         String?
+  origin_id    String?    @unique
+  im_origin_id String?    @unique
+  phone        String?
+  email        String?
+  orders       orders[]
+  omnichat     omnichat[]
 }
 
 model products_img {
@@ -160,23 +160,21 @@ model omnichat {
   updatedAt      DateTime        @default(now())
   storeId        Int?
   externalId     String?
-  customer       customers       @relation(fields: [customersId], references: [id])
+  customer       customers?      @relation(fields: [customersId], references: [id])
   store          store?          @relation(fields: [storeId], references: [id])
   messages       omnichat_line[]
-  customersId    Int
+  customersId    Int?
 }
 
 model omnichat_line {
-  id          Int       @id @default(autoincrement())
-  origin_id   String?   @unique
-  createdAt   DateTime  @default(now())
-  line_text   String
-  omnichatId  Int?
-  author      String?
-  chat_type   String?
-  customer    customers @relation(fields: [customersId], references: [id])
-  omnichat    omnichat? @relation(fields: [omnichatId], references: [id])
-  customersId Int
+  id         Int       @id @default(autoincrement())
+  origin_id  String?   @unique
+  createdAt  DateTime  @default(now())
+  line_text  String
+  omnichatId Int?
+  author     String?
+  chat_type  String?
+  omnichat   omnichat? @relation(fields: [omnichatId], references: [id])
 }
 
 model zdconnector {
@@ -248,6 +246,7 @@ model return_line_item {
 model return_refund {
   id            Int                @id @default(autoincrement())
   origin_id     String?            @unique
+  system_status String?
   status        String?
   order         orders             @relation(fields: [ordersId], references: [id])
   line_item     return_line_item[]

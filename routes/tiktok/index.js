@@ -1,9 +1,9 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS } = require('../../config/tiktok_apis');
+const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS, SEARCH_CANCELLATION } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
-const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName } = require('../../config/utils');
+const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName, RRTiktokStatus } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
 const { gcpParser } = require('../../functions/gcpParser');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
@@ -63,7 +63,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         origin_id: jsonBody.data.order_id
                     },
                     update: {
-                        status: jsonBody.data.status
+                        status: jsonBody.data.order_status
                         // temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
                         // ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
                         /* ...(jsonBody.data.reverse_event_type) && {
@@ -86,7 +86,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     },
                     create: {
                         origin_id: jsonBody.data.order_id,
-                        status: jsonBody.data.status,
+                        status: jsonBody.data.order_status,
                         store: {
                             connect: {
                                 origin_id: jsonBody.shop_id
@@ -187,7 +187,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     create: {
                         origin_id: jsonBody.data.cancel_id,
                         return_type: 'CANCELLATION',
-                        status: jsonBody.data.cancel_status,
+                        system_status: jsonBody.data.cancel_status,
+                        status: RRTiktokStatus(jsonBody.data.cancel_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -197,7 +198,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.cancel_status
+                        system_status: jsonBody.data.cancel_status,
+                        status: RRTiktokStatus(jsonBody.data.cancel_status),
                     },
                     include: {
                         line_item: true,
@@ -239,26 +241,43 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (rr.line_item.length == 0) {
-                        taskPayload = {
-                            tenantDB: getTenantDB(org[1]),
-                            channel: TIKTOK,
-                            token: rr.order.store.token,
-                            refresh_token: rr.order.store.refresh_token,
-                            order_id: jsonBody.data.order_id,
-                            cipher: rr.order.store.secondary_token,
-                            m_shop_id: rr.order.store.id,
-                            m_order_id: rr.order.id,
-                            returnId: jsonBody.data.cancel_id,
-                            status: 'CANCELLATION',
-                            code: jsonBody.type,
-                            customer_id: rr.order.customers.origin_id,
-                            shop_id: jsonBody.shop_id,
-                            integration: rr.order.store.channel.client.integration,
-                            org_id: org[0]
-                        }
-                        pushTask(env, taskPayload);
+                        const data = { cancel_ids: [jsonBody.data.cancel_id] }
+                        callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
+                            const ccData = tiktokCancel.data.data;
+                            if (ccData) {
+                                if (ccData.cancellations && ccData.cancellations.length > 0) {
+                                    taskPayload = {
+                                        tenantDB: getTenantDB(org[1]),
+                                        channel: TIKTOK,
+                                        token: rr.order.store.token,
+                                        refresh_token: rr.order.store.refresh_token,
+                                        order_id: jsonBody.data.order_id,
+                                        cipher: rr.order.store.secondary_token,
+                                        m_shop_id: rr.order.store.id,
+                                        m_order_id: rr.order.id,
+                                        returnId: jsonBody.data.cancel_id,
+                                        status: 'CANCELLATION',
+                                        code: jsonBody.type,
+                                        customer_id: rr.order.customers.origin_id,
+                                        shop_id: jsonBody.shop_id,
+                                        integration: rr.order.store.channel.client.integration,
+                                        org_id: org[0]
+                                    }
+                                    pushTask(env, taskPayload);
+                                    res.status(200).send({})
+                                } else {
+                                    res.status(400).send({error: 'No return/refund data found'});
+                                }
+                            } else {
+                                res.status(400).send({error: 'No return/refund data found'});
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                            res.status(400).send({error: err});
+                        })
+                    } else {
+                        res.status(200).send({})
                     }
-                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
                     console.log(err);
                     res.status(400).send({error: err});
@@ -272,7 +291,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     create: {
                         origin_id: jsonBody.data.return_id,
                         return_type: jsonBody.data.return_type,
-                        status: jsonBody.data.return_status,
+                        system_status: jsonBody.data.return_status,
+                        status: RRTiktokStatus(jsonBody.data.return_status),
                         total_amount: 0,
                         order: {
                             connect: {
@@ -282,7 +302,8 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
 
                     },
                     update: {
-                        status: jsonBody.data.return_status
+                        system_status: jsonBody.data.return_status,
+                        status: RRTiktokStatus(jsonBody.data.return_status),
                     },
                     include: {
                         order: {
@@ -323,26 +344,44 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     }
                 }).then((rr) => {
                     if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
-                        taskPayload = {
-                            tenantDB: getTenantDB(org[1]),
-                            channel: TIKTOK,
-                            token: rr.order.store.token,
-                            refresh_token: rr.order.store.refresh_token,
-                            order_id: jsonBody.data.order_id,
-                            cipher: rr.order.store.secondary_token,
-                            m_shop_id: rr.order.store.id,
-                            m_order_id: rr.order.id,
-                            returnId: jsonBody.data.return_id,
-                            status: jsonBody.data.return_type,
-                            code: jsonBody.type,
-                            customer_id: rr.order.customers.origin_id,
-                            shop_id: jsonBody.shop_id,
-                            integration: rr.order.store.channel.client.integration,
-                            org_id: org[0]
-                        }
-                        pushTask(env, taskPayload);
+                        const body = {order_ids: [jsonBody.data.order_id]}
+                        callTiktok('POST', SEARCH_RETURN(rr.order.store.secondary_token, body), body, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokRr) => {
+                            const rrData = tiktokRr.data.data;
+                            if (rrData) {
+                                if (rrData.return_orders && rrData.return_orders.length > 0) {
+                                    taskPayload = {
+                                        tenantDB: getTenantDB(org[1]),
+                                        channel: TIKTOK,
+                                        token: rr.order.store.token,
+                                        refresh_token: rr.order.store.refresh_token,
+                                        order_id: jsonBody.data.order_id,
+                                        cipher: rr.order.store.secondary_token,
+                                        m_shop_id: rr.order.store.id,
+                                        m_order_id: rr.order.id,
+                                        returnId: jsonBody.data.return_id,
+                                        status: jsonBody.data.return_type,
+                                        code: jsonBody.type,
+                                        customer_id: rr.order.customers.origin_id,
+                                        shop_id: jsonBody.shop_id,
+                                        integration: rr.order.store.channel.client.integration,
+                                        org_id: org[1]
+                                    }
+                                    // console.log('goto worker')
+                                    pushTask(env, taskPayload);
+                                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
+                                } else {
+                                    res.status(400).send({error: 'No return/refund data found'});
+                                }
+                            } else {
+                                res.status(400).send({error: 'No return/refund data found'});
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                            res.status(400).send({error: err});
+                        })
+                    } else {
+                        res.status(200).send({})
                     }
-                    res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                 }).catch ((err) => {
                     console.log(err);
                     res.status(400).send({error: err});
@@ -356,7 +395,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 }
                 try {
                     const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
-                    const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                    // const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
                     console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
                     let upsertMessage = await mPrisma.omnichat.upsert({
                         where: {
@@ -365,17 +404,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         update: {
                             last_message: jsonBody.data.content,
                             last_messageId: jsonBody.data.message_id,
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
-                                }
-                            },
                             messages: {
                                 connectOrCreate: {
                                     where: {
@@ -385,18 +413,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                         line_text: jsonBody.data.content,
                                         origin_id: jsonBody.data.message_id,
                                         author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                        chat_type: jsonBody.data.type,
-                                        customer: {
-                                            connectOrCreate: {
-                                                create: {
-                                                    name: userName,
-                                                    origin_id: jsonBody.data.sender.im_user_id
-                                                },
-                                                where: {
-                                                    origin_id: jsonBody.data.sender.im_user_id
-                                                }
-                                            }
-                                        } 
+                                        chat_type: jsonBody.data.type
                                     }
                                 }
                             },
@@ -415,29 +432,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                     line_text: jsonBody.data.content,
                                     origin_id: jsonBody.data.message_id,
                                     author: (jsonBody.data.sender.role == 'BUYER') ? jsonBody.data.sender.im_user_id : 'agent',
-                                    chat_type: jsonBody.data.type,
-                                    customer: {
-                                        connectOrCreate: {
-                                            create: {
-                                                name: userName,
-                                                origin_id: jsonBody.data.sender.im_user_id
-                                            },
-                                            where: {
-                                                origin_id: jsonBody.data.sender.im_user_id
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            customer: {
-                                connectOrCreate: {
-                                    create: {
-                                        name: userName,
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    },
-                                    where: {
-                                        origin_id: jsonBody.data.sender.im_user_id
-                                    }
+                                    chat_type: jsonBody.data.type
                                 }
                             }
                         },
@@ -445,14 +440,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                             id: true,
                             origin_id: true,
                             externalId: true,
-                            customer: {
-                                select: {
-                                    name: true,
-                                    id: true, 
-                                    origin_id: true,
-                                    email: true
-                                }
-                            },
+                            customer: true,
                             store: {
                                 include: {
                                     channel: {
@@ -483,11 +471,12 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 chat_type: jsonBody.data.type,
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
-                                userName: upsertMessage.customer.name,
+                                imUserId: jsonBody.data.sender.im_user_id,
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
+                                shopId: jsonBody.shop_id,
                                 org_id: org[1],
-                                syncCustomer: (upsertMessage.customer.name == userName) ? true : false
+                                syncCustomer: (upsertMessage.customer) ? false : true
                             }
                             pushTask(env, taskPayload);
                         }
@@ -498,17 +487,35 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                     res.status(400).send({error: err});
                 }
                 break;
-            case 16: 
+            case 15:
+                console.log('get product id: ' + jsonBody.data.product_id);
+                const productUpdtId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
                 taskPayload = {
                     tenantDB: getTenantDB(org[1]),
                     channel: TIKTOK,
                     code: jsonBody.type,
-                    product_id: (BigInt(jsonBody.data.product_id) - 76n).toString(),
+                    product_id: productUpdtId,
                     shop_id: jsonBody.shop_id,
-                    org_id: org[0]
+                    org_id: org[1]
                 }
                 pushTask(env, taskPayload);
-                res.status(200).send({})
+                res.status(200).send({bigint: productUpdtId, id:jsonBody.data.product_id })
+                break;
+            case 16: 
+                console.log('get product id: ' + jsonBody.data.product_id);
+                const productId = (BigInt(jsonBody.data.product_id) + 44n).toString();
+                console.log('updated product id: ' + productUpdtId);
+                taskPayload = {
+                    tenantDB: getTenantDB(org[1]),
+                    channel: TIKTOK,
+                    code: jsonBody.type,
+                    product_id: productId,
+                    shop_id: jsonBody.shop_id,
+                    org_id: org[1]
+                }
+                pushTask(env, taskPayload);
+                res.status(200).send({bigint: productId, id:jsonBody.data.product_id })
                 break;
             default:
                 res.status(200).send({message: 'event type not handled: ' + jsonBody.type});

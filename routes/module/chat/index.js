@@ -148,27 +148,31 @@ router.post('/sunco/event', async function(req, res, next){
     let payload = req.body.events[0].payload;
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;
-    console.log(JSON.stringify(payload));
     try {
-        if (messageAuthor == 'business' && sourceType == 'zd:agentWorkspace') {
+        if (messageAuthor == 'business' && (sourceType == 'zd:agentWorkspace' || sourceType == 'ultimate' || sourceType == 'zd:agentCopilot' || sourceType == 'api:conversations')) {
             console.log('message author is bussines')
           if (payload.conversation?.metadata?.origin_source_integration) {
+            console.log('origin_source_integration is missing')
+            console.log(JSON.stringify(req.body));
             return res.status(200).send({});
           }
 
           if (payload.conversation.metadata.marina_org_id) {
             const org_id = payload.conversation.metadata.marina_org_id;
             let body = await suncoAgentMessage(payload, org_id);
-            console.log(JSON.stringify(body));
+            // console.log(JSON.stringify(body));
             let sendMessage =  await sendMessageToBuyer(body, org_id);
             return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
           } else {
+            console.log('metadata is missing')
+            console.log(JSON.stringify(req.body));
             return res.status(200).send({});
           }
         }
         res.status(200).send({});
     } catch (err) {
         console.log(err);
+        console.log(JSON.stringify(req.body));
         res.status(500).send({error: err});
     }
   
@@ -351,17 +355,26 @@ async function suncoAgentMessage(payload, org_id){
         omnichat: message,
         omnichat_origin_id: message.origin_id
     }
-    if (lineText.includes('SEND_PRODUCT')) {
-        param.product_id = lineText.split('\n')[0].split(': ')[1]
-        param.chat_type = chatContentType.PRODUCT
-    }
-    if (lineText.includes('SEND_INVOICE')) {
-        param.invoice_id = lineText.split('\n')[0].split(': ')[1]
-        param.chat_type = chatContentType.INVOICE
+
+    if (lineText.includes('SEND_PRODUCT') || lineText.includes('SEND_INVOICE')) {
+        const linesId = lineText.split('\n')[0].split(': ')[1]; // <=== get line from comments
+        if (lineText.includes('SEND_PRODUCT')) {
+            param.product_id = linesId.split('-')[0] // <=== get product id
+            param.chat_type = chatContentType.PRODUCT
+        }
+        if (lineText.includes('SEND_INVOICE')) {
+            param.invoice_id = linesId
+            param.chat_type = chatContentType.INVOICE
+        }
     }
 
-    if (chatType == 'image') param.file_path = payload.message.content.mediaUrl
-
+    if (chatType == 'image') {
+        if (lineText) {
+            if (!lineText.includes('SEND_PRODUCT')) {
+                param.file_path = payload.message.content.mediaUrl   
+            }
+        }
+    }
     if (channelName == 'lazada') {
         // const mPrisma = getPrismaClient(org_id);
         let originId = payload.conversation.metadata['lazada_origin_id']
