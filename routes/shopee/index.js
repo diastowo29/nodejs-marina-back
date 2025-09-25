@@ -67,50 +67,73 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         let payloadCode = jsonBody.code;
         switch (payloadCode) {
             case 3:
-                let newOrder = await prisma.orders.upsert({
-                    where: {
-                        origin_id: jsonBody.data.ordersn
-                    },
-                    update: {
-                        status: jsonBody.data.status
-                    },
-                    create: {
-                        origin_id: jsonBody.data.ordersn,
-                        status: jsonBody.data.status,
-                        store: {
-                            connect: {
-                                origin_id: jsonBody.shop_id.toString()
-                                // origin_id: '138335'
+                if (!jsonBody.data.status.includes('cancel')) {
+                    let newOrder = await prisma.orders.upsert({
+                        where: {
+                            origin_id: jsonBody.data.ordersn
+                        },
+                        update: {
+                            status: jsonBody.data.status
+                        },
+                        create: {
+                            origin_id: jsonBody.data.ordersn,
+                            status: jsonBody.data.status,
+                            store: {
+                                connect: {
+                                    origin_id: jsonBody.shop_id.toString()
+                                    // origin_id: '138335'
+                                }
+                            }
+                        },
+                        include: {
+                            store: true,
+                            order_items: {
+                                select: { id: true }
                             }
                         }
-                    },
-                    include: {
-                        store: true,
-                        order_items: {
-                            select: { id: true }
+                    });
+                    let taskPayload = {
+                        channel: SHOPEE, 
+                        order_id: jsonBody.data.ordersn,
+                        id: newOrder.id,
+                        token: newOrder.store.token,
+                        code: payloadCode,
+                        m_shop_id: newOrder.store.id,
+                        shop_id: jsonBody.shop_id,
+                        refresh_token: newOrder.store.refresh_token,
+                        tenantDB: tenantDbUrl,
+                        org_id: org[1]
+                    }
+                    if (newOrder.order_items.length == 0) {
+                        if (newOrder.store.status != storeStatuses.EXPIRED) {
+                            pushTask(env, taskPayload);
+                        } else {
+                            console.log('Shopee store: %s Expired', newOrder.store.id);
                         }
                     }
-                });
-                let taskPayload = {
-                    channel: SHOPEE, 
-                    order_id: jsonBody.data.ordersn,
-                    id: newOrder.id,
-                    token: newOrder.store.token,
-                    code: payloadCode,
-                    m_shop_id: newOrder.store.id,
-                    shop_id: jsonBody.shop_id,
-                    refresh_token: newOrder.store.refresh_token,
-                    tenantDB: tenantDbUrl,
-                    org_id: org[1]
+                    res.status(200).send({message: {id: newOrder.id}});
+                } else {
+                    console.log(JSON.stringify(jsonBody))
+                    await prisma.return_refund.upsert({
+                        where: {
+                            origin_id: jsonBody.data.ordersn 
+                        },
+                        create: {
+                            total_amount: 0,
+                            origin_id: jsonBody.data.ordersn,
+                            return_type: 'CANCELLATION',
+                            status: 'Cancellation - Pending',
+                            system_status: 'CANCELLATION_PENDING',
+                            order: {
+                                connect: {
+                                    origin_id: jsonBody.data.ordersn
+                                }
+                            }
+                        },
+                        update: {}
+                    })
+                    res.status(200).send({});
                 }
-                if (newOrder.order_items.length == 0) {
-                    if (newOrder.store.status != storeStatuses.EXPIRED) {
-                        pushTask(env, taskPayload);
-                    } else {
-                        console.log('Shopee store: %s Expired', newOrder.store.id);
-                    }
-                }
-                res.status(200).send({message: {id: newOrder.id}});
                 break;
             case 10:
                 if (jsonBody.data.type == 'message') {

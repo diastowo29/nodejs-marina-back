@@ -4,7 +4,7 @@ const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/u
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
-const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER } = require('../../../config/shopee_apis');
+const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER, SPE_HANDLE_CANCELLATION } = require('../../../config/shopee_apis');
 const { generateShopeeToken } = require('../../../functions/shopee/function');
 const { decryptData } = require('../../../functions/encryption');
 var env = process.env.NODE_ENV || 'development';
@@ -310,6 +310,7 @@ router.put('/:id', async function(req, res, next) {
             store: {
                 select: {
                     id: true,
+                    origin_id: true,
                     token: true,
                     refresh_token: true,
                     secondary_token: true,
@@ -480,6 +481,52 @@ router.put('/:id', async function(req, res, next) {
                     return res.status(400).send(cancelOrder.data);
                 } */
                 // res.status(200).send(cancelPayload);
+            } else if (action == 'approve') {
+                try {
+                    const cancellation = await Promise.all([
+                        api.post(SPE_HANDLE_CANCELLATION(order.store.accessToken, order.store.origin_id), {
+                            order_sn: order.origin_id,
+                            operation: "approve"
+                        }),
+                        mPrisma.orders.update({
+                            where: {
+                                origin_id: order.origin_id
+                            },
+                            data: {
+                                status: 'CANCELLED'
+                            }
+                        })
+                    ])
+                    responseCode = 200;
+                    responseData = cancellation[0].data;
+                } catch (err) {
+                    console.log(err)
+                    if (err.response) {
+                        responseCode = err.response.statusCode;
+                        responseData = err.response.data;
+                    } else {
+                        responseCode = 500;
+                        responseData = 'Internal Server Error';
+                    }
+                }
+            } else if (action == 'reject') {
+                try {
+                    const approveCancel = await api.post(SPE_HANDLE_CANCELLATION(order.store.accessToken, order.store.origin_id), {
+                        order_sn: order.origin_id,
+                        operation: 'REJECT'
+                    });
+                    responseCode = 200;
+                    responseData = approveCancel.data;
+                } catch (err) {
+                    if (err.response) {
+                        responseCode = err.response.statusCode;
+                        responseData = err.response.data;
+                    } else {
+                        console.log(err);
+                        responseCode = 500;
+                        responseData = 'Internal Server Error';
+                    }
+                }
             } else {
                 //GET SHIP PARAMS
                 try {
