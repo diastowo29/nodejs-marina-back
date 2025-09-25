@@ -1,5 +1,5 @@
 // const { PrismaClient, Prisma } = require("@prisma/client");
-const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO } = require("../../config/shopee_apis");
+const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require("../../config/shopee_apis");
 const { api } = require("../axios/interceptor");
 // const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
@@ -168,11 +168,12 @@ async function collectShopeeOrder (body, done) {
                                 },
                                 create: {
                                     name: (item.model_name == '') ? item.item_name : `${item.item_name} - ${item.model_name}`,
-                                    origin_id: `${item.item_id}-${item.model_id}`,
+                                    origin_id: item.item_id,
                                     price: item.model_original_price,
                                     sku: (item.item_sku == '') ? item.model_sku : item.item_sku,
                                     weight: Number.parseInt(item.weight),
-                                    storeId: body.m_shop_id
+                                    storeId: body.m_shop_id,
+                                    url: `https://shopee.co.id/product/${body.shop_id}/${item.item_id}`
                                 }
                             }
                         }
@@ -195,13 +196,20 @@ async function collectShopeeOrder (body, done) {
             }
         }
     }).then(async (orderUpdate) => {
-        let productsToFetch = [];
+        const productsToFetch = [];
+        // const getModelIdsPromises = [];
         orderUpdate.order_items.forEach(item => {
             if (item.products.product_img.length == 0) {
                 console.log('No image for this product, need to fetch');
                 productsToFetch.push(item.products.origin_id.split('-')[0]);
+                /* getModelIdsPromises.push(
+                    api.get(GET_SHOPEE_PRODUCTS_MODEL(accToken, item.item_id, body.shop_id))
+                ); */
             }
         });
+
+        getProductVarian(productsToFetch, body.shop_id);
+
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
             if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
                 console.log('products not found');
@@ -231,6 +239,42 @@ async function collectShopeeOrder (body, done) {
         console.log(err);
     })
     // done(null, {response: 'testing'});
+}
+
+async function getProductVarian (productIds, shopId) {
+    const getModelIdsPromises = [];
+    productIds.forEach(id => {
+        getModelIdsPromises.push(
+            api.get(GET_SHOPEE_PRODUCTS_MODEL(accToken, id, shopId))
+        );
+    });
+    const varianPromise = await Promise.all(getModelIdsPromises);
+    const varianToCreate = [];
+    productIds.forEach((id, i) => {
+        if (varianPromise[i].data && varianPromise[i].data.response) {
+            const modelData = varianPromise[i].data.response;
+            modelData.model.forEach(model => {
+                varianToCreate.push({
+                    name: model.model_name,
+                    price: model.price_info[0].current_price || model.price_info[0].original_price,
+                    origin_id: model.model_id.toString(),
+                    pre_order: model.pre_order.is_pre_order,
+                    sku: model.model_sku,
+                    status: model.model_status,
+                    productsOriginId: id.toString(),
+                    stock: model.stock_info_v2.summary_info.total_available_stock
+                });
+            });
+        }
+    });
+    prisma.varian.createMany({
+        skipDuplicates: true,
+        data: varianToCreate
+    }).then((varian) => {
+        console.log(varian);
+    }).catch((err) => {
+        console.log(err);
+    });
 }
 
 async function generateShopeeToken (shop_id, refToken, tenantConfig) {
