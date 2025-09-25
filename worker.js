@@ -619,7 +619,7 @@ async function processTiktok(body, done) {
         collectTiktokProduct(body, done);
     } else if (body.code == 12 || body.code == 11) {
         collectReturnRequest(body, done);
-    } else if (body.code == 14) {
+    } else if (body.code == 14 || body.code == 33) {
         forwardConversation(body, done);
     } else {
         console.log('code %s not implemented yet', body.code);

@@ -517,6 +517,99 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 pushTask(env, taskPayload);
                 res.status(200).send({bigint: productId, id:jsonBody.data.product_id })
                 break;
+            case 33:
+                try {
+                    const userExternalId = `tiktok-${jsonBody.data.sender.sender_im_user_id}-${jsonBody.shop_id}`
+                    // const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
+                    console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
+                    let upsertMessage = await mPrisma.omnichat.upsert({
+                        where: {
+                            origin_id: jsonBody.data.conversation_id
+                        },
+                        update: {
+                            last_message: jsonBody.data.content,
+                            last_messageId: jsonBody.data.message_id,
+                            messages: {
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: jsonBody.data.message_id
+                                    },
+                                    create: {
+                                        line_text: jsonBody.data.content,
+                                        origin_id: jsonBody.data.message_id,
+                                        chat_type: jsonBody.data.msg_type
+                                    }
+                                }
+                            },
+                        },
+                        create: {
+                            last_message: jsonBody.data.content,
+                            last_messageId: jsonBody.data.message_id,
+                            origin_id: jsonBody.data.conversation_id,
+                            store: {
+                                connect: {
+                                    origin_id: jsonBody.shop_id
+                                }
+                            },
+                            messages: {
+                                create: {
+                                    line_text: jsonBody.data.content,
+                                    origin_id: jsonBody.data.message_id,
+                                    chat_type: jsonBody.data.msg_type
+                                }
+                            }
+                        },
+                        select: {
+                            id: true,
+                            origin_id: true,
+                            externalId: true,
+                            customer: true,
+                            store: {
+                                include: {
+                                    channel: {
+                                        select: {
+                                            client: {
+                                                select: {
+                                                    integration: {
+                                                        select: {
+                                                            name: true,
+                                                            notes: true,
+                                                            id: true,
+                                                            credent: true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    if (upsertMessage.store.channel.client.integration.length > 0) {
+                        // if (jsonBody.data.sender.role == 'BUYER') {
+                            let taskPayload = {
+                                channel: TIKTOK,
+                                code: jsonBody.type,
+                                chat_type: jsonBody.data.type,
+                                message: upsertMessage,
+                                userExternalId: userExternalId,
+                                imUserId: jsonBody.data.sender.sender_im_user_id,
+                                message_content: jsonBody.data.content,
+                                tenantDB: getTenantDB(org[1]),
+                                shopId: jsonBody.shop_id,
+                                org_id: org[1],
+                                syncCustomer: (upsertMessage.customer) ? false : true
+                            }
+                            pushTask(env, taskPayload);
+                        // }
+                    }
+                    res.status(200).send({message: {id: upsertMessage.id}});
+                } catch (err) {
+                    console.log(err);
+                    res.status(400).send({error: err});
+                }
+                break;
             default:
                 res.status(200).send({message: 'event type not handled: ' + jsonBody.type});
                 break;
