@@ -4,8 +4,8 @@ const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/u
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
-const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER, SPE_HANDLE_CANCELLATION } = require('../../../config/shopee_apis');
-const { generateShopeeToken } = require('../../../functions/shopee/function');
+const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER, SPE_HANDLE_CANCELLATION, SPE_GET_TRACKING_INFO } = require('../../../config/shopee_apis');
+const { generateShopeeToken, callShopee } = require('../../../functions/shopee/function');
 const { decryptData } = require('../../../functions/encryption');
 var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
@@ -114,7 +114,9 @@ router.get('/:id/awb_track', async function(req, res, next) {
                 select: {
                     id: true,
                     token: true,
-                    secondary_token: true
+                    origin_id: true,
+                    secondary_token: true,
+                    refresh_token: true
                 }
             }
         }
@@ -134,6 +136,19 @@ router.get('/:id/awb_track', async function(req, res, next) {
                     console.log(err);
                     return res.status(500).send({ error: err.message });
                 })
+        } else if (req.query.channel == SHOPEE) {
+            const tenantConfig = {
+                org_id: req.tenantId,
+                tenantDB: req.tenantDB
+            }
+            callShopee('GET', SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig).then((orderTracking) => {
+                if (orderTracking.data && orderTracking.data.response) {
+                    return res.status(200).send({tracking: orderTracking.data.response.tracking_info})
+                }
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).send({ error: err.message });
+            })
         } else {
             return res.status(200).send({
                 message: 'Available soon for this channel: ' + req.query.channel
@@ -433,6 +448,10 @@ router.put('/:id', async function(req, res, next) {
             }
             break;
         case SHOPEE:
+            const tenantConfig = {
+                org_id: req.tenantId,
+                tenantDB: req.tenantDB
+            }
             if (action == 'cancel') {
                 const cancelPayload = {
                     order_sn: order.origin_id,
@@ -447,12 +466,13 @@ router.put('/:id', async function(req, res, next) {
                     })
                 }
                 try {
-                    const cancelOrder = await api.post(
+                    const cancelOrder = await callShopee('post', SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason), JSON.stringify(cancelPayload), order.store.refresh_token, order.store.origin_id, tenantConfig);
+                    /* const cancelOrder = await api.post(
                         SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
                         JSON.stringify(cancelPayload)).catch(async function (err) {
                         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
                             console.log(`error status ${err.status} response ${err.response.data.error}`);
-                            let newToken = await generateShopeeToken(order.store.origin_id, order.store.refresh_token);
+                            let newToken = await generateShopeeToken(order.store.origin_id, order.store.refresh_token, tenantConfig);
                             if (newToken.access_token) {
                                 return api.post(
                                     SHOPEE_CANCEL_ORDER(newToken.access_token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
@@ -463,7 +483,7 @@ router.put('/:id', async function(req, res, next) {
                             console.log(err);
                             return res.status(400).send(err);
                         }
-                    });
+                    }); */
                     statusCode = cancelOrder.status;
                     responseCode = cancelOrder.statusCode;
                     responseData = cancelOrder.data;
@@ -531,52 +551,28 @@ router.put('/:id', async function(req, res, next) {
                 //GET SHIP PARAMS
                 try {
                     let accessToken = order.store.token;
-                    const shipParams = await api.get(
-                        GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id)).catch(async function (err) {
-                        if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-                            console.log(`error status ${err.status} response ${err.response.data.error}`);
-                            let newToken = await generateShopeeToken(order.store.origin_id, order.store.refresh_token);
-                            if (newToken.access_token) {
-                                accessToken = newToken.access_token;
-                                return api.get(
-                                    GET_SHOPEE_SHIP_PARAMS(newToken.access_token, order.origin_id, order.store.origin_id)
-                                );
-                            }
-                        } else {
-                            console.log(err);
-                            return res.status(400).send(err);
-                        }
-                    });
+                    const shipParams = await callShopee('get', GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig);
                     if (shipParams.data.error) {
-                        return res.status(400).send(shipParams.data);
+                        return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
                     }
                     // console.log(JSON.stringify(shipParams.data));
+                    let pickupParams = {};
+                    if (shipParams.data.response.pickup && shipParams.data.response.pickup.address_list) {
+                        pickupParams = {
+                            address_id: shipParams.data.response.pickup.address_list[0].address_id,
+                            pickup_time_id: shipParams.data.response.pickup.address_list[0].time_slot_list[0].pickup_time_id
+                        }
+                    }
                     const shipmentPayload = {
                         order_sn: order.origin_id,
-                        pickup: {
-                            address_id: 0
-                        }
+                        pickup: pickupParams
                     };
-                    const shipArrangement = await api.post(
-                        SHOPEE_SHIP_ORDER(accessToken, order.store.origin_id),
-                        JSON.stringify(shipmentPayload)).catch(async function(err) {
-                            if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-                                console.log(`error status ${err.status} response ${err.response.data.error}`);
-                                let newToken = await generateShopeeToken(order.store.origin_id, order.store.refresh_token);
-                                if (newToken.access_token) {
-                                    accessToken = newToken.access_token;
-                                    return api.get(
-                                        SHOPEE_SHIP_ORDER(accessToken, order.store.origin_id)
-                                    );
-                                }
-                            } else {
-                                console.log(err);
-                                return res.status(400).send(err);
-                            }
-                    });
+                    console.log(shipmentPayload);
+                    const shipArrangement = await callShopee('post', SHOPEE_SHIP_ORDER(accessToken, order.store.origin_id), JSON.stringify(shipmentPayload), order.store.refresh_token, order.store.origin_id, tenantConfig);
                     if (shipArrangement.data.error) {
                         return res.status(400).send({
                             parameter: shipParams.data,
+                            ship_payload: shipmentPayload,
                             arrangement: shipArrangement.data
                         });
                     }

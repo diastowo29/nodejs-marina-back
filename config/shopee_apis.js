@@ -31,6 +31,12 @@ function SPE_HANDLE_CANCELLATION (accessToken, shopId) {
     return `${SHOPEE_HOST}${path}?${shopSignedParam}`;
 }
 
+function SPE_GET_TRACKING_INFO (accessToken, shopId, orderId) {
+    const path = '/api/v2/logistics/get_tracking_info';
+    let shopSignedParam = shopeeSign(path, accessToken, shopId);
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}&order_sn=${orderId}`;
+}
+
 function GET_SHOPEE_PRODUCTS_MODEL (accessToken, productId, shopId) {
     const path = '/api/v2/product/get_model_list';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
@@ -86,5 +92,6 @@ module.exports = {
     GET_SHOPEE_REFRESH_TOKEN,
     GET_SHOPEE_SHIP_PARAMS,
     GET_SHOPEE_PRODUCTS_MODEL,
-    SPE_HANDLE_CANCELLATION
+    SPE_HANDLE_CANCELLATION,
+    SPE_GET_TRACKING_INFO
 }

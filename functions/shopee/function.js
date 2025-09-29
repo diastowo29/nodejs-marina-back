@@ -6,7 +6,7 @@ var CryptoJS = require("crypto-js");
 const { default: axios } = require("axios");
 const { storeStatuses } = require("../../config/utils");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
-const { encryptData } = require("../encryption");
+const { encryptData, decryptData } = require("../encryption");
 const { PrismaClient } = require("../../prisma/generated/client");
 let prisma = new PrismaClient();
 
@@ -25,7 +25,7 @@ async function collectShopeeOrder (body, done) {
             if (newToken) {
                 if (newToken.access_token) {
                     return api.get(
-                        GET_SHOPEE_ORDER_DETAIL(newToken.access_token, body.order_id, body.shop_id)
+                        GET_SHOPEE_ORDER_DETAIL(encryptData(newToken.access_token), body.order_id, body.shop_id)
                     );
                 }
             }
@@ -164,11 +164,11 @@ async function collectShopeeOrder (body, done) {
                         products: {
                             connectOrCreate: {
                                 where: {
-                                    origin_id: `${item.item_id}-${item.model_id}`
+                                    origin_id: item.item_id.toString()
                                 },
                                 create: {
                                     name: (item.model_name == '') ? item.item_name : `${item.item_name} - ${item.model_name}`,
-                                    origin_id: item.item_id,
+                                    origin_id: item.item_id.toString(),
                                     price: item.model_original_price,
                                     sku: (item.item_sku == '') ? item.model_sku : item.item_sku,
                                     weight: Number.parseInt(item.weight),
@@ -286,7 +286,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
         method: 'POST',
         url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
         data: {
-            refresh_token: refToken,
+            refresh_token: decryptData(refToken),
             partner_id: Number.parseInt(PARTNER_ID),
             shop_id: Number.parseInt(shop_id),
         },
@@ -330,7 +330,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
     }
 }
 
-async function callShopee (method, url, body, token, refreshToken, shopId) {
+async function callShopee (method, url, body, refreshToken, shopId, tenantConfig) {
     return api({
         method: method,
         url: url,
@@ -338,7 +338,7 @@ async function callShopee (method, url, body, token, refreshToken, shopId) {
     }).catch(async function (err) {
         console.log(err.response.data)
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-            let newToken = await generateShopeeToken(shopId, refreshToken);
+            let newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
             if (!newToken.data.data.access_token) {
                 throw new Error('Failed to refresh token');
             }
