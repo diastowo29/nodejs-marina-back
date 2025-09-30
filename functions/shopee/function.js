@@ -62,14 +62,22 @@ async function collectShopeeRR (body, done) {
                     system_status: rrData.status,
                     return_type: 'RETURN_REFUND',
                     status: rrData.status,
-                    /* line_item: {
+                    line_item: {
                         createMany: {
-                            data: {
-
-                            }
+                            data: rrData.item.map(item => ({
+                                refund_total: item.refund_amount,
+                                origin_id: `${rrData.return_sn}-${item.model_id}`,
+                                order_itemsOriginId: `${rrData.order_sn}-${item.item_id}`
+                            })),
+                            skipDuplicates: true
                         }
-                    } */
+                    }
                 }
+            }).then((rrItem) => {
+                console.log('rrItem updated' + rrItem.id);
+            }).catch((rrErr) => {
+                console.log(rrErr);
+                console.log('Update rrItem failed');
             })
         } else {
             console.log(orderRr);
