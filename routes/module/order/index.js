@@ -143,6 +143,7 @@ router.get('/:id/awb_track', async function(req, res, next) {
             }
             callShopee('GET', SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig).then((orderTracking) => {
                 if (orderTracking.data && orderTracking.data.response) {
+                    // return res.status(200).send({tracking: orderTracking.data})
                     return res.status(200).send({tracking: orderTracking.data.response.tracking_info})
                 }
             }).catch((err) => {

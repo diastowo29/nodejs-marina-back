@@ -101,10 +101,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                         m_shop_id: newOrder.store.id,
                         shop_id: jsonBody.shop_id,
                         refresh_token: newOrder.store.refresh_token,
+                        status: jsonBody.data.status,
                         tenantDB: tenantDbUrl,
                         org_id: org[1]
                     }
-                    if (newOrder.order_items.length == 0) {
+                    if (newOrder.order_items.length == 0 || jsonBody.data.status == 'SHIPPED') {
                         if (newOrder.store.status != storeStatuses.EXPIRED) {
                             pushTask(env, taskPayload);
                         } else {
@@ -572,7 +573,18 @@ router.post(PATH_AUTH, async function(req, res, next) {
                                     name: SHOPEE
                                 },
                                 create: {
-                                    name: SHOPEE
+                                    name: SHOPEE,
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                 origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

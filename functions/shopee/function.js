@@ -1,5 +1,5 @@
 // const { PrismaClient, Prisma } = require("@prisma/client");
-const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require("../../config/shopee_apis");
+const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL, SPE_GET_TRACKING_NUMBER } = require("../../config/shopee_apis");
 const { api } = require("../axios/interceptor");
 // const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
@@ -10,9 +10,41 @@ const { encryptData, decryptData } = require("../encryption");
 const { PrismaClient } = require("../../prisma/generated/client");
 let prisma = new PrismaClient();
 
+async function collectShopeeTrackNumber(body, done) {
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+    const tenantConfig = {
+        org_id: body.org_id,
+        tenantDB: body.tenantDB
+    }
+    try {
+        const trackingNumber = await callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+        if (trackingNumber.data && trackingNumber.data.response) {
+            console.log(trackingNumber.data.response);
+            prisma.orders.update({
+                where: {
+                    origin_id: body.order_id
+                },
+                data: {
+                    tracking_number: trackingNumber.data.response.tracking_number
+                }
+            }).then(() => {
+                console.log('Tracking number updated');
+            }).catch((err) => {
+                console.log(err);
+                console.log('Error updating tracking number');
+            })
+        } else {
+            console.log('Tracking number not found for orderId: ' + body.order_id);
+        }
+    } catch (err) {
+        console.log(err);
+    }
+    
+}
+
 async function collectShopeeOrder (body, done) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
-    const order = await api.get(
+    /* const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
     ).catch(async function (err) {
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
@@ -32,7 +64,12 @@ async function collectShopeeOrder (body, done) {
         } else {
             console.log(err);
         }
-    });
+    }); */
+    const tenantConfig = {
+        org_id: body.org_id,
+        tenantDB: body.tenantDB
+    }
+    const order = await callShopee('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
     if ((order.data.error) || (order.data.response.order_list.length === 0)) {
         console.log(order.data);
         console.log('order error');
@@ -201,7 +238,7 @@ async function collectShopeeOrder (body, done) {
         orderUpdate.order_items.forEach(item => {
             if (item.products.product_img.length == 0) {
                 console.log('No image for this product, need to fetch');
-                productsToFetch.push(item.products.origin_id.split('-')[0]);
+                productsToFetch.push(item.products.origin_id);
                 /* getModelIdsPromises.push(
                     api.get(GET_SHOPEE_PRODUCTS_MODEL(accToken, item.item_id, body.shop_id))
                 ); */
@@ -355,6 +392,7 @@ async function callShopee (method, url, body, refreshToken, shopId, tenantConfig
 
 module.exports = {
     collectShopeeOrder,
+    collectShopeeTrackNumber,
     generateShopeeToken,
     callShopee
 }

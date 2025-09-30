@@ -20,7 +20,7 @@ let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
-const { collectShopeeOrder, generateShopeeToken } = require('./functions/shopee/function');
+const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClient, getPrismaClientForTenant } = require('./services/prismaServices');
@@ -447,7 +447,11 @@ async function processShopee(body, done) {
     }
     if (body.code == 3) {
         /* ==== ORDERS ==== */
-        collectShopeeOrder(body, done);
+        if (body.status == 'SHIPPED') {
+            collectShopeeTrackNumber(body, done);
+        } else {
+            collectShopeeOrder(body, done);
+        }
     } else if (body.code == 9999) {
         let accToken = body.token;
         let refToken = body.refresh_token

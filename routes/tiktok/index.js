@@ -754,10 +754,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         channel: {
                             connectOrCreate: {
                                 where: {
-                                    name: 'tiktok'
+                                    name: TIKTOK
                                 },
                                 create: {
-                                    name: 'tiktok',
+                                    name: TIKTOK,
                                     client: {
                                         connectOrCreate: {
                                             where: {
@@ -780,10 +780,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         channel: {
                             upsert: {
                                 where: {
-                                    name: 'tiktok'
+                                    name: TIKTOK
                                 },
                                 create: {
-                                    name: 'tiktok'
+                                    name: TIKTOK
                                 },
                                 update: {
                                     client: {
