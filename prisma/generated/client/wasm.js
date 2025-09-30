@@ -174,8 +174,21 @@ exports.Prisma.ProductsScalarFieldEnum = {
   createdAt: 'createdAt',
   weight: 'weight',
   stock: 'stock',
+  pre_order: 'pre_order',
   sku: 'sku',
   storeId: 'storeId'
+};
+
+exports.Prisma.VarianScalarFieldEnum = {
+  id: 'id',
+  origin_id: 'origin_id',
+  price: 'price',
+  name: 'name',
+  sku: 'sku',
+  stock: 'stock',
+  status: 'status',
+  pre_order: 'pre_order',
+  productsOriginId: 'productsOriginId'
 };
 
 exports.Prisma.Order_itemsScalarFieldEnum = {
@@ -319,7 +332,7 @@ exports.Prisma.Return_line_itemScalarFieldEnum = {
   currency: 'currency',
   refund_subtotal: 'refund_subtotal',
   refund_total: 'refund_total',
-  order_itemsId: 'order_itemsId',
+  order_itemsOriginId: 'order_itemsOriginId',
   return_refundId: 'return_refundId'
 };
 
@@ -356,6 +369,7 @@ exports.Prisma.ModelName = {
   channel: 'channel',
   store: 'store',
   products: 'products',
+  varian: 'varian',
   order_items: 'order_items',
   logistic: 'logistic',
   orders: 'orders',
