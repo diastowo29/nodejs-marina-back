@@ -20,7 +20,7 @@ let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
-const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber } = require('./functions/shopee/function');
+const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClient, getPrismaClientForTenant } = require('./services/prismaServices');
@@ -575,6 +575,8 @@ async function processShopee(body, done) {
         }
     } else if (body.code == 10) {
         forwardConversation(body, done);
+    } else if (body.code == 29) {
+        collectShopeeRR(body, done);
     } else {
         console.log('shopee code not supported: ', body.code);
         if (env !== 'production') {

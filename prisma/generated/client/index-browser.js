@@ -332,7 +332,7 @@ exports.Prisma.Return_line_itemScalarFieldEnum = {
   currency: 'currency',
   refund_subtotal: 'refund_subtotal',
   refund_total: 'refund_total',
-  order_itemsId: 'order_itemsId',
+  order_itemsOriginId: 'order_itemsOriginId',
   return_refundId: 'return_refundId'
 };
 

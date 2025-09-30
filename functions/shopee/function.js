@@ -1,5 +1,5 @@
 // const { PrismaClient, Prisma } = require("@prisma/client");
-const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL, SPE_GET_TRACKING_NUMBER } = require("../../config/shopee_apis");
+const { GET_SHOPEE_ORDER_DETAIL, PARTNER_ID, GET_SHOPEE_REFRESH_TOKEN, PARTNER_KEY, SHOPEE_HOST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL, SPE_GET_TRACKING_NUMBER, SPE_GET_RR_DETAIL } = require("../../config/shopee_apis");
 const { api } = require("../axios/interceptor");
 // const prisma = new PrismaClient();
 var CryptoJS = require("crypto-js");
@@ -39,7 +39,155 @@ async function collectShopeeTrackNumber(body, done) {
     } catch (err) {
         console.log(err);
     }
-    
+}
+
+async function collectShopeeRR (body, done) {
+    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+    const tenantConfig = {
+        org_id: body.org_id,
+        tenantDB: body.tenantDB
+    }
+    callShopee('GET', SPE_GET_RR_DETAIL(body.token, body.shop_id, returnId), {}, body.refresh_token, body.shop_id, tenantConfig).then((orderRr) => {
+        if (orderRr.data) {
+            console.log(orderRr.data);
+            // const rrData = orderRr.data.response;
+            const rrData = sampleOrderRr.response;
+            prisma.return_refund.update({
+                where: {
+                    origin_id: rrData.return_sn
+                },
+                data: {
+                    total_amount: rrData.refund_amount,
+                    return_reason: `${rrData.reason} - ${rrData.text_reason}`,
+                    system_status: rrData.status,
+                    return_type: 'RETURN_REFUND',
+                    status: rrData.status,
+                    /* line_item: {
+                        createMany: {
+                            data: {
+
+                            }
+                        }
+                    } */
+                }
+            })
+        } else {
+            console.log(orderRr);
+            console.log('Error getting RR record from shopee');
+        }
+    }).catch((errRr) => {
+        console.log(errRr);
+    })
+}
+
+const sampleOrderRr = {
+	"request_id": "d52ca43b277a4f9292fb8be658bfd33d",
+	"error": "-",
+	"message": "-",
+	"response": {
+		"image": [
+			"https://cf.shopee.sg/file/166f23cbfb31bd882f51cfe7f90d3826"
+		],
+		"buyer_videos": [
+			{
+				"thumbnail_url": "https://down-ws-sg.img.susercontent.com/sg-11110158-23040-t1taxpkdkgpvf7",
+				"video_url": "https://play-ws.vod.shopee.com/api/v4/11110158/mms/sg-11110158-6jrnk-lf6a3juz7hw96f.ori.mp4"
+			}
+		],
+		"reason": "NOT_RECEIPT",
+		"text_reason": "not received",
+		"return_sn": "2206140TA5PM808",
+		"refund_amount": 13.97,
+		"currency": "SGD",
+		"create_time": 1655205084,
+		"update_time": 1655219544,
+		"status": "ACCEPTED",
+		"due_date": 1655377883,
+		"tracking_number": "RNSHS00177569",
+		"dispute_reason": 2,
+		"dispute_text_reason": "\"reason\"",
+		"needs_logistics": false,
+		"amount_before_discount": 13.99,
+		"user": {
+			"username": "gwlsg01",
+			"email": "********oo@shopee.com",
+			"portrait": "https://cf.shopee.sg/file/166f23cbfb31bd882f51cfe7f90d3826"
+		},
+		"item": [
+			{
+				"model_id": 2001586745,
+				"name": "[Self collection point] Orange macaron",
+				"images": [
+					"https://cf.shopee.sg/file/4ecbb6fa567e42c1b1e02993ad53df12"
+				],
+				"amount": 1,
+				"item_price": 10,
+				"is_add_on_deal": false,
+				"is_main_item": false,
+				"add_on_deal_id": 0,
+				"item_id": 2700126223,
+				"item_sku": "USB",
+				"variation_sku": "RED",
+				"refund_amount": 12.34
+			}
+		],
+		"order_sn": "220614T9XV8JTN",
+		"return_ship_due_date": 1655438205,
+		"return_seller_due_date": 1655438205,
+		"activity": [
+			{
+				"activity_id": 123456789,
+				"activity_type": "BUNDLE",
+				"original_price": "12.34",
+				"discounted_price": "12.34",
+				"items": [
+					{
+						"item_id": 12345678,
+						"variation_id": 12345678,
+						"quantity_purchased": 2,
+						"original_price": "12.34"
+					}
+				],
+				"refund_amount": 12.34
+			}
+		],
+		"seller_proof": {
+			"seller_proof_status": "PENDING",
+			"seller_evidence_deadline": 1655438336
+		},
+		"seller_compensation": {
+			"seller_compensation_status": "PENDING_REQUEST",
+			"seller_compensation_due_date": 1655438336,
+			"compensation_amount": 100
+		},
+		"negotiation": {
+			"negotiation_status": "PENDING_RESPOND",
+			"latest_solution": "RETURN_REFUND",
+			"latest_offer_amount": 12.34,
+			"latest_offer_creator": "username",
+			"counter_limit": 0,
+			"offer_due_date": 1655438336
+		},
+		"logistics_status": "LOGISTICS_REQUEST_CREATED",
+		"return_pickup_address": {
+			"address": "BLOCK 106, HENDERSON CRESCENT",
+			"name": "name",
+			"phone": "6512345678",
+			"town": "Batino",
+			"district": "Calamba City",
+			"city": "Laguna",
+			"state": "South Luzon",
+			"region": "SG",
+			"zipcode": "150106"
+		},
+		"virtual_contact_number": "0928000886",
+		"package_query_number": "66668888",
+		"return_address": {
+			"whs_id": "SGC"
+		},
+        "return_refund_request_type": 0,
+        "validation_type": "seller_validation"
+	}
 }
 
 async function collectShopeeOrder (body, done) {
@@ -394,5 +542,6 @@ module.exports = {
     collectShopeeOrder,
     collectShopeeTrackNumber,
     generateShopeeToken,
-    callShopee
+    callShopee,
+    collectShopeeRR
 }

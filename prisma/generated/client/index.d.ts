@@ -22058,7 +22058,6 @@ export namespace Prisma {
     refund_service_fee: number | null
     refund_subtotal: number | null
     refund_total: number | null
-    order_itemsId: number | null
     return_refundId: number | null
   }
 
@@ -22067,7 +22066,6 @@ export namespace Prisma {
     refund_service_fee: number | null
     refund_subtotal: number | null
     refund_total: number | null
-    order_itemsId: number | null
     return_refundId: number | null
   }
 
@@ -22078,7 +22076,7 @@ export namespace Prisma {
     currency: string | null
     refund_subtotal: number | null
     refund_total: number | null
-    order_itemsId: number | null
+    order_itemsOriginId: string | null
     return_refundId: number | null
   }
 
@@ -22089,7 +22087,7 @@ export namespace Prisma {
     currency: string | null
     refund_subtotal: number | null
     refund_total: number | null
-    order_itemsId: number | null
+    order_itemsOriginId: string | null
     return_refundId: number | null
   }
 
@@ -22100,7 +22098,7 @@ export namespace Prisma {
     currency: number
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: number
     return_refundId: number
     _all: number
   }
@@ -22111,7 +22109,6 @@ export namespace Prisma {
     refund_service_fee?: true
     refund_subtotal?: true
     refund_total?: true
-    order_itemsId?: true
     return_refundId?: true
   }
 
@@ -22120,7 +22117,6 @@ export namespace Prisma {
     refund_service_fee?: true
     refund_subtotal?: true
     refund_total?: true
-    order_itemsId?: true
     return_refundId?: true
   }
 
@@ -22131,7 +22127,7 @@ export namespace Prisma {
     currency?: true
     refund_subtotal?: true
     refund_total?: true
-    order_itemsId?: true
+    order_itemsOriginId?: true
     return_refundId?: true
   }
 
@@ -22142,7 +22138,7 @@ export namespace Prisma {
     currency?: true
     refund_subtotal?: true
     refund_total?: true
-    order_itemsId?: true
+    order_itemsOriginId?: true
     return_refundId?: true
   }
 
@@ -22153,7 +22149,7 @@ export namespace Prisma {
     currency?: true
     refund_subtotal?: true
     refund_total?: true
-    order_itemsId?: true
+    order_itemsOriginId?: true
     return_refundId?: true
     _all?: true
   }
@@ -22251,7 +22247,7 @@ export namespace Prisma {
     currency: string | null
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: string
     return_refundId: number | null
     _count: Return_line_itemCountAggregateOutputType | null
     _avg: Return_line_itemAvgAggregateOutputType | null
@@ -22281,7 +22277,7 @@ export namespace Prisma {
     currency?: boolean
     refund_subtotal?: boolean
     refund_total?: boolean
-    order_itemsId?: boolean
+    order_itemsOriginId?: boolean
     return_refundId?: boolean
     item?: boolean | order_itemsDefaultArgs<ExtArgs>
     return_refund?: boolean | return_line_item$return_refundArgs<ExtArgs>
@@ -22294,7 +22290,7 @@ export namespace Prisma {
     currency?: boolean
     refund_subtotal?: boolean
     refund_total?: boolean
-    order_itemsId?: boolean
+    order_itemsOriginId?: boolean
     return_refundId?: boolean
     item?: boolean | order_itemsDefaultArgs<ExtArgs>
     return_refund?: boolean | return_line_item$return_refundArgs<ExtArgs>
@@ -22307,7 +22303,7 @@ export namespace Prisma {
     currency?: boolean
     refund_subtotal?: boolean
     refund_total?: boolean
-    order_itemsId?: boolean
+    order_itemsOriginId?: boolean
     return_refundId?: boolean
     item?: boolean | order_itemsDefaultArgs<ExtArgs>
     return_refund?: boolean | return_line_item$return_refundArgs<ExtArgs>
@@ -22320,11 +22316,11 @@ export namespace Prisma {
     currency?: boolean
     refund_subtotal?: boolean
     refund_total?: boolean
-    order_itemsId?: boolean
+    order_itemsOriginId?: boolean
     return_refundId?: boolean
   }
 
-  export type return_line_itemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "origin_id" | "refund_service_fee" | "currency" | "refund_subtotal" | "refund_total" | "order_itemsId" | "return_refundId", ExtArgs["result"]["return_line_item"]>
+  export type return_line_itemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "origin_id" | "refund_service_fee" | "currency" | "refund_subtotal" | "refund_total" | "order_itemsOriginId" | "return_refundId", ExtArgs["result"]["return_line_item"]>
   export type return_line_itemInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     item?: boolean | order_itemsDefaultArgs<ExtArgs>
     return_refund?: boolean | return_line_item$return_refundArgs<ExtArgs>
@@ -22351,7 +22347,7 @@ export namespace Prisma {
       currency: string | null
       refund_subtotal: number
       refund_total: number
-      order_itemsId: number
+      order_itemsOriginId: string
       return_refundId: number | null
     }, ExtArgs["result"]["return_line_item"]>
     composites: {}
@@ -22784,7 +22780,7 @@ export namespace Prisma {
     readonly currency: FieldRef<"return_line_item", 'String'>
     readonly refund_subtotal: FieldRef<"return_line_item", 'Int'>
     readonly refund_total: FieldRef<"return_line_item", 'Int'>
-    readonly order_itemsId: FieldRef<"return_line_item", 'Int'>
+    readonly order_itemsOriginId: FieldRef<"return_line_item", 'String'>
     readonly return_refundId: FieldRef<"return_line_item", 'Int'>
   }
     
@@ -24662,7 +24658,7 @@ export namespace Prisma {
     currency: 'currency',
     refund_subtotal: 'refund_subtotal',
     refund_total: 'refund_total',
-    order_itemsId: 'order_itemsId',
+    order_itemsOriginId: 'order_itemsOriginId',
     return_refundId: 'return_refundId'
   };
 
@@ -26133,7 +26129,7 @@ export namespace Prisma {
     currency?: StringNullableFilter<"return_line_item"> | string | null
     refund_subtotal?: IntFilter<"return_line_item"> | number
     refund_total?: IntFilter<"return_line_item"> | number
-    order_itemsId?: IntFilter<"return_line_item"> | number
+    order_itemsOriginId?: StringFilter<"return_line_item"> | string
     return_refundId?: IntNullableFilter<"return_line_item"> | number | null
     item?: XOR<Order_itemsScalarRelationFilter, order_itemsWhereInput>
     return_refund?: XOR<Return_refundNullableScalarRelationFilter, return_refundWhereInput> | null
@@ -26146,7 +26142,7 @@ export namespace Prisma {
     currency?: SortOrderInput | SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
+    order_itemsOriginId?: SortOrder
     return_refundId?: SortOrderInput | SortOrder
     item?: order_itemsOrderByWithRelationInput
     return_refund?: return_refundOrderByWithRelationInput
@@ -26162,7 +26158,7 @@ export namespace Prisma {
     currency?: StringNullableFilter<"return_line_item"> | string | null
     refund_subtotal?: IntFilter<"return_line_item"> | number
     refund_total?: IntFilter<"return_line_item"> | number
-    order_itemsId?: IntFilter<"return_line_item"> | number
+    order_itemsOriginId?: StringFilter<"return_line_item"> | string
     return_refundId?: IntNullableFilter<"return_line_item"> | number | null
     item?: XOR<Order_itemsScalarRelationFilter, order_itemsWhereInput>
     return_refund?: XOR<Return_refundNullableScalarRelationFilter, return_refundWhereInput> | null
@@ -26175,7 +26171,7 @@ export namespace Prisma {
     currency?: SortOrderInput | SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
+    order_itemsOriginId?: SortOrder
     return_refundId?: SortOrderInput | SortOrder
     _count?: return_line_itemCountOrderByAggregateInput
     _avg?: return_line_itemAvgOrderByAggregateInput
@@ -26194,7 +26190,7 @@ export namespace Prisma {
     currency?: StringNullableWithAggregatesFilter<"return_line_item"> | string | null
     refund_subtotal?: IntWithAggregatesFilter<"return_line_item"> | number
     refund_total?: IntWithAggregatesFilter<"return_line_item"> | number
-    order_itemsId?: IntWithAggregatesFilter<"return_line_item"> | number
+    order_itemsOriginId?: StringWithAggregatesFilter<"return_line_item"> | string
     return_refundId?: IntNullableWithAggregatesFilter<"return_line_item"> | number | null
   }
 
@@ -27730,7 +27726,7 @@ export namespace Prisma {
     currency?: string | null
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: string
     return_refundId?: number | null
   }
 
@@ -27751,7 +27747,7 @@ export namespace Prisma {
     currency?: NullableStringFieldUpdateOperationsInput | string | null
     refund_subtotal?: IntFieldUpdateOperationsInput | number
     refund_total?: IntFieldUpdateOperationsInput | number
-    order_itemsId?: IntFieldUpdateOperationsInput | number
+    order_itemsOriginId?: StringFieldUpdateOperationsInput | string
     return_refundId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -27762,7 +27758,7 @@ export namespace Prisma {
     currency?: string | null
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: string
     return_refundId?: number | null
   }
 
@@ -27781,7 +27777,7 @@ export namespace Prisma {
     currency?: NullableStringFieldUpdateOperationsInput | string | null
     refund_subtotal?: IntFieldUpdateOperationsInput | number
     refund_total?: IntFieldUpdateOperationsInput | number
-    order_itemsId?: IntFieldUpdateOperationsInput | number
+    order_itemsOriginId?: StringFieldUpdateOperationsInput | string
     return_refundId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -29039,7 +29035,7 @@ export namespace Prisma {
     currency?: SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
+    order_itemsOriginId?: SortOrder
     return_refundId?: SortOrder
   }
 
@@ -29048,7 +29044,6 @@ export namespace Prisma {
     refund_service_fee?: SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
     return_refundId?: SortOrder
   }
 
@@ -29059,7 +29054,7 @@ export namespace Prisma {
     currency?: SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
+    order_itemsOriginId?: SortOrder
     return_refundId?: SortOrder
   }
 
@@ -29070,7 +29065,7 @@ export namespace Prisma {
     currency?: SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
+    order_itemsOriginId?: SortOrder
     return_refundId?: SortOrder
   }
 
@@ -29079,7 +29074,6 @@ export namespace Prisma {
     refund_service_fee?: SortOrder
     refund_subtotal?: SortOrder
     refund_total?: SortOrder
-    order_itemsId?: SortOrder
     return_refundId?: SortOrder
   }
 
@@ -31826,7 +31820,7 @@ export namespace Prisma {
     currency?: StringNullableFilter<"return_line_item"> | string | null
     refund_subtotal?: IntFilter<"return_line_item"> | number
     refund_total?: IntFilter<"return_line_item"> | number
-    order_itemsId?: IntFilter<"return_line_item"> | number
+    order_itemsOriginId?: StringFilter<"return_line_item"> | string
     return_refundId?: IntNullableFilter<"return_line_item"> | number | null
   }
 
@@ -32975,7 +32969,7 @@ export namespace Prisma {
     currency?: string | null
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: string
   }
 
   export type return_line_itemCreateOrConnectWithoutReturn_refundInput = {
@@ -34262,7 +34256,7 @@ export namespace Prisma {
     currency?: string | null
     refund_subtotal: number
     refund_total: number
-    order_itemsId: number
+    order_itemsOriginId: string
   }
 
   export type return_line_itemUpdateWithoutReturn_refundInput = {
@@ -34281,7 +34275,7 @@ export namespace Prisma {
     currency?: NullableStringFieldUpdateOperationsInput | string | null
     refund_subtotal?: IntFieldUpdateOperationsInput | number
     refund_total?: IntFieldUpdateOperationsInput | number
-    order_itemsId?: IntFieldUpdateOperationsInput | number
+    order_itemsOriginId?: StringFieldUpdateOperationsInput | string
   }
 
   export type return_line_itemUncheckedUpdateManyWithoutReturn_refundInput = {
@@ -34291,7 +34285,7 @@ export namespace Prisma {
     currency?: NullableStringFieldUpdateOperationsInput | string | null
     refund_subtotal?: IntFieldUpdateOperationsInput | number
     refund_total?: IntFieldUpdateOperationsInput | number
-    order_itemsId?: IntFieldUpdateOperationsInput | number
+    order_itemsOriginId?: StringFieldUpdateOperationsInput | string
   }
 
 

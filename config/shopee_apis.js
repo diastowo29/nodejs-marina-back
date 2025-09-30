@@ -73,6 +73,24 @@ function SHOPEE_SHIP_ORDER (accessToken, shopId) {
     return `${SHOPEE_HOST}${path}?${shopSignedParam}`;
 }
 
+function SPE_GET_RR_DETAIL (accessToken, shopId, returnSn) {
+    const path = '/api/v2/returns/get_return_detail';
+    let shopSignedParam = shopeeSign(path, accessToken, shopId);
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}?return_sn=${returnSn}`;
+}
+
+function SPE_REFUND_CONFIRM (accessToken, shopId, returnSn) {
+    const path = '/api/v2/returns/confirm';
+    let shopSignedParam = shopeeSign(path, accessToken, shopId);
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}?return_sn=${returnSn}`;
+}
+
+function SPE_OFFER_SOLUTION (accessToken, shopId) {
+    const path = '/api/v2/returns/offer';
+    let shopSignedParam = shopeeSign(path, accessToken, shopId);
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}`;
+}
+
 function shopeeSign (path, encryptedToken, shopId) {
     const ts = Math.floor(Date.now() / 1000);
     const decryptedToken = decryptData(encryptedToken)
@@ -100,5 +118,8 @@ module.exports = {
     GET_SHOPEE_PRODUCTS_MODEL,
     SPE_HANDLE_CANCELLATION,
     SPE_GET_TRACKING_INFO,
-    SPE_GET_TRACKING_NUMBER
+    SPE_GET_TRACKING_NUMBER,
+    SPE_GET_RR_DETAIL,
+    SPE_REFUND_CONFIRM,
+    SPE_OFFER_SOLUTION
 }

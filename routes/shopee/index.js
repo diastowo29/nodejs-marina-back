@@ -313,7 +313,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                                 org_id: org[1]
                             }
                             console.log(taskPayload);
-                            // pushTask(env, taskPayload);
+                            pushTask(env, taskPayload);
                         }
                         res.status(200).send({message: {id: returnRefund.id}});
                     } catch (err) {
