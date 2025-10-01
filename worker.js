@@ -20,7 +20,7 @@ let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
-const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR } = require('./functions/shopee/function');
+const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR, callShopee } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClient, getPrismaClientForTenant } = require('./services/prismaServices');
@@ -472,10 +472,12 @@ async function processShopee(body, done) {
                 }
             }
         });
+        // SOON - PRODUCT SYNC // const products = await callShopee('get', GET_SHOPEE_PRODUCTS_LIST(body.token, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
         if ((!products) || (!products.data.error)) {
             let productIds = products.data.response.item.map(item => item.item_id);
             // console.log(GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id))
             console.log('getting base info total %s product', productIds.length);
+            // SOON - PRODUCT SYNC // const productsInfo = await callShopee('get', GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
             const productsInfo = await api.get(
                 GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id)
             ).catch(function (err) {
