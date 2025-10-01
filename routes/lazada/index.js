@@ -2,22 +2,25 @@ var express = require('express');
 const SunshineConversationsClient = require('sunshine-conversations-client');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient, Prisma } = require('../../prisma/generated/baseClient');
-const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat, CHAT_TEXT } = require('../../config/utils');
+const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat, CHAT_TEXT, PATH_CHAT, PATH_AUTH, PATH_ORDER } = require('../../config/utils');
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
-const { getPrismaClient } = require('../../services/prismaServices');
+const { getPrismaClient, getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
+const { PrismaClient } = require('../../prisma/generated/client');
+const { encryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
 var env = process.env.NODE_ENV || 'development';
+let mPrisma = new PrismaClient();
 
-router.post('/webhook', async function (req, res, next) {
+/* router.post('/webhook', async function (req, res, next) {
     console.log(req.body);
     // workQueue.add({channel:LAZADA, body: req.body}, jobOpts);
     res.status(200).send({});
 });
-
-router.post('/order', async function(req, res, next) {
+ */
+router.post(PATH_ORDER, async function(req, res, next) {
     let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
     if (jsonBody.seller_id == '9999') {
@@ -32,7 +35,9 @@ router.post('/order', async function(req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
 
         if (jsonBody.message_type == 0) {
             console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
@@ -90,13 +95,13 @@ router.post('/order', async function(req, res, next) {
                 }
             }
         } else if(jsonBody.message_type == 21) {
-            /* product review
-            eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjIxLCJkYXRhIjp7Iml0ZW1faWQiOjgyOTg3ODgzNTksImlkIjoxNTMwMDEzMTE5Njg4MzU5LCJvcmRlcl9pZCI6MTU3MTg2MDg3NjE2OTAwN30sInRpbWVzdGFtcCI6MTczNjQ3Njc5Nywic2l0ZSI6ImxhemFkYV9pZCJ9
-             */
+            // product review
+            // eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjIxLCJkYXRhIjp7Iml0ZW1faWQiOjgyOTg3ODgzNTksImlkIjoxNTMwMDEzMTE5Njg4MzU5LCJvcmRlcl9pZCI6MTU3MTg2MDg3NjE2OTAwN30sInRpbWVzdGFtcCI6MTczNjQ3Njc5Nywic2l0ZSI6ImxhemFkYV9pZCJ9
+            
     
-            /* cancel success
-            eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjEwLCJkYXRhIjp7ImJ1eWVyX2lkIjo0MDA2NTk2NjkwMDcsImV4dHJhUGFyYW1zIjp7fSwicmV2ZXJzZV9vcmRlcl9pZCI6ODU2MjI5ODA1MTY5MDA3LCJyZXZlcnNlX29yZGVyX2xpbmVfaWQiOjg1NjIyOTgwNTI2OTAwNywicmV2ZXJzZV9zdGF0dXMiOiJDQU5DRUxfU1VDQ0VTUyIsInNlbGxlcl9pZCI6NDAwNjU2NTc2MTA3LCJzdGF0dXNfdXBkYXRlX3RpbWUiOjE3MzY0NzM1ODIsInRyYWRlX29yZGVyX2lkIjoxNTk2MDk1NDk5OTY5MDA3LCJ0cmFkZV9vcmRlcl9saW5lX2lkIjoxNjExNTk4MTAwMzY5MDA3fSwidGltZXN0YW1wIjoxNzM2NDczNTg3LCJzaXRlIjoibGF6YWRhX2lkIn0=
-             */
+            // cancel success
+            // eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjEwLCJkYXRhIjp7ImJ1eWVyX2lkIjo0MDA2NTk2NjkwMDcsImV4dHJhUGFyYW1zIjp7fSwicmV2ZXJzZV9vcmRlcl9pZCI6ODU2MjI5ODA1MTY5MDA3LCJyZXZlcnNlX29yZGVyX2xpbmVfaWQiOjg1NjIyOTgwNTI2OTAwNywicmV2ZXJzZV9zdGF0dXMiOiJDQU5DRUxfU1VDQ0VTUyIsInNlbGxlcl9pZCI6NDAwNjU2NTc2MTA3LCJzdGF0dXNfdXBkYXRlX3RpbWUiOjE3MzY0NzM1ODIsInRyYWRlX29yZGVyX2lkIjoxNTk2MDk1NDk5OTY5MDA3LCJ0cmFkZV9vcmRlcl9saW5lX2lkIjoxNjExNTk4MTAwMzY5MDA3fSwidGltZXN0YW1wIjoxNzM2NDczNTg3LCJzaXRlIjoibGF6YWRhX2lkIn0=
+            
             
             console.log('inbound another message type');
             console.log(req.body.message.data);
@@ -112,62 +117,62 @@ router.post('/order', async function(req, res, next) {
     });
 });
 
-router.put('/order/:id', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
-    let order = await mPrisma.orders.findUnique({
-        where: {
-            id: Number.parseInt(req.params.id)
-        },
-        include: {
-            order_items: true,
-        }
-    });
-    let orderItemIds = [];
-    order.order_items.forEach(item => {
-        orderItemIds.push(Number.parseInt(item.origin_id))
-    });
+// router.put('/order/:id', async function(req, res, next) {
+//     const mPrisma = getPrismaClient(req.tenantDB);
+//     let order = await mPrisma.orders.findUnique({
+//         where: {
+//             id: Number.parseInt(req.params.id)
+//         },
+//         include: {
+//             order_items: true,
+//         }
+//     });
+//     let orderItemIds = [];
+//     order.order_items.forEach(item => {
+//         orderItemIds.push(Number.parseInt(item.origin_id))
+//     });
 
-    /* PACKED */
-    let packReq = {
-        pack_order_list: [
-            {
-                order_item_list: orderItemIds,
-                order_id: order.origin_id
-            }
-        ],
-        delivery_type: 'dropship',
-        shipping_allocate_type: 'TFS',
-    }
-    /* REPACKED */
-    // /order/package/repack
-    /* let rePackReq = {
-        packages: [
-            {
-                package_id: 'packageId'
-            }
-        ]
-    } */
+//     /* PACKED */
+//     let packReq = {
+//         pack_order_list: [
+//             {
+//                 order_item_list: orderItemIds,
+//                 order_id: order.origin_id
+//             }
+//         ],
+//         delivery_type: 'dropship',
+//         shipping_allocate_type: 'TFS',
+//     }
+//     /* REPACKED */
+//     // /order/package/repack
+//     /* let rePackReq = {
+//         packages: [
+//             {
+//                 package_id: 'packageId'
+//             }
+//         ]
+//     } */
 
-    /* READY TO SHIP */
-    // /order/package/rts
-    /* let readyToShipReq = {
-        packages: [
-            {
-                package_id: 'packageId'
-            }
-        ]
-    } */
+//     /* READY TO SHIP */
+//     // /order/package/rts
+//     /* let readyToShipReq = {
+//         packages: [
+//             {
+//                 package_id: 'packageId'
+//             }
+//         ]
+//     } */
    
-    /* SHIPPED */
+//     /* SHIPPED */
 
-    /* CANCELLED */
-    // /order/cancel
-    // https://open.lazada.com/apps/doc/api?path=%2Forder%2Fcancel
+//     /* CANCELLED */
+//     // /order/cancel
+//     // https://open.lazada.com/apps/doc/api?path=%2Forder%2Fcancel
     
-    let apiParams = `packReq=${JSON.stringify(packReq)}`;
-    let packOrder = await lazPostCall(lazPackOrder, apiParams, 'refToken', sampleLazOMSToken);
-    res.status(200).send(packOrder);
-})
+//     let apiParams = `packReq=${JSON.stringify(packReq)}`;
+//     let packOrder = await lazPostCall(lazPackOrder, apiParams, 'refToken', sampleLazOMSToken);
+//     res.status(200).send(packOrder);
+// })
 
 let clients = [];
 let chats = [];
@@ -209,7 +214,7 @@ router.get('/event/test', async function(req, res, next) {
 })
 
 // message dari user
-router.post('/chat', async function(req, res, next) {
+router.post(PATH_CHAT, async function(req, res, next) {
     console.log('chat lazada',req.body.message.data);
     let jsonBody = gcpParser(req.body.message.data);
     console.log('chat request body', jsonBody);
@@ -232,7 +237,9 @@ router.post('/chat', async function(req, res, next) {
             clients: true
         }
     }).then(async(mBase) => {
-        const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
 
         let bodyData = jsonBody.data;
         let sessionId = bodyData.session_id;
@@ -243,9 +250,9 @@ router.post('/chat', async function(req, res, next) {
         console.log('userExternalId', userExternalId)
     
         // sunco hardcode part
-        let suncoAppId = process.env.SUNCO_APP_ID
+        /* let suncoAppId = process.env.SUNCO_APP_ID
         let suncoKeyId = process.env.SUNCO_KEY_ID
-        let suncoKeySecret = process.env.SUNCO_KEY_SECRET
+        let suncoKeySecret = process.env.SUNCO_KEY_SECRET */
         
         try {
             let conversation = await mPrisma.omnichat.upsert({
@@ -255,7 +262,6 @@ router.post('/chat', async function(req, res, next) {
                 },
                 where: {
                     origin_id: sessionId
-                    // origin_id: `${sessionId}-${userId}`
                 },
                 update: {
                     last_message: bodyData.content,
@@ -275,7 +281,6 @@ router.post('/chat', async function(req, res, next) {
                 },
                 create: {
                     origin_id: sessionId,
-                    // origin_id: `${sessionId}-${userId}`,
                     last_message: bodyData.content,
                     last_messageId: messageId,
                     store: {
@@ -289,7 +294,7 @@ router.post('/chat', async function(req, res, next) {
                             chat_type: CHAT_TEXT
                         }
                     },
-                    omnichat_user: {
+                    customer: {
                         connectOrCreate: {
                             where: { origin_id: userId.toString() },
                             create: { origin_id: userId.toString() }
@@ -298,7 +303,7 @@ router.post('/chat', async function(req, res, next) {
                 }
             });
     
-            console.log('lazada conversation', JSON.stringify(conversation))
+            /* console.log('lazada conversation', JSON.stringify(conversation))
     
             let sseEventPayload = {
                 user_id: userId,
@@ -349,7 +354,7 @@ router.post('/chat', async function(req, res, next) {
                 })
             }else{
                 userExternalId = conversation?.omnichat_user?.externalId
-            }
+            } */
     
             let taskPayload = {
                 channel: LAZADA_CHAT, 
@@ -386,7 +391,8 @@ router.post('/chat', async function(req, res, next) {
 
 })
 
-router.post('/authorize', async function(req, res, next) {
+router.post(PATH_AUTH, async function(req, res, next) {
+    mPrisma = req.prisma;
     let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     let addParams = `code=${req.body.code}`;
     let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
@@ -399,32 +405,109 @@ router.post('/authorize', async function(req, res, next) {
     if (sellerResponse.code != '0') {
         return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
     }
-    const mPrisma = getPrismaClient(req.tenantDB);
-    let newStore = await mPrisma.store.upsert({
-        where: {
-            origin_id: sellerResponse.data.seller_id.toString()
-        },
-        update: {
-            token: token,
-            refresh_token: refToken
-        },
-        create: {
-            origin_id: sellerResponse.data.seller_id.toString(),
-            name: sellerResponse.data.name,
-            token: token,
-            refresh_token: refToken,
-            channel: {
-                connect: {
-                    id: 2
+    // const mPrisma = getPrismaClient(req.tenantDB);
+    const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
+    try {
+        let newClients = await Promise.all([
+            basePrisma.stores.upsert({
+                where: {
+                    origin_id: sellerResponse.data.seller_id.toString()
+                },
+                create: {
+                    origin_id: sellerResponse.data.seller_id.toString(),
+                    clients: {
+                        connectOrCreate: {
+                            where: {
+                                org_id: orgBase64
+                            }, 
+                            create: {
+                                org_id: orgBase64
+                            }
+                        }
+                    }
+                },
+                update: {
+                    clients: {
+                        connectOrCreate: {
+                            where: {
+                                org_id: orgBase64
+                            },
+                            create: {
+                                org_id: orgBase64
+                            }
+                        }
+                    }
                 }
-            }
-        }
-    });
-    res.status(200).send({
-        token: authResponse,
-        seller: sellerResponse,
-        store: newStore
-    });
+            }),
+            mPrisma.store.upsert({
+                where: {
+                    origin_id: sellerResponse.data.seller_id.toString()
+                },
+                update: {
+                    token: encryptData(token),
+                    refresh_token: encryptData(refToken),
+                    status: 'ACTIVE',
+                    channel: {
+                        connectOrCreate: {
+                            where: {
+                                name: LAZADA
+                            },
+                            create: {
+                                name: LAZADA,
+                                client: {
+                                    connectOrCreate: {
+                                        where: {
+                                                origin_id: req.auth.payload.org_id
+                                        },
+                                        create: {
+                                            name: req.auth.payload.org_id,
+                                            origin_id: req.auth.payload.org_id
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                create: {
+                    origin_id: sellerResponse.data.seller_id.toString(),
+                    name: sellerResponse.data.name,
+                    token: encryptData(token),
+                    refresh_token: encryptData(refToken),
+                    status: 'ACTIVE',
+                    channel: {
+                        connectOrCreate: {
+                            where: {
+                                name: LAZADA
+                            },
+                            create: {
+                                name: LAZADA,
+                                client: {
+                                    connectOrCreate: {
+                                        where: {
+                                                origin_id: req.auth.payload.org_id
+                                        },
+                                        create: {
+                                            name: req.auth.payload.org_id,
+                                            origin_id: req.auth.payload.org_id
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        ])
+        res.status(200).send({
+            token: authResponse,
+            seller: sellerResponse,
+            store: newClients[1]
+        });
+    } catch(err) {
+        console.log(err)
+        console.log('Promise failed')
+    }
 })
 
 // function pushTask (env, taskPayload) {
@@ -451,7 +534,7 @@ const sample = {
 
 
 
-function createSuncoUser(userExternalId, username, appId){
+/* function createSuncoUser(userExternalId, username, appId){
     let baseLog = 'createSuncoUser()'
     let usersApi = new SunshineConversationsClient.UsersApi()
     let userCreateBody = new SunshineConversationsClient.UserCreateBody()
@@ -494,8 +577,8 @@ function createSuncoUser(userExternalId, username, appId){
         return error
     })
 }
-
-function createSuncoConversation(appId, conversationCreateBody){
+ */
+/* function createSuncoConversation(appId, conversationCreateBody){
     let baseLog = 'createSuncoConversation()'
     let conversationsApi = new SunshineConversationsClient.ConversationsApi()
     
@@ -525,6 +608,6 @@ function createSuncoConversation(appId, conversationCreateBody){
         console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.body.errors[0].title}`)
         return error
     })
-}
+} */
 
 module.exports = router;
