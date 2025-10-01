@@ -25,16 +25,16 @@ async function doCreateZdTicket (body, zdUrl, zdToken, reason, evidenceImage, ev
             break;
         case 'REFUND':
             subject = `[${body.channel.toString().toUpperCase()}] Refund Request: ${body.order_id}`;
-            comment = `User request a refund to order: ${body.order_id}
-            Image Evidence: ${(evidenceImage && evidenceImage.length > 0) ? evidenceImage.map(img => img.url).join('\n') : 'No image provided'}
-            Video Evidence: ` + (evidenceVideo && evidenceVideo.length > 0 ? evidenceVideo.map(vid => vid.url).join('\n') : 'No video provided');
+            comment = `User request a refund to order: ${body.order_id} with Reason: ${reason}
+            Image Evidence: ${evidenceImage}\n
+            Video Evidence: ${evidenceVideo}\n`;
             tags.push('marina_refund');
             break;
         case 'RETURN_AND_REFUND':
             subject = `[${body.channel.toString().toUpperCase()}] Return Request: ${body.order_id}`;
-            comment = `User request a return to order: ${body.order_id}
-            Image Evidence: ${(evidenceImage && evidenceImage.length > 0) ? evidenceImage.map(img => img.url).join('\n') : 'No image provided'}
-            Video Evidence: ` + (evidenceVideo && evidenceVideo.length > 0 ? evidenceVideo.map(vid => vid.url).join('\n') : 'No video provided');
+            comment = `User request a return to order: ${body.order_id} with Reason: ${reason}
+            Image Evidence: ${evidenceImage}\n
+            Video Evidence: ${evidenceVideo}\n`;
             tags.push('marina_return_refund');
             break;
         default:
@@ -67,13 +67,10 @@ async function doCreateZdTicket (body, zdUrl, zdToken, reason, evidenceImage, ev
         }
     }
     // console.log(ticketData)
-    createTicket(zdUrl, zdToken, ticketData).then((ticket) => {
-        console.log('ticket created: ' + ticket.data.ticket.id);
-    }).catch((err) => {
-        console.log(err.response.data);
-    })
+    return createTicket(zdUrl, zdToken, ticketData);
 }
 
 module.exports = {
-    createTicket
+    createTicket,
+    doCreateZdTicket
 }

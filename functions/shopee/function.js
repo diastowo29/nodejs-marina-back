@@ -8,6 +8,7 @@ const { storeStatuses } = require("../../config/utils");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 const { encryptData, decryptData } = require("../encryption");
 const { PrismaClient } = require("../../prisma/generated/client");
+const { doCreateZdTicket } = require("../zendesk/function");
 let prisma = new PrismaClient();
 
 async function collectShopeeTrackNumber(body, done) {
@@ -50,8 +51,9 @@ async function collectShopeeRR (body, done) {
     callShopee('GET', SPE_GET_RR_DETAIL(body.token, body.shop_id, returnId), {}, body.refresh_token, body.shop_id, tenantConfig).then((orderRr) => {
         if (orderRr.data) {
             console.log(orderRr.data);
-            // const rrData = orderRr.data.response;
-            const rrData = sampleOrderRr.response;
+            const rrData = orderRr.data.response;
+            // const rrData = sampleOrderRr.response;
+            const buyerReason = `${rrData.reason} - ${rrData.text_reason}`;
             prisma.return_refund.update({
                 where: {
                     origin_id: rrData.return_sn
@@ -79,6 +81,18 @@ async function collectShopeeRR (body, done) {
                 console.log(rrErr);
                 console.log('Update rrItem failed');
             })
+            const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
+            if (findZd) {
+                const zdToken = findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value;
+                const buyerEvdImage = (rrData.image && rrData.image.length > 0) ? rrData.image.map(img => img).join('\n') : 'No image provided';
+                const buyerEvdVideo = (rrData.buyer_videos && rrData.buyer_videos.length > 0) ? rrData.buyer_videos.map(vid => vid.video_url).join('\n') : 'No video provided';
+                doCreateZdTicket(body, findZd.baseUrl, zdToken, buyerReason, buyerEvdImage, buyerEvdVideo).then((zdTicket) => {
+                    console.log(`zdTicket created: ` + zdTicket.data.ticket.id);
+                }).catch((err) => {
+                    console.log(err);
+                    console.log('Failed create zd ticket');
+                })
+            }
         } else {
             console.log(orderRr);
             console.log('Error getting RR record from shopee');
@@ -86,6 +100,7 @@ async function collectShopeeRR (body, done) {
     }).catch((errRr) => {
         console.log(errRr);
     })
+
 }
 
 const sampleOrderRr = {
