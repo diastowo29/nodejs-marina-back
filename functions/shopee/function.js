@@ -100,7 +100,6 @@ async function collectShopeeRR (body, done) {
     }).catch((errRr) => {
         console.log(errRr);
     })
-
 }
 
 const sampleOrderRr = {
