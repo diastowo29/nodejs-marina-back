@@ -11,6 +11,9 @@ const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { PrismaClient } = require('../../prisma/generated/client');
 const { encryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
+const { PrismaClient } = require('../../prisma/generated/client');
+let mPrisma = new PrismaClient();
+
 var env = process.env.NODE_ENV || 'development';
 let mPrisma = new PrismaClient();
 
