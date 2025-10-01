@@ -4,7 +4,6 @@ let tokoClientId = process.env.TOKO_CLIENT_ID;
 let tokoClientSecret = process.env.TOKO_CLIENT_SECRET;
 let genAuthToken = Buffer.from(`${tokoClientId}:${tokoClientSecret}`).toString('base64');
 const { getPrismaClient } = require("../../services/prismaServices");
-const { ConversationListResponse } = require("sunshine-conversations-client");
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
@@ -17,24 +16,9 @@ api.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-api.interceptors.response.use((response) => {
-    // console.log('Interceptor Response');
-    // if (response.config.url.includes('open-api.tiktokglobalshop.com')) {
-    //     if (response.config.url.includes('/returns/search') && response.data.message == 'success' && response.data.data.return_orders) {
-    //         if (response.data.data.return_orders.length == 0) {
-    //             /* RETRY CALLING ONCE */
-    //             return response; // << -- No retry for now
-    //         } else {
-    //             return response;
-    //         }
-    //     }
-    // }
-    // console.log(response);
-    return response;
-}, async (error) => {
+api.interceptors.response.use((response) => response, async (error) => {
     const originalRequest = error.config;
-    console.log('Interceptor Error');
-    // console.log(error);
+    
     if (error.hostname != 'partner.test-stable.shopeemobile.com')  {
         if (!error.response) {
             console.error('Network error:', error);
@@ -65,6 +49,7 @@ api.interceptors.response.use((response) => {
             }
         }
     }
+
     return Promise.reject(error);
 });
 
