@@ -42,7 +42,7 @@ router.post(PATH_ORDER, async function(req, res, next) {
         }
     }).then(async (mBase) => {
         // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
-        if (mBase.clients) {
+        if (!mBase.clients) {
             console.log(JSON.stringify(jsonBody))
             console.log('cannot find the client');
             return res.status(400).send({})
