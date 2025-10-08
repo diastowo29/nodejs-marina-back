@@ -13,10 +13,10 @@ const GET_SHOPEE_REFRESH_TOKEN = '/api/v2/auth/access_token/get';
 // const GET_SHOPEE_PRODUCTS_LIST = '/api/v2/product/get_item_list';
 // const GET_SHOPEE_PRODUCTS_INFO = '/api/v2/product/get_item_base_info';
 
-function GET_SHOPEE_PRODUCTS_LIST (accessToken, shopId) {
+function GET_SHOPEE_PRODUCTS_LIST (accessToken, shopId, offset) {
     const path = '/api/v2/product/get_item_list';
     let shopSignedParam = shopeeSign(path, accessToken, shopId);
-    return `${SHOPEE_HOST}${path}?${shopSignedParam}&offset=0&page_size=20&item_status=NORMAL`;
+    return `${SHOPEE_HOST}${path}?${shopSignedParam}&offset=${(offset) ? offset : 0}&page_size=50&item_status=NORMAL`;
 }
 
 function GET_SHOPEE_PRODUCTS_INFO (accessToken, productIds, shopId) {
