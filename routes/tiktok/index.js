@@ -51,6 +51,11 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         }
     }).then(async (mBase) => {
         console.log(JSON.stringify(jsonBody.data))
+        if (!mBase.clients) {
+            console.log(JSON.stringify(jsonBody))
+            console.log('cannot find the client');
+            return res.status(400).send({})
+        }
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
         let taskPayload = {};
