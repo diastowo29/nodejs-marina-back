@@ -8,7 +8,6 @@ const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { getPrismaClient, getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
-const { PrismaClient } = require('../../prisma/generated/client');
 const { encryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
 const { PrismaClient } = require('../../prisma/generated/client');
@@ -22,9 +21,15 @@ var env = process.env.NODE_ENV || 'development';
 });
  */
 router.post(PATH_ORDER, async function(req, res, next) {
-    let jsonBody = gcpParser(req.body.message.data);
+    let jsonBody = {};
+    if (process.env.NODE_ENV == 'production') {
+        jsonBody = gcpParser(req.body.message.data);
+    } else {
+        jsonBody = req.body;
+    }
+    console.log(JSON.stringify(jsonBody))
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
-    if (jsonBody.seller_id == '9999') {
+    if (jsonBody.seller_id == '9999' || jsonBody.seller_id == 'BROADCAST') {
         res.status(200).send({});
         return;
     }
@@ -37,17 +42,31 @@ router.post(PATH_ORDER, async function(req, res, next) {
         }
     }).then(async (mBase) => {
         // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
+        if (mBase.clients) {
+            console.log(JSON.stringify(jsonBody))
+            console.log('cannot find the client');
+            return res.status(400).send({})
+        }
         const org = Buffer.from(mBase.clients.org_id, 'base64').toString('ascii').split(':');
+        const taskPayload = {
+            channel: LAZADA,
+            orgId: org[1],
+            tenantDB: getTenantDB(org[1]),
+            code: jsonBody.message_type,
+        }
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-
+        // console.log(encryptData(''));
         if (jsonBody.message_type == 0) {
             console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
             // console.log(req.body);
             try {
                 // const mPrisma = getPrismaClient(req.tenantDB);
     
-                let newOrder = await mPrisma.orders.create({
-                    data: {
+                let newOrder = await mPrisma.orders.upsert({
+                    where: {
+                        origin_id: jsonBody.data.trade_order_id.toString(),
+                    },
+                    create: {
                         origin_id: jsonBody.data.trade_order_id.toString(),
                         status: jsonBody.data.order_status,
                         updatedAt: new Date(),
@@ -57,25 +76,27 @@ router.post(PATH_ORDER, async function(req, res, next) {
                             }
                         }
                     },
+                    update: {
+                        status: jsonBody.data.order_status,
+                    },
                     include: {
-                        store: true
+                        store: true,
+                        order_items: true,
                     }
                 });
-                let taskPayload = {
-                    channel: LAZADA, 
-                    orderId: jsonBody.data.trade_order_id, 
-                    customerId: jsonBody.data.buyer_id,
-                    id: newOrder.id,
-                    token: newOrder.store.token,
-                    refresh_token: newOrder.store.refresh_token,
-                    new: true,
-                    // ...((newOrder.order_items.length > 0) ? {new: false} : {new:true})
+                taskPayload['token'] = newOrder.store.token;
+                taskPayload['refresh_token'] = newOrder.store.refresh_token;
+                taskPayload['orderId'] = jsonBody.data.trade_order_id; 
+                taskPayload['customerId'] = jsonBody.data.buyer_id;
+                taskPayload['id'] = newOrder.id;
+
+                if (newOrder.order_items.length == 0) {
+                    // console.log(taskPayload);
+                    pushTask(env, taskPayload);
                 }
-                pushTask(env, taskPayload);
-                //  workQueue.add(taskPayload, jobOpts);
-                res.status(200).send(newOrder);
+                res.status(200).send({id: newOrder.id});
             } catch (err) {
-                console.log(req.body.message.data);
+                console.log(err);
                 if (err instanceof Prisma.PrismaClientKnownRequestError) {
                     if (err.code === 'P2002') {
                         let taskPayload = {
@@ -85,7 +106,7 @@ router.post(PATH_ORDER, async function(req, res, next) {
                             orderId: jsonBody.data.trade_order_id,
                             new: false,
                         }
-                        pushTask(env, taskPayload);
+                        // pushTask(env, taskPayload);
                         res.status(200).send({});
                     } else {
                         res.status(400).send({err: err});
@@ -95,6 +116,20 @@ router.post(PATH_ORDER, async function(req, res, next) {
                     res.status(400).send({err: err});
                 }
             }
+        } else if (jsonBody.message_type == 14) {
+            mPrisma.orders.update({
+                where: {
+                    origin_id: jsonBody.data.trade_order_id
+                },
+                data: {
+                    status: jsonBody.data.status
+                }
+            }).then(() => {
+                res.status(200).send({})
+            }).catch((err) => {
+                console.log(err);
+                res.status(500).send({})
+            });
         } else if(jsonBody.message_type == 21) {
             // product review
             // eyJzZWxsZXJfaWQiOiI0MDA2NTY1NzYxMDciLCJtZXNzYWdlX3R5cGUiOjIxLCJkYXRhIjp7Iml0ZW1faWQiOjgyOTg3ODgzNTksImlkIjoxNTMwMDEzMTE5Njg4MzU5LCJvcmRlcl9pZCI6MTU3MTg2MDg3NjE2OTAwN30sInRpbWVzdGFtcCI6MTczNjQ3Njc5Nywic2l0ZSI6ImxhemFkYV9pZCJ9
@@ -105,11 +140,14 @@ router.post(PATH_ORDER, async function(req, res, next) {
             
             
             console.log('inbound another message type');
-            console.log(req.body.message.data);
             res.status(200).send({});
+        } else if (jsonBody.message_type == 3) {
+            /* NEW PRODUCT */
+            taskPayload['productId'] = jsonBody.data.item_id
+            pushTask(env, taskPayload);
+            res.status(200).send({})
         } else {
             console.log('inbound another message type');
-            console.log(req.body.message.data);
             res.status(200).send({});
         }
     }).catch((err) => {
@@ -216,9 +254,17 @@ router.get('/event/test', async function(req, res, next) {
 
 // message dari user
 router.post(PATH_CHAT, async function(req, res, next) {
-    console.log('chat lazada',req.body.message.data);
-    let jsonBody = gcpParser(req.body.message.data);
-    console.log('chat request body', jsonBody);
+    let jsonBody = {};
+    if (process.env.NODE_ENV == 'production') {
+        jsonBody = gcpParser(req.body.message.data);
+    } else {
+        jsonBody = req.body;
+    }
+    console.log(JSON.stringify(jsonBody))
+    if (jsonBody.seller_id == '9999') {
+        res.status(200).send({});
+        return;
+    }
 
     if (jsonBody.message_type != 2) {
         res.status(200).send({});
@@ -258,7 +304,7 @@ router.post(PATH_CHAT, async function(req, res, next) {
         try {
             let conversation = await mPrisma.omnichat.upsert({
                 include: {
-                    omnichat_user: true,
+                    customer: true,
                     store: true
                 },
                 where: {
@@ -363,7 +409,7 @@ router.post(PATH_CHAT, async function(req, res, next) {
                 id: conversation.id,
                 token: conversation.store.token,
                 refresh_token: conversation.store.refresh_token,
-                ...((conversation.omnichat_user?.username == null) ? {new: true} : {new:false}),
+                ...((conversation.customer?.name == null) ? {new: true} : {new:false}),
                 user_external_id: userExternalId,
                 message_external_id: conversation.externalId,
                 body: jsonBody
@@ -393,6 +439,7 @@ router.post(PATH_CHAT, async function(req, res, next) {
 })
 
 router.post(PATH_AUTH, async function(req, res, next) {
+    /* NEED TO CHECK IF ITS OMS OR CHAT (TOKEN OR SECONDARY_TOKEN) */
     mPrisma = req.prisma;
     let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     let addParams = `code=${req.body.code}`;

@@ -9,13 +9,13 @@ const { lazCall } = require('./functions/lazada/caller');
 let env = process.env.NODE_ENV || 'developemnt';
 const fs = require('fs');
 
-const SunshineConversationsClient = require('sunshine-conversations-client');
-const messageApi = new SunshineConversationsClient.MessagesApi();
+// const SunshineConversationsClient = require('sunshine-conversations-client');
+// const messageApi = new SunshineConversationsClient.MessagesApi();
 
 // sunco hardcode part
-let suncoAppId = process.env.SUNCO_APP_ID
-let suncoKeyId = process.env.SUNCO_KEY_ID
-let suncoKeySecret = process.env.SUNCO_KEY_SECRET
+// let suncoAppId = process.env.SUNCO_APP_ID
+// let suncoKeyId = process.env.SUNCO_KEY_ID
+// let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
@@ -23,7 +23,7 @@ const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR, callShopee } = require('./functions/shopee/function');
 const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
-const { getPrismaClient, getPrismaClientForTenant } = require('./services/prismaServices');
+const { getPrismaClientForTenant } = require('./services/prismaServices');
 const { Prisma } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
 const { PrismaClient } = require('./prisma/generated/client');
@@ -124,7 +124,7 @@ async function processJob(jobData, done) {
 async function processLazadaChat(body, done) {
     let refresh_token = 'refToken';
     let token = body.token.split('~')[lazGetSessionDetail.pos];
-    const prisma = getPrismaClient(body.tenantDB);
+    prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
     try {
         let apiParams = `session_id=${body.sessionId}`;
         if (body.new) {
@@ -203,183 +203,121 @@ async function processLazada(body, done) {
     let addParams = `order_id=${body.orderId}`;
     let refresh_token = 'refToken';
     // let refresh_token = body.refresh_token.split('~')[lazGetOrderDetail.pos];
-    const prisma = getPrismaClient(body.tenantDB);
-
-    if (body.new) {
-        console.log('create order id: ', body.orderId);
-        let orderDetailPromise = await Promise.all([
-            lazCall(lazGetOrderDetail,
-                addParams, refresh_token,
-                body.token.split('~')[lazGetOrderDetail.pos]),
-            lazCall(lazGetOrderItems,
-                addParams, refresh_token,
-                body.token.split('~')[lazGetOrderItems.pos]),
-        ]);
-
-        let orderDetail = orderDetailPromise[0];
-        let itemDetail = orderDetailPromise[1];
-        let shipping = orderDetail.data.address_shipping;
-
-        let orderItemList = [];
-        itemDetail.data.forEach(async (item) => {
-            orderItemList.push({
-                where: {
-                    origin_id: item.order_item_id.toString()
-                },
-                create: {
-                    qty: 1,
-                    origin_id: item.order_item_id.toString(),
-                    notes: '',
-                    total_price: Number.parseInt(orderDetail.data.price),
-                    products: {
-                        connectOrCreate: {
-                            where: {
-                                origin_id: item.product_id.toString()
-                            },
-                            create: {
-                                origin_id: item.product_id.toString(),
-                                currency: item.currency,
-                                name: item.name,
-                                price: item.item_price,
-                                sku: item.sku,
-                                product_img: {
-                                    connectOrCreate: {
-                                        create: {
-                                            origin_id: item.product_id.toString(),
-                                            originalUrl: item.product_main_image
-                                        },
-                                        where: {
-                                            origin_id: item.product_id.toString()
+    // const prisma = getPrismaClient(body.tenantDB);
+    prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
+    switch (body.code) {
+        case 0:
+            console.log('create order id: ', body.orderId);
+            try {
+                let orderDetailPromise = await Promise.all([
+                    lazCall(lazGetOrderDetail,
+                        addParams, refresh_token,
+                        body.token),
+                    lazCall(lazGetOrderItems,
+                        addParams, refresh_token,
+                        body.token),
+                ]);
+        
+                let orderDetail = orderDetailPromise[0];
+                let itemDetail = orderDetailPromise[1];
+                let shipping = orderDetail.data.address_shipping;
+        
+                let orderItemList = [];
+                itemDetail.data.forEach(async (item) => {
+                    orderItemList.push({
+                        where: {
+                            origin_id: item.order_item_id.toString()
+                        },
+                        create: {
+                            qty: 1,
+                            origin_id: item.order_item_id.toString(),
+                            notes: '',
+                            total_price: Number.parseInt(orderDetail.data.price),
+                            products: {
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: item.product_id.toString()
+                                    },
+                                    create: {
+                                        origin_id: item.product_id.toString(),
+                                        currency: item.currency,
+                                        name: item.name,
+                                        price: item.item_price,
+                                        sku: item.sku,
+                                        product_img: {
+                                            connectOrCreate: {
+                                                create: {
+                                                    origin_id: item.product_id.toString(),
+                                                    originalUrl: item.product_main_image
+                                                },
+                                                where: {
+                                                    origin_id: item.product_id.toString()
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            })
-            // try {
-            //     await prisma.order_items.upsert({
-            //         where: {
-            //             origin_id: item.order_item_id.toString()
-            //         },
-            //         update: {},
-            //         create: {
-            //             qty: 1,
-            //             origin_id: item.order_item_id.toString(),
-            //             notes: '',
-            //             orders: {
-            //                 connect: {
-            //                     id: body.id
-            //                 }
-            //             },
-            //             total_price: Number.parseInt(orderDetail.data.price),
-            //             products: {
-            //                 connectOrCreate: {
-            //                     where: {
-            //                         origin_id: item.product_id
-            //                     },
-            //                     create: {
-            //                         origin_id: item.product_id,
-            //                         currency: item.currency,
-            //                         name: item.name,
-            //                         price: item.item_price,
-            //                         sku: item.sku,
-            //                         product_img: {
-            //                             connectOrCreate: {
-            //                                 create: {
-            //                                     origin_id: item.product_id.toString(),
-            //                                     originalUrl: item.product_main_image
-            //                                 },
-            //                                 where: {
-            //                                     origin_id: item.product_id.toString()
-            //                                 }
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     })
-            //     done(null, {response: 'testing'});
-            // } catch (err) {
-            //     console.log(err);
-            //     done(new Error(err));
-            // }
-
-        });
-
-        try {
-            await prisma.orders.update({
-                where: {
-                    origin_id: body.orderId.toString()
-                },
-                data: {
-                    customers: {
-                        connectOrCreate: {
-                            where: {
-                                origin_id: body.customerId.toString()
-                            },
-                            create: {
-                                name: orderDetail.data.customer_first_name,
-                                origin_id: body.customerId.toString()
-                            }
-                        }
-                    },
-                    recp_addr_city: shipping.city,
-                    recp_addr_country: shipping.country,
-                    recp_addr_full: `${shipping.address1} ${shipping.address2} ${shipping.address3} ${shipping.address4} ${shipping.address5}`,
-                    recp_addr_postal_code: shipping.post_code,
-                    recp_name: `${shipping.first_name} ${shipping.last_name}`,
-                    recp_phone: `${shipping.phone} / ${shipping.phone2}`,
-                    status: orderDetail.data.statuses[0],
-                    shipping_price: orderDetail.data.shipping_fee,
-                    total_amount: Number.parseInt(orderDetail.data.price),
-                    logistic: {
-                        connectOrCreate: {
-                            where: {
-                                name: `laz-${itemDetail.data[0].shipping_provider_type}`
-                            },
-                            create: {
-                                name: `laz-${itemDetail.data[0].shipping_provider_type}`
-                            }
-                        }
-                    },
-                    order_items: {
-                        connectOrCreate: orderItemList
-                    }
-                }
-            });
-        } catch (err) {
-            console.log(err);
-            if (env !== 'production') {
-
-                done(new Error(err));
-            }
-        }
-    } else {
-        console.log('update order id: ', body.orderId);
-        try {
-            await prisma.orders.update({
-                where: {
-                    origin_id: body.orderId.toString()
-                },
-                data: {
-                    status: body.status
-                }
-            });
-            if (env !== 'production') {
-                done(null, {
-                    response: 'testing'
+                    });
                 });
-
+                prisma.orders.update({
+                    where: {
+                        origin_id: body.orderId.toString()
+                    },
+                    data: {
+                        customers: {
+                            connectOrCreate: {
+                                where: {
+                                    origin_id: body.customerId.toString()
+                                },
+                                create: {
+                                    name: orderDetail.data.customer_first_name,
+                                    origin_id: body.customerId.toString()
+                                }
+                            }
+                        },
+                        recp_addr_city: shipping.city,
+                        recp_addr_country: shipping.country,
+                        recp_addr_full: `${shipping.address1} ${shipping.address2} ${shipping.address3} ${shipping.address4} ${shipping.address5}`,
+                        recp_addr_postal_code: shipping.post_code,
+                        recp_name: `${shipping.first_name} ${shipping.last_name}`,
+                        recp_phone: `${shipping.phone} / ${shipping.phone2}`,
+                        status: orderDetail.data.statuses[0],
+                        shipping_price: orderDetail.data.shipping_fee,
+                        total_amount: Number.parseInt(orderDetail.data.price),
+                        logistic: {
+                            connectOrCreate: {
+                                where: {
+                                    name: `laz-${itemDetail.data[0].shipping_provider_type}`
+                                },
+                                create: {
+                                    name: `laz-${itemDetail.data[0].shipping_provider_type}`
+                                }
+                            }
+                        },
+                        order_items: {
+                            connectOrCreate: orderItemList
+                        }
+                    }
+                }).then((order) => {
+                    console.log('order synced' + order.id)
+                })
+            } catch (err) {
+                console.log(err);
+                if (env !== 'production') {
+    
+                    done(new Error(err));
+                }
             }
-        } catch (err) {
-            console.log(err);
-            if (env !== 'production') {
-                done(new Error(err));
-            }
-        }
+            break;
+        case 3: 
+            console.log('code 3');
+            console.log(body);
+            break;
+        default:
+            console.log(`code: ${body.code} is not supported yet`)
+            break;
     }
 }
 
@@ -771,7 +709,7 @@ async function processBlibli(body, done) {
     }
 }
 
-function postMessage(conversationId, payload) {
+/* function postMessage(conversationId, payload) {
     console.log('post message Payload', payload)
     const messageApi = new SunshineConversationsClient.MessagesApi()
     let defaultClient = SunshineConversationsClient.ApiClient.instance
@@ -801,4 +739,4 @@ function postMessage(conversationId, payload) {
             }
         }
     })
-}
+} */

@@ -2,6 +2,10 @@ let lazadaAuthHost = 'https://auth.lazada.com/rest';
 let lazRefreshToken = `/auth/token/refresh`;
 const { default: axios } = require("axios");
 var CryptoJS = require("crypto-js");
+const { decryptData } = require("../encryption");
+const { PrismaClient } = require("../../prisma/generated/client");
+const { getPrismaClientForTenant } = require("../../services/prismaServices");
+let prisma = new PrismaClient();
 // let { client } =  require("../../config/redis.config");
 // 
 // let test = require('dotenv').config()
@@ -10,14 +14,12 @@ var CryptoJS = require("crypto-js");
 
 // let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
 
-async function lazCall (api, additionalParams, refToken, token) {
-    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
-    console.log(api.endpoint)
-    console.log(lazCommonParams)
+async function lazCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
+    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), decryptData(token), api.endpoint, additionalParams);
     let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
     return axios.get(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
-            let newToken = await refreshToken(api, refToken);
+            let newToken = await refreshToken(api, refToken, storeId, orgId, tenantDB, isOms);
             if (newToken) {
                 lazCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
                 return;
@@ -33,14 +35,12 @@ async function lazCall (api, additionalParams, refToken, token) {
     })
 }
 
-async function lazPostGetCall (api, additionalParams, refToken, token) {
-    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
-    console.log(api.endpoint)
-    console.log(lazCommonParams)
+async function lazPostGetCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
+    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), decryptData(token), api.endpoint, additionalParams);
     let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
     return axios.post(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
-            let newToken = await refreshToken(api, refToken);
+            let newToken = await refreshToken(api, refToken, storeId, orgId, tenantDB, isOms);
             if (newToken) {
                 lazCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
                 return;
@@ -56,7 +56,7 @@ async function lazPostGetCall (api, additionalParams, refToken, token) {
     })
 }
 
-async function lazPostCall (api, additionalParams, refToken, token) {
+async function lazPostCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
     let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
     lazCommonParams.sorted['sign'] = lazCommonParams.signed;
     let completeUrl = `${api.host}${api.endpoint}`;
@@ -66,7 +66,7 @@ async function lazPostCall (api, additionalParams, refToken, token) {
     .then(async function(result) {
         console.log(result.data);
         if (result.data.code == 'IllegalAccessToken') {
-            let newToken = await refreshToken(api, refToken);
+            let newToken = await refreshToken(api, refToken, storeId, orgId, tenantDB, isOms);
             console.log(newToken);
             if (newToken) {
                 lazPostCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
@@ -98,20 +98,31 @@ async function populateResult (result) {
     // }
 }
 
-async function refreshToken (api, refreshToken) {
+async function refreshToken (api, refreshToken, storeId, orgId, tenantDB, isOms) {
     console.log(' --- refreshing token --- ');
     let addonParams = `refresh_token=${refreshToken}`;
     let params = lazParamz(api.appKey, '', Date.now(), 'currentToken', lazRefreshToken, addonParams);
+    prisma = getPrismaClientForTenant(orgId, tenantDB.url);
     return axios.get(`${lazadaAuthHost}${lazRefreshToken}?${params.params}&sign=${params.signed}`).then(function(result) {
         console.log(result.data);
         if (result.data.code == '0') {
             let newToken = result.data.access_token;
             let newRefToken = result.data.refresh_token;
-            // client.hSet('lazClient', {
-            //     accToken: newToken,
-            //     refToken: newRefToken
-            // });
-            return result.data;
+            prisma.store.update({
+                where: {
+                    id: storeId
+                },
+                data: {
+                    ...(isOms) ? {token: newToken, refresh_token: newRefToken} : {secondary_token: newToken, secondary_refresh_token: newRefToken}
+                }
+            }).then(() => {
+                console.log('token updated')
+            }).catch((err) => {
+                console.log(err);
+                console.log('token update failed')
+            }).finally(() => {
+                return result.data;
+            })
         }
     })
 }
