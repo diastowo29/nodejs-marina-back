@@ -159,6 +159,9 @@ router.post('/sunco/event', async function(req, res, next){
 
           if (payload.conversation.metadata.marina_org_id) {
             const org_id = payload.conversation.metadata.marina_org_id;
+            if (payload.message.content.type == chatContentType.IMAGE) {
+                console.log(JSON.stringify(req.body));
+            }
             let body = await suncoAgentMessage(payload, org_id);
             // console.log(JSON.stringify(body));
             let sendMessage =  await sendMessageToBuyer(body, org_id);
