@@ -51,7 +51,7 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
         }
     }).then(async (mBase) => {
         console.log(JSON.stringify(jsonBody.data))
-        if (!mBase.clients) {
+        if (!mBase) {
             console.log(JSON.stringify(jsonBody))
             console.log('cannot find the client');
             return res.status(400).send({})
