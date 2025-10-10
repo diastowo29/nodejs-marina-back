@@ -162,10 +162,16 @@ router.post('/sunco/event', async function(req, res, next){
             if (payload.message.content.type == chatContentType.IMAGE) {
                 console.log(JSON.stringify(req.body));
             }
-            let body = await suncoAgentMessage(payload, org_id);
-            // console.log(JSON.stringify(body));
-            let sendMessage =  await sendMessageToBuyer(body, org_id);
-            return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
+            try {
+                let body = await suncoAgentMessage(payload, org_id);
+                // console.log(JSON.stringify(body));
+                let sendMessage =  await sendMessageToBuyer(body, org_id);
+                console.log(sendMessage);
+                return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
+            } catch (err) {
+                console.log(err);
+                return res.status(400).send({});
+            }
           } else {
             console.log('metadata is missing')
             console.log(JSON.stringify(req.body));
@@ -344,7 +350,7 @@ async function suncoAgentMessage(payload, org_id){
 
     // let channelName = payload.conversation.metadata["dataCapture.ticketField.44413794291993"].toString()
     const channelName = message.store.channel.name;
-    let lineText = payload.message.content?.text ? payload.message.content.text:''
+    let lineText = payload.message.content?.text ? payload.message.content.text : ''
     let chatType = payload.message.content.type;
     let param = {
         id: "",
@@ -372,11 +378,7 @@ async function suncoAgentMessage(payload, org_id){
     }
 
     if (chatType == 'image') {
-        if (lineText) {
-            if (!lineText.includes('SEND_PRODUCT')) {
-                param.file_path = payload.message.content.mediaUrl   
-            }
-        }
+        param.file_path = payload.message.content.mediaUrl;
     }
     if (channelName == 'lazada') {
         // const mPrisma = getPrismaClient(org_id);
