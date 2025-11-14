@@ -810,7 +810,8 @@ async function forwardConversation (body, done) {
             const errorMessage = JSON.parse(error.message);
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
-                    console.log('recreate conversation');
+                    console.log('conversation not found - error not handled yet!');
+                    /* console.log('recreate conversation');
                     let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
                     conversationBody.metadata = suncoMetadata;
@@ -822,7 +823,7 @@ async function forwardConversation (body, done) {
                             data:{ externalId: suncoConversation.conversation.id }
                         })
                         postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
-                    }
+                    } */
                 }
             }
         })
