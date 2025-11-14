@@ -6,11 +6,6 @@ const { decryptData } = require("../encryption");
 const { PrismaClient } = require("../../prisma/generated/client");
 const { getPrismaClientForTenant } = require("../../services/prismaServices");
 let prisma = new PrismaClient();
-// let { client } =  require("../../config/redis.config");
-// 
-// let test = require('dotenv').config()
-// let appKeyId = test.parsed.LAZ_APP_KEY_ID;
-// let appKeySecret = test.parsed.LAZ_APP_KEY_SECRET;
 
 // let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
 

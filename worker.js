@@ -128,11 +128,10 @@ async function processLazadaChat(body, done) {
     try {
         let apiParams = `session_id=${body.sessionId}`;
         if (body.new) {
-            let session = await lazCall(lazGetSessionDetail, apiParams, refresh_token, token);
+            let session = await lazCall(lazGetSessionDetail, apiParams, 
+                refresh_token, token); // need fixing
             if (session && session.success) {
-                // console.log(session);
                 console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
-                // console.log('update session');
                 await prisma.omnichat_user.update({
                     where: {
                         origin_id: session.data.buyer_id.toString()
@@ -142,18 +141,17 @@ async function processLazadaChat(body, done) {
                         thumbnailUrl: session.data.head_url
                     }
                 });
-                // console.log(users);
             } else {
                 console.log('session invalid');
             }
-            // done(null, { response: session });
         }
     } catch (err) {
-        // console.log(err);
         if (err instanceof Prisma.PrismaClientUnknownRequestError) {
             console.log(err.code);
             console.log(err.meta);
             console.log('error');
+        } else {
+            console.log(err);
         }
     }
     let messageContent = JSON.parse(body.body.data.content)
@@ -189,9 +187,8 @@ async function processLazadaChat(body, done) {
         }
     }
 
-    let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
+    await postMessage(body.message_external_id, suncoMessagePayload)
     if (env !== 'production') {
-        
         done(null, {
             response: 'testing'
         });
@@ -202,6 +199,7 @@ async function processLazadaChat(body, done) {
 async function processLazada(body, done) {
     let addParams = `order_id=${body.orderId}`;
     let refresh_token = 'refToken';
+    const isOms = true;
     // let refresh_token = body.refresh_token.split('~')[lazGetOrderDetail.pos];
     // const prisma = getPrismaClient(body.tenantDB);
     prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
@@ -212,10 +210,12 @@ async function processLazada(body, done) {
                 let orderDetailPromise = await Promise.all([
                     lazCall(lazGetOrderDetail,
                         addParams, refresh_token,
-                        body.token),
+                        body.token, body.storeId, body.orgId,
+                        body.tenantDB, isOms),
                     lazCall(lazGetOrderItems,
                         addParams, refresh_token,
-                        body.token),
+                        body.token, body.storeId, body.orgId,
+                        body.tenantDB, isOms),
                 ]);
         
                 let orderDetail = orderDetailPromise[0];

@@ -41,7 +41,6 @@ router.post(PATH_ORDER, async function(req, res, next) {
             clients: true
         }
     }).then(async (mBase) => {
-        // const mPrisma = getPrismaClient(getTenantDB(mBase.clients.org_id));
         if (!mBase.clients) {
             console.log(JSON.stringify(jsonBody))
             console.log('cannot find the client');
@@ -55,13 +54,9 @@ router.post(PATH_ORDER, async function(req, res, next) {
             code: jsonBody.message_type,
         }
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        // console.log(encryptData(''));
         if (jsonBody.message_type == 0) {
             console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
-            // console.log(req.body);
             try {
-                // const mPrisma = getPrismaClient(req.tenantDB);
-    
                 let newOrder = await mPrisma.orders.upsert({
                     where: {
                         origin_id: jsonBody.data.trade_order_id.toString(),
@@ -89,9 +84,9 @@ router.post(PATH_ORDER, async function(req, res, next) {
                 taskPayload['orderId'] = jsonBody.data.trade_order_id; 
                 taskPayload['customerId'] = jsonBody.data.buyer_id;
                 taskPayload['id'] = newOrder.id;
+                taskPayload['storeId'] = newOrder.storeId;
 
                 if (newOrder.order_items.length == 0) {
-                    // console.log(taskPayload);
                     pushTask(env, taskPayload);
                 }
                 res.status(200).send({id: newOrder.id});
