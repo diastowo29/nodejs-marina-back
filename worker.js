@@ -168,10 +168,9 @@ async function processLazadaChat(body, done) {
         let contentText
         if(body.body.data.hasOwnProperty('process_msg')){
             contentText = body.body.data.process_msg
-        }else{
+        } else {
             contentText = messageContent.txt
         }
-        
         suncoMessagePayload.content = {
             type: "text",
             text: contentText

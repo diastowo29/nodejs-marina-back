@@ -26,7 +26,7 @@ router.post(PATH_ORDER, async function(req, res, next) {
     if (jsonBody.seller_id == '9999') {
         res.status(200).send({});
         return;
-    } ////////
+    }
     basePrisma.stores.findUnique({
         where: {
             origin_id: jsonBody.seller_id.toString()
