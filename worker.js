@@ -129,7 +129,8 @@ async function processLazadaChat(body, done) {
         let apiParams = `session_id=${body.sessionId}`;
         if (body.new) {
             let session = await lazCall(lazGetSessionDetail, apiParams, 
-                refresh_token, token); // need fixing
+                refresh_token, token, body.storeId, body.orgId,
+                        body.tenantDB, false);
             if (session && session.success) {
                 console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
                 await prisma.omnichat_user.update({
