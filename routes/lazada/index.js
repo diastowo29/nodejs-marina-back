@@ -6,7 +6,7 @@ const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo,
 const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
-const { getPrismaClient, getPrismaClientForTenant } = require('../../services/prismaServices');
+const { getPrismaClientForTenant } = require('../../services/prismaServices');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { encryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
@@ -85,7 +85,7 @@ router.post(PATH_ORDER, async function(req, res, next) {
                 taskPayload['customerId'] = jsonBody.data.buyer_id;
                 taskPayload['id'] = newOrder.id;
                 taskPayload['storeId'] = newOrder.storeId;
-
+                taskPayload['jobId'] = jsonBody.data.trade_order_id;
                 if (newOrder.order_items.length == 0) {
                     pushTask(env, taskPayload);
                 }
@@ -138,7 +138,35 @@ router.post(PATH_ORDER, async function(req, res, next) {
             res.status(200).send({});
         } else if (jsonBody.message_type == 3) {
             /* NEW PRODUCT */
+            const newProduct = await mPrisma.products.upsert({
+                where: {
+                    origin_id: jsonBody.data.item_id.toString()
+                },
+                create: {
+                    origin_id: jsonBody.data.item_id.toString(),
+                    store: {
+                        connect: {
+                            origin_id: jsonBody.seller_id
+                        }
+                    }
+                },
+                update: {},
+                include: {
+                    store: {
+                        select: {
+                            origin_id: true,
+                            token: true,
+                            refresh_token: true
+                        }
+                    }
+                }
+            });
             taskPayload['productId'] = jsonBody.data.item_id
+            taskPayload['mStoreId'] = newProduct.storeId
+            taskPayload['token'] = newProduct.store.token
+            taskPayload['refreshToken'] = newProduct.store.refresh_token
+            taskPayload['mProductId'] = newProduct.id
+            taskPayload['jobId'] = jsonBody.data.item_id
             pushTask(env, taskPayload);
             res.status(200).send({})
         } else {

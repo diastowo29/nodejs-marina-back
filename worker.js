@@ -1,13 +1,14 @@
 let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 2;
-let maxJobsPerWorker = 20;
+let maxJobsPerWorker = 10;
 let { workQueue } = require('./config/redis.config');
 // const { PrismaClient, Prisma } = require('@prisma/client');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT } = require('./config/utils');
+const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 // const prisma = new PrismaClient();
 let env = process.env.NODE_ENV || 'developemnt';
 const fs = require('fs');
+const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
 
 // const SunshineConversationsClient = require('sunshine-conversations-client');
 // const messageApi = new SunshineConversationsClient.MessagesApi();
@@ -245,6 +246,7 @@ async function processLazada(body, done) {
                                         name: item.name,
                                         price: item.item_price,
                                         sku: item.sku,
+                                        storeId: body.storeId,
                                         product_img: {
                                             connectOrCreate: {
                                                 create: {
@@ -302,7 +304,7 @@ async function processLazada(body, done) {
                         }
                     }
                 }).then((order) => {
-                    console.log('order synced' + order.id)
+                    console.log('order synced: ' + order.id)
                 })
             } catch (err) {
                 console.log(err);
@@ -314,7 +316,54 @@ async function processLazada(body, done) {
             break;
         case 3: 
             console.log('code 3');
-            console.log(body);
+            // console.log(body);
+            const getProductParams = `item_id=${body.productId}`
+            lazCall(lazGetProducts(lazadaOmsAppKey),
+                getProductParams, body.refreshToken,
+                body.token, body.mStoreId, body.orgId,
+                body.tenantDB, isOms).then(async (productDetail) => {
+                    // console.log(JSON.stringify(productDetail))
+                    await prisma.products.update({
+                        where: {
+                            origin_id: body.productId.toString()
+                        },
+                        data: {
+                            desc: productDetail.data.attributes.short_description,
+                            name: productDetail.data.attributes.name,
+                            pre_order: (productDetail.data.attributes.preorder_days) ? true : false,
+                            price: Number.parseInt(productDetail.data.skus[0].price), // make sure this line
+                            stock: Number.parseInt(productDetail.data.skus[0].quantity), // make sure this line
+                            storeId: body.mStoreId,
+                            url: productDetail.data.skus[0].Url,
+                            varian: {
+                                createMany: {
+                                    skipDuplicates: true,
+                                    data: productDetail.data.skus.map(variant => ({
+                                        name: productDetail.data.attributes.name,
+                                        price: variant.price,
+                                        origin_id: variant.SkuId.toString(),
+                                        sku: variant.SellerSku,
+                                        stock: variant.Available,
+                                        status: variant.statuses
+                                    }))
+                                }
+                            },
+                            product_img: {
+                                connectOrCreate: {
+                                    create: {
+                                        originalUrl: productDetail.data.images[0],
+                                        origin_id: body.productId.toString()
+                                    },
+                                    where: {
+                                        origin_id: body.productId.toString()
+                                    }
+                                }
+                            }
+                        }
+                    })
+                }).catch((err) => {
+                    console.log(err);
+                })
             break;
         default:
             console.log(`code: ${body.code} is not supported yet`)

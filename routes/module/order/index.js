@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA } = require('../../../config/utils');
+const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA, lazGetOrderDetail, lazGetShipProvider } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
@@ -11,9 +11,11 @@ var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
 const { callTiktok } = require('../../../functions/tiktok/function');
 const { getTenantDB } = require('../../../middleware/tenantIdentifier');
+const { lazCall } = require('../../../functions/lazada/caller');
 let mPrisma = new PrismaClient();
 // const upload = multer({ dest: 'uploads/' });
 const upload = multer({ storage: multer.memoryStorage() });
+const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
 
 router.get('/', async function(req, res, next) {
     const channel = req.query.channel || req.query.c;
@@ -593,6 +595,52 @@ router.put('/:id', async function(req, res, next) {
             }
             break;
         case LAZADA:
+            console.log(req.body)
+            let lazadaParams = '';
+            if (action == 'cancel') {
+
+            } else if (action == 'process') {
+                let orderItemIds = [];
+                order.order_items.forEach(item => {
+                    orderItemIds.push(Number.parseInt(item.origin_id))
+                });
+                console.log('process lazada order');
+                console.log(orderItemIds);
+                const shipProviderParams = {
+                    orders: [{
+                        order_id: order.origin_id,
+                        order_item_ids: orderItemIds
+                    }]
+                }
+                lazadaParams = `getShipmentProvidersReq=${JSON.stringify(shipProviderParams)}`
+                lazCall(lazGetShipProvider(lazadaOmsAppKey),
+                    lazadaParams, order.store.refresh_token,
+                    order.store.token, order.storeId, req.tenantId,
+                    req.tenantDB, true).then((shipProvider) => {
+                        console.log(shipProvider)
+                    }).catch((err) => {
+                        console.log(err);
+                    })
+                /* let packReq = {
+                    pack_order_list: [
+                        {
+                            order_item_list: orderItemIds,
+                            order_id: order.origin_id
+                        }
+                    ],
+                    delivery_type: 'dropship',
+                    shipping_allocate_type: 'TFS',
+                } */
+            } else if (action == 'reject') {
+                isRR = true;
+                decision = 'CANCEL_REJECTED';
+                data = { reject_reason: req.body.cancel_reason }
+            } else if (action == 'approve') {
+                isRR = true;
+                decision = 'CANCEL_APPROVED';
+            } else {
+                
+            }
             break;
         case BLIBLI:
             break;
