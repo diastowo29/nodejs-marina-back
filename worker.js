@@ -6,7 +6,7 @@ let { workQueue } = require('./config/redis.config');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 // const prisma = new PrismaClient();
-let env = process.env.NODE_ENV || 'developemnt';
+let env = /* process.env.NODE_ENV || */ 'developemnt';
 const fs = require('fs');
 const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
 
@@ -305,11 +305,11 @@ async function processLazada(body, done) {
                     }
                 }).then((order) => {
                     console.log('order synced: ' + order.id)
+                    done();
                 })
             } catch (err) {
                 console.log(err);
                 if (env !== 'production') {
-    
                     done(new Error(err));
                 }
             }
@@ -322,6 +322,7 @@ async function processLazada(body, done) {
                 getProductParams, body.refreshToken,
                 body.token, body.mStoreId, body.orgId,
                 body.tenantDB, isOms).then(async (productDetail) => {
+                    console.log((productDetail))
                     // console.log(JSON.stringify(productDetail))
                     await prisma.products.update({
                         where: {

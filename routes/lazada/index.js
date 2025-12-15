@@ -55,14 +55,15 @@ router.post(PATH_ORDER, async function(req, res, next) {
         }
         mPrisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
         if (jsonBody.message_type == 0) {
-            console.log(`inbound order ${jsonBody.data.trade_order_id} from ${jsonBody.seller_id}`);
+            const orderId = jsonBody.data.trade_order_id; 
+            console.log(`inbound order ${orderId} from ${jsonBody.seller_id}`);
             try {
                 let newOrder = await mPrisma.orders.upsert({
                     where: {
-                        origin_id: jsonBody.data.trade_order_id.toString(),
+                        origin_id: orderId.toString(),
                     },
                     create: {
-                        origin_id: jsonBody.data.trade_order_id.toString(),
+                        origin_id: orderId.toString(),
                         status: jsonBody.data.order_status,
                         updatedAt: new Date(),
                         store: {
@@ -81,11 +82,11 @@ router.post(PATH_ORDER, async function(req, res, next) {
                 });
                 taskPayload['token'] = newOrder.store.token;
                 taskPayload['refresh_token'] = newOrder.store.refresh_token;
-                taskPayload['orderId'] = jsonBody.data.trade_order_id; 
+                taskPayload['orderId'] = orderId; 
                 taskPayload['customerId'] = jsonBody.data.buyer_id;
                 taskPayload['id'] = newOrder.id;
                 taskPayload['storeId'] = newOrder.storeId;
-                taskPayload['jobId'] = jsonBody.data.trade_order_id;
+                taskPayload['jobId'] = orderId.toString();
                 if (newOrder.order_items.length == 0) {
                     pushTask(env, taskPayload);
                 }
