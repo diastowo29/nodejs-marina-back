@@ -1,4 +1,5 @@
 const { createCipheriv, createDecipheriv, createHash } = require('node:crypto');
+// require('dotenv').config();
 
 const secret_key = process.env.M_SECRET_KEY || 'xxx'
 const secret_iv = process.env.M_SECRET_IV || 'xxx'
