@@ -1,13 +1,12 @@
 var express = require('express');
 var router = express.Router();
 const { SUN_APP_ID, SUN_APP_KEY, SUN_APP_SECRET, ZD_API_TOKEN } = require('../../../config/utils');
-const { getPrismaClient } = require('../../../services/prismaServices');
 const { encryptData } = require('../../../functions/encryption');
 const { default: axios } = require('axios');
 
 // const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     try {
         let integration = await prisma.integration.findMany({
             include: {
@@ -25,7 +24,7 @@ router.get('/', async function(req, res, next) {
 })
 
 router.delete('/:id', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     /* DELETE TICKET FIELDS AND SUNCO WEBHOOK */
     try {
         let credent = prisma.credent.deleteMany({
@@ -61,7 +60,7 @@ router.delete('/:id', async function(req, res, next) {
 })
 
 router.post('/', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     const stores = await prisma.store.findMany({
         select: {
             name: true,
@@ -79,7 +78,17 @@ router.post('/', async function(req, res, next) {
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Message ID')),
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Store ID')),
                 axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Channel')),
-                axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'MM_SHOP', storeOptions)),
+                axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Marina Store', storeOptions)),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Affiliate')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Chat Code')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Marina Rating Code')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'Sunco Conversation ID')),
+                axios(zdApiConfig(req.body.host, req.body.apiToken, 'init Assignee ID')),
+                // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Marina Interaction Type', storeOptions)),
+                // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Marina Store Type', storeOptions)),
+                // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Marina Store Region', storeOptions)),
+                // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Marina Rating Score', storeOptions)),
+                // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Is Repliable', storeOptions)),
                 axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
             const integration = await prisma.integration.create({

@@ -2,14 +2,19 @@ var express = require('express');
 const { google } = require('googleapis');
 const { ManagementClient, AuthenticationClient, TOKEN_FOR_CONNECTION_GRANT_TYPE, ManagementApiError, PostCustomDomains201ResponseTypeEnum, GetBrandingPhoneProviders200ResponseProvidersInnerChannelEnum } = require('auth0');
 const {PrismaClient: prismaBaseClient} = require('../../prisma/generated/baseClient');
-const { encryptData } = require('../../functions/encryption');
+const { encryptData, decryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
 const { marinaPsql } = require('../../config/db');
 
 var router = express.Router();
+const aoDomainConfig = JSON.parse(decryptData(process.env.AO_DOMAIN_CONFIG))
+
+router.get('/', function(req, res) {
+    res.status(200).send(aoDomainConfig)
+})
 
 router.post('/schema', async function(req, res, next) {
-    console.log(req.headers)
+    // console.log(req.headers)
     if (!req.body.org_id || !req.body.company_name) {
         return res.status(400).send({message: 'org_id or company_name is missing'});
     }
@@ -27,13 +32,13 @@ router.post('/schema', async function(req, res, next) {
 router.post('/hook', async function (req, res, next) {
     console.log(req.headers)
     let authenticationClientOptions = {
-        domain: process.env.A0_TENANT_DOMAIN,
-        clientId: process.env.A0_CLIENT_ID,
-        clientSecret: process.env.A0_CLIENT_SECRET,
+        domain: aoDomainConfig.AO_DOMAIN_CONFIG,
+        clientId: aoDomainConfig.AO_CLIENT_ID,
+        clientSecret: aoDomainConfig.AO_CLIENT_SECRET,
         timeoutDuration: 10000,
     };
-    if (process.env.AUDIENCE) {
-        authenticationClientOptions.audience = process.env.AUDIENCE;
+    if (aoDomainConfig.AUDIENCE) {
+        authenticationClientOptions.audience = aoDomainConfig.AUDIENCE;
     }
     if (!req.body.org_id || !req.body.company_name) {
         return res.status(400).send({message: 'org_id or company_name is missing'});
@@ -116,13 +121,13 @@ router.post('/registration', async function(req, res, next) {
 router.post('/pre-registration', async function(req, res, next) {
     // console.log(req.body)
     let authenticationClientOptions = {
-        domain: process.env.A0_TENANT_DOMAIN,
-        clientId: process.env.A0_CLIENT_ID,
-        clientSecret: process.env.A0_CLIENT_SECRET,
+        domain: aoDomainConfig.AO_DOMAIN_CONFIG,
+        clientId: aoDomainConfig.AO_CLIENT_ID,
+        clientSecret: aoDomainConfig.AO_CLIENT_SECRET,
         timeoutDuration: 10000,
     };
-    if (process.env.AUDIENCE) {
-        authenticationClientOptions.audience = process.env.AUDIENCE;
+    if (aoDomainConfig.AUDIENCE) {
+        authenticationClientOptions.audience = aoDomainConfig.AUDIENCE;
     }
     try {
         const management = await getManagementApiClient(authenticationClientOptions);

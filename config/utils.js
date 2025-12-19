@@ -1,9 +1,8 @@
-// let env = require('dotenv').config()
-
 let appKeyOMS = process.env.LAZ_OMS_APP_KEY_ID
 let appKeyCHAT = process.env.LAZ_APP_KEY_ID
 let lazadaHost = 'https://api.lazada.co.id/rest';
 let lazadaAuthHost = 'https://auth.lazada.com/rest';
+// console.log(appKeyOMS, appKeyCHAT)
 
 function convertOrgName (org_name) {
     return org_name.toString().toLowerCase().split(' ').join('_');
@@ -41,6 +40,24 @@ function RRShopeeStatus (systemStatus) {
             break;
     }
     return status;
+}
+
+function lazGetShipProvider (appKey) {
+    return {
+        host: lazadaHost,
+        endpoint: '/order/shipment/providers/get',
+        appKey: appKey,
+        pos: 0
+    }
+}
+
+function lazGetProducts (appKey) {
+    return {
+        host: lazadaHost,
+        endpoint: '/product/item/get',
+        appKey: appKey,
+        pos: 0
+    }
 }
 
 function RRTiktokStatus (systemStatus) {
@@ -116,6 +133,8 @@ module.exports = {
     convertOrgName,
     lazGetToken,
     lazGetSellerInfo,
+    lazGetShipProvider,
+    lazGetProducts,
     PATH_WEBHOOK: '/webhook',
     PATH_ORDER: '/order',
     PATH_CANCELLATION: '/cancellation',
@@ -178,6 +197,12 @@ module.exports = {
         appKey: appKeyOMS,
         pos: 0
     },
+    /* lazGetShipProvider: {
+        host: lazadaHost,
+        endpoint: '/order/shipment/providers/get',
+        appKey: appKeyOMS,
+        pos: 0
+    }, */
     lazReplyChat: {
         host: lazadaHost,
         endpoint: '/im/message/send',

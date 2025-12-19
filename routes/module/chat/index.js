@@ -18,7 +18,7 @@ router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;
     let chat = await mPrisma.omnichat.findMany({
         include: {
-            omnichat_user: true,
+            customer: true,
             store: {
                 include: {
                     channel: true
