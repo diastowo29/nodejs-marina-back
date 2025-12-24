@@ -1,19 +1,12 @@
 var express = require('express');
 var router = express.Router();
-// var {
-//     PrismaClient
-// } = require('@prisma/client');
 const { generateTokpedToken } = require('../../../functions/tokopedia/caller');
-// const { TOKO_SHOPINFO } = require('../../../config/toko_apis');
-// const { api } = require('../../../functions/axios/interceptor');
-const { getPrismaClient } = require('../../../services/prismaServices');
 const checkJwt = require('../../../middleware/auth');
-// const prismaDb = require('../../../prisma-client');
 const jwt = require('jsonwebtoken');
 
 // const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
-    const mPrisma = getPrismaClient(req.tenantDB);
+    const mPrisma = req.prisma;
     let store = await mPrisma.store.findMany({
         include: {
             channel: true
@@ -59,7 +52,7 @@ router.get('/jwts', checkJwt, function(req, res, next) {
 })
 
 router.get('/:id', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let store = await prisma.store.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -81,7 +74,7 @@ router.get('/connect/test', async function(req, res, next) {
 })
 
 router.post('/connect/toko', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let storeId = req.body.store_id;
     try {
         let tokoToken = await generateTokpedToken();
@@ -114,7 +107,7 @@ router.post('/connect/toko', async function(req, res, next) {
 })
 
 router.post('/', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let channel = req.body.channel;
     // console.log(req.body)
     let storeCreate = await prisma.store.create({
@@ -133,7 +126,7 @@ router.post('/', async function(req, res, next) {
 })
 
 router.get('/:id/products', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let products = await prisma.products.findMany({
         where: {
             storeId: Number.parseInt(req.params.id)
@@ -146,7 +139,7 @@ router.get('/:id/products', async function(req, res, next) {
 })
 
 router.get('/:id/orders', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let orders = await prisma.orders.findMany({
         where: {
             storeId: Number.parseInt(req.params.id)
@@ -166,7 +159,7 @@ router.get('/:id/orders', async function(req, res, next) {
 })
 
 router.get('/products', async function(req, res, next) {
-    const prisma = getPrismaClient(req.tenantDB);
+    const prisma = req.prisma;
     let channels = await prisma.store.findMany({
         include : {
             products: true

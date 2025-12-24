@@ -16,13 +16,13 @@ async function addTask (payload) {
             headers: { 'Content-Type': 'application/json' },
         }
     };
-    return client.createTask({ parent: queuePath, task });
+    return client.createTask({ parent: queuePath, task});
 }
 
 function pushTask (env, payload) {
     if (env == 'development') {
         console.log('job added')
-        workQueue.add(payload, jobOpts);
+        workQueue.add(payload, jobOpts, { jobId: payload.jobId });
     } else {
         addTask(payload);
     }
