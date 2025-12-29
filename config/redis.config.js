@@ -22,7 +22,7 @@ const setting = {
 }); */
 
 let workQueue = new Queue('newSendMessage', redisUrl, setting);
-let anotherWorkQueue = new Queue('getOrderDetail', redisUrl, setting);
+// let anotherWorkQueue = new Queue('getOrderDetail', redisUrl, setting);
 
 let jobOpts = {
     removeOnComplete : true,
@@ -31,4 +31,4 @@ let jobOpts = {
     }
 }
 
-module.exports = {workQueue, jobOpts, anotherWorkQueue}
+module.exports = {workQueue, jobOpts, /* anotherWorkQueue */}
