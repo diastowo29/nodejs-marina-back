@@ -7,7 +7,7 @@ const basePrisma = new prismaBaseClient();
 const { marinaPsql } = require('../../config/db');
 
 var router = express.Router();
-const aoDomainConfig = JSON.parse(decryptData(process.env.AO_DOMAIN_CONFIG))
+const aoDomainConfig = JSON.parse(decryptData(process.env.A0_DOMAIN_CONFIG))
 
 router.get('/', function(req, res) {
     res.status(200).send(aoDomainConfig)
@@ -32,9 +32,9 @@ router.post('/schema', async function(req, res, next) {
 router.post('/hook', async function (req, res, next) {
     console.log(req.headers)
     let authenticationClientOptions = {
-        domain: aoDomainConfig.AO_DOMAIN_CONFIG,
-        clientId: aoDomainConfig.AO_CLIENT_ID,
-        clientSecret: aoDomainConfig.AO_CLIENT_SECRET,
+        domain: aoDomainConfig.A0_DOMAIN_CONFIG,
+        clientId: aoDomainConfig.A0_CLIENT_ID,
+        clientSecret: aoDomainConfig.A0_CLIENT_SECRET,
         timeoutDuration: 10000,
     };
     if (aoDomainConfig.AUDIENCE) {
@@ -121,9 +121,9 @@ router.post('/registration', async function(req, res, next) {
 router.post('/pre-registration', async function(req, res, next) {
     // console.log(req.body)
     let authenticationClientOptions = {
-        domain: aoDomainConfig.AO_DOMAIN_CONFIG,
-        clientId: aoDomainConfig.AO_CLIENT_ID,
-        clientSecret: aoDomainConfig.AO_CLIENT_SECRET,
+        domain: aoDomainConfig.A0_DOMAIN_CONFIG,
+        clientId: aoDomainConfig.A0_CLIENT_ID,
+        clientSecret: aoDomainConfig.A0_CLIENT_SECRET,
         timeoutDuration: 10000,
     };
     if (aoDomainConfig.AUDIENCE) {
