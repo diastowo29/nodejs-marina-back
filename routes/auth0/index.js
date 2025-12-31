@@ -32,7 +32,7 @@ router.post('/schema', async function(req, res, next) {
 router.post('/hook', async function (req, res, next) {
     console.log(req.headers)
     let authenticationClientOptions = {
-        domain: aoDomainConfig.A0_DOMAIN_CONFIG,
+        domain: aoDomainConfig.A0_TENANT_DOMAIN,
         clientId: aoDomainConfig.A0_CLIENT_ID,
         clientSecret: aoDomainConfig.A0_CLIENT_SECRET,
         timeoutDuration: 10000,
@@ -121,7 +121,7 @@ router.post('/registration', async function(req, res, next) {
 router.post('/pre-registration', async function(req, res, next) {
     // console.log(req.body)
     let authenticationClientOptions = {
-        domain: aoDomainConfig.A0_DOMAIN_CONFIG,
+        domain: aoDomainConfig.A0_TENANT_DOMAIN,
         clientId: aoDomainConfig.A0_CLIENT_ID,
         clientSecret: aoDomainConfig.A0_CLIENT_SECRET,
         timeoutDuration: 10000,
@@ -157,7 +157,7 @@ async function getAccessToken(options) {
     if (record && record.expires_at > Date.now()) {
         return record.value;
     } */
-
+    console.log(options);
     const authClient = new AuthenticationClient(options);
     // console.log(options);
     const {

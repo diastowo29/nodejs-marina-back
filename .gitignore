@@ -10,3 +10,4 @@ public.key
 private.key
 baseSeeder.js
 test.js
+helper
