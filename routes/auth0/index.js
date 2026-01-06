@@ -30,7 +30,7 @@ router.post('/schema', async function(req, res, next) {
 })
 
 router.post('/hook', async function (req, res, next) {
-    console.log(req.headers)
+    // console.log(req.headers)
     let authenticationClientOptions = {
         domain: aoDomainConfig.A0_TENANT_DOMAIN,
         clientId: aoDomainConfig.A0_CLIENT_ID,
@@ -87,7 +87,7 @@ router.post('/hook', async function (req, res, next) {
 });
 
 router.post('/registration', async function(req, res, next) {
-    console.log(req.body)
+    // console.log(req.body)
     /* let authenticationClientOptions = {
         domain: process.env.A0_TENANT_DOMAIN,
         clientId: process.env.A0_CLIENT_ID,
