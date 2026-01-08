@@ -232,8 +232,10 @@ async function collectReturnRequest (body, done) {
                 }
             }).then((rr) => {
                 console.log(rr);
+                done.ack();
             }).catch((err) => {
                 console.log(err);
+                done.nack();
             });
                 // await prisma.return_refund.create({
                 //     data: {
@@ -291,6 +293,7 @@ async function collectReturnRequest (body, done) {
 
         } else {
             console.log('still no return found -- ignoring for now');
+            done.ack();
         }
     } else {
         const ccData = returnData.cancellations.find(cc => cc.cancel_id == body.returnId)
@@ -321,6 +324,7 @@ async function collectReturnRequest (body, done) {
             console.log('cancellation created')
         }).catch((err) => {
             console.log(err);
+            done.nack();
         });
     }
 
@@ -385,10 +389,12 @@ async function collectReturnRequest (body, done) {
             // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
+                done.ack();
             }).catch((err) => {
                 if (err.response && err.response.data) {
                     console.log(JSON.stringify(err.response.data));
                 }
+                done.nack();
             })
         }
     }
@@ -478,6 +484,7 @@ async function collectTiktokProduct (body, done) {
                 }
             }).catch((err) => {
                 console.log(err);
+                done.nack();
             });
             /* prisma.products.findMany({
                 where: {
@@ -550,12 +557,14 @@ async function collectTiktokProduct (body, done) {
                     skipDuplicates: true,
                     data: productImgs
                 }).then((imgCreated) => {
+                    done.ack();
                     console.log(imgCreated);
                 }).catch((imgFail) => {
                     console.log(imgFail);
                 })
             } else {
                 console.log('no product created')
+                done.nack();
             }
             // done(null, {response: 'testing'});
         }).catch(function(err) {
@@ -563,6 +572,7 @@ async function collectTiktokProduct (body, done) {
             // done(new Error(err));
         })
     } else {
+        done.ack();
         console.log('product not found %s', body.product_id);
     }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
@@ -811,13 +821,14 @@ async function forwardConversation (body, done) {
                 break;
         }
 
-        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => { done.ack(); }, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('conversation not found - error not handled yet!');
+                    done.nack();
                     /* console.log('recreate conversation');
                     let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
@@ -834,9 +845,8 @@ async function forwardConversation (body, done) {
                 }
             }
         })
-    }
-
-    if (findSf) {
+    } else if (findSf) {
+        done.ack();
         console.log('Salesforce integration not implemented yet');
         // done(new Error('Salesforce integration not implemented yet'));
     }

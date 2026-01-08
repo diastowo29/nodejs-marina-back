@@ -18,6 +18,8 @@ async function lazCall (api, additionalParams, refToken, token, storeId, orgId, 
             if (newToken) {
                 lazCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
                 return;
+            } else {
+                return null;
             }
         } else if (result.data.code == 'MissingParameter') {
             return result.data;
@@ -78,27 +80,13 @@ async function lazPostCall (api, additionalParams, refToken, token, storeId, org
     })
 }
 
-async function populateResult (result) {
-    // if (result.data.code == 'IllegalAccessToken') {
-    //     let newToken = await refreshToken(refToken);
-    //     console.log(newToken);
-    //     if (newToken) {
-    //         lazPostCall(api, additionalParams, newToken.refresh_token, newToken.access_token);
-    //         return;
-    //     }
-    // } else if (result.data.code == 'MissingParameter') {
-    //     console.log(result.data);
-    // } else {
-    //     return result.data;
-    // }
-}
-
 async function refreshToken (api, refreshToken, storeId, orgId, tenantDB, isOms) {
     console.log(' --- refreshing token --- ');
     let addonParams = `refresh_token=${refreshToken}`;
     let params = lazParamz(api.appKey, '', Date.now(), 'currentToken', lazRefreshToken, addonParams);
     prisma = getPrismaClientForTenant(orgId, tenantDB.url);
     return axios.get(`${lazadaAuthHost}${lazRefreshToken}?${params.params}&sign=${params.signed}`).then(function(result) {
+        console.log('refresh response')
         console.log(result.data);
         if (result.data.code == '0') {
             let newToken = result.data.access_token;
@@ -118,6 +106,8 @@ async function refreshToken (api, refreshToken, storeId, orgId, tenantDB, isOms)
             }).finally(() => {
                 return result.data;
             })
+        } else {
+            return null;
         }
     })
 }

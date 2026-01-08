@@ -2,35 +2,23 @@ let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 1;
 let maxJobsPerWorker = 10;
 let { workQueue } = require('./config/redis.config');
-// const { PrismaClient, Prisma } = require('@prisma/client');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 // const prisma = new PrismaClient();
 let env = /* process.env.NODE_ENV || */ 'production';
 const fs = require('fs');
 const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
-
-// const SunshineConversationsClient = require('sunshine-conversations-client');
-// const messageApi = new SunshineConversationsClient.MessagesApi();
-
-// sunco hardcode part
-// let suncoAppId = process.env.SUNCO_APP_ID
-// let suncoKeyId = process.env.SUNCO_KEY_ID
-// let suncoKeySecret = process.env.SUNCO_KEY_SECRET
 const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR, callShopee } = require('./functions/shopee/function');
-const { GET_ORDER_API, GET_PRODUCT, UPLOAD_IMAGE } = require('./config/tiktok_apis');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClientForTenant } = require('./services/prismaServices');
 const { Prisma, PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
 const { PrismaClient } = require('./prisma/generated/client');
 const { encryptData } = require('./functions/encryption');
-const { url } = require('inspector');
-const { mode } = require('crypto-js');
-const { PubSub, Message } = require('@google-cloud/pubsub');
+const { PubSub } = require('@google-cloud/pubsub');
 const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
 const { routeLazada } = require('./functions/lazada/router_function');
@@ -39,26 +27,14 @@ const app = express();
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
 
-const projectId = process.env.GCP_PROJECT_ID; // Your Google Cloud Platform project ID
-const topicName = 'lazada-order-stream'; // Name for the new topic to create
-const subsName = 'order-subs'; // Name for the new subscription to create
+const projectId = process.env.GCP_PROJECT_ID;
+const topicName = 'lazada-order-stream';
+const subsName = 'order-subs';
 
-// if (env == 'production') {
-//     app.use(express.json());
-//     app.post('/doworker', async (req, res) => {
-//         let job = await processJob({
-//             data: req.body
-//         });
-//         res.status(200).send({
-//             job: job
-//         });
-//     });
-// } else {
-    throng({
-        workers,
-        start
-    });
-// }
+throng({
+    workers,
+    start
+});
 
 function messageHandler (message) {
     console.log("inbound: " + message.id);
@@ -101,15 +77,17 @@ function messageHandler (message) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (task) => {
                     processTiktok(task, message);
-                })
+                });
                 break;
             case 'lazada':
-                task = await routeLazada(pubPayload, prisma, org);
-                message.ack();
+                routeLazada(pubPayload, prisma, org).then(async (task) => {
+                    processLazada(task, message);
+                });
                 break;
             case 'shopee':
-                task = await routeShopee(pubPayload, prisma, org);
-                message.ack();
+                routeShopee(pubPayload, prisma, org).then(async (task) => {
+                    processShopee(task, message);
+                });
                 break;
             case 'blibli':
                 message.nack();
@@ -194,9 +172,7 @@ async function processJob(jobData, done) {
                 console.log(err)
             } */
             console.log('channel not supported: ', jobData.data.channel);
-            if (env !== 'production') {
-                done(null, {response: 'testing'});
-            }
+            done.nack();
             break;
     }
 }
@@ -383,13 +359,11 @@ async function processLazada(body, done) {
                     }
                 }).then((order) => {
                     console.log('order synced: ' + order.id)
-                    done();
+                    done.ack();
                 })
             } catch (err) {
                 console.log(err);
-                if (env !== 'production') {
-                    done(new Error(err));
-                }
+                done.nack();
             }
             break;
         case 3: 
@@ -440,29 +414,33 @@ async function processLazada(body, done) {
                             }
                         }
                     })
+                    done.ack();
                 }).catch((err) => {
+                    console.log('error fetching product detail');
                     console.log(err);
-                })
+                    done.nack();
+                });
             break;
         default:
             console.log(`code: ${body.code} is not supported yet`)
+            done.ack();
             break;
     }
 }
 
 async function processTokopedia(body, done) {
-    console.log(JSON.stringify(body));
+    /* console.log(JSON.stringify(body));
     if (env !== 'production') {
         done(null, {
             response: 'testing'
         });
-    }
+    } */
 
 }
 
 async function processTokopediaChat(body, done) {
     console.log('process tokopedia chat', body);
-    let suncoMessagePayload = {
+    /* let suncoMessagePayload = {
         author: {
             type: 'user',
             userExternalId: body.user_external_id
@@ -500,7 +478,7 @@ async function processTokopediaChat(body, done) {
     if (env !== 'production') {
 
         done(null, {response: 'testing'});
-    }
+    } */
 
 }
 
@@ -634,13 +612,11 @@ async function processShopee(body, done) {
     
             } else {
                 console.log(productsInfo.data);
+                done.nack();
             }
         } else {
             console.log(products.data);
-            if (env !== 'production') {
-                done(null, {response: 'testing'});
-
-            }
+            done.nack();
         }
     } else if (body.code == 10) {
         forwardConversation(body, done);
@@ -648,9 +624,7 @@ async function processShopee(body, done) {
         collectShopeeRR(body, done);
     } else {
         console.log('shopee code not supported: ', body.code);
-        if (env !== 'production') {
-            done(null, {response: 'testing'});
-        }
+        done.ack();
     }
 
     /* let orderDetail = await api.get(
@@ -726,10 +700,6 @@ async function processShopee(body, done) {
             }
         })
     } */
-    if (env !== 'production') {
-        done(null, {response: 'testing'});
-    }
-
 }
 
 async function processTiktok(body, done) {
@@ -837,35 +807,3 @@ async function processBlibli(body, done) {
 
     }
 }
-
-/* function postMessage(conversationId, payload) {
-    console.log('post message Payload', payload)
-    const messageApi = new SunshineConversationsClient.MessagesApi()
-    let defaultClient = SunshineConversationsClient.ApiClient.instance
-    let basicAuth = defaultClient.authentications['basicAuth']
-    basicAuth.username = suncoKeyId
-    basicAuth.password = suncoKeySecret
-
-    return messageApi.postMessage(suncoAppId, conversationId, payload).then(function(message) {
-        console.log(`message sent to ${conversationId}`)
-        return message
-    }, function(error) {
-        if (error.status == 429) {
-            console.log(`post message to ${conversationId} error: ${error.response.text}`)
-            return {
-                error: {
-                    title: error.response.text,
-                    data: error.response.req.data
-                }
-            }
-        } else {
-            console.log(`post message to ${conversationId} error: ${error.body.errors[0].title}`)
-            return {
-                error: {
-                    title: error.body.errors[0].title,
-                    data: error.body.errors[0]
-                }
-            }
-        }
-    })
-} */
