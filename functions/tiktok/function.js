@@ -27,8 +27,11 @@ async function collectTiktokOrder (body, done) {
                 data: {
                     tracking_number: tiktokOrderIdx.tracking_number
                 }
+            }).then(() => {
+                done.ack();
             }).catch((err) => {
                 console.error(`Error updating order ${tiktokOrderIdx.id}:`, err);
+                done.nack();
             });
         } else {
             prisma.orders.update({
@@ -146,8 +149,10 @@ async function collectTiktokOrder (body, done) {
                             skipDuplicates: true,
                         }).then(() => {
                             console.log('all product img updated');
+                            done.ack();
                         }, (err) => {
                             console.log(err)
+                            done.nack();
                         });
                     })
                 }
@@ -155,10 +160,12 @@ async function collectTiktokOrder (body, done) {
                 console.log(err);
                 console.log(JSON.stringify(tiktokOrderIdx));
                 // done(new Error(err));
+                done.nack();
             });
         }
     } else {
         console.log('no order found');
+        done.ack();
     }
 }
 

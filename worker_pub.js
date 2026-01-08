@@ -6,7 +6,7 @@ let { workQueue } = require('./config/redis.config');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 // const prisma = new PrismaClient();
-let env = /* process.env.NODE_ENV || */ 'developemnt';
+let env = /* process.env.NODE_ENV || */ 'production';
 const fs = require('fs');
 const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
 
@@ -32,6 +32,9 @@ const { url } = require('inspector');
 const { mode } = require('crypto-js');
 const { PubSub, Message } = require('@google-cloud/pubsub');
 const { gcpParser } = require('./functions/gcpParser');
+const { routeTiktok } = require('./functions/tiktok/router_function');
+const { routeLazada } = require('./functions/lazada/router_function');
+const { routeShopee } = require('./functions/shopee/router_function');
 const app = express();
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
@@ -40,34 +43,22 @@ const projectId = process.env.GCP_PROJECT_ID; // Your Google Cloud Platform proj
 const topicName = 'lazada-order-stream'; // Name for the new topic to create
 const subsName = 'order-subs'; // Name for the new subscription to create
 
-if (env == 'production') {
-    app.use(express.json());
-    const PORT = process.env.PORT || 8080;
-    app.listen(PORT, () => {
-        // console.log('db at ', process.env.DATABASE_URL);
-        // console.log(`Worker running on port ${PORT}`);
-    });
-    app.post('/doworker', async (req, res) => {
-        let job = await processJob({
-            data: req.body
-        });
-        res.status(200).send({
-            job: job
-        });
-    });
-} else {
+// if (env == 'production') {
+//     app.use(express.json());
+//     app.post('/doworker', async (req, res) => {
+//         let job = await processJob({
+//             data: req.body
+//         });
+//         res.status(200).send({
+//             job: job
+//         });
+//     });
+// } else {
     throng({
         workers,
         start
     });
-}
-
-// functions.http('crfWorkers', (req, res) => {
-//     console.log('workers start')
-//     console.log(req.body);
-//     // processJob(req.body);
-//     res.status(200).send({});
-// });
+// }
 
 function messageHandler (message) {
     console.log("inbound: " + message.id);
@@ -89,11 +80,11 @@ function messageHandler (message) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        const mStore = await prisma.store.findUnique({
+        const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
             },
-            select: {
+            include: {
                 channel: {
                     select: {
                         name: true
@@ -101,33 +92,59 @@ function messageHandler (message) {
                 }
             }
         });
+        if (!mStore) {
+            message.ack();
+            return;
+        }
+        let task = {};
+        switch (mStore.channel.name) {
+            case 'tiktok':
+                routeTiktok(pubPayload, prisma, org).then(async (task) => {
+                    processTiktok(task, message);
+                })
+                break;
+            case 'lazada':
+                task = await routeLazada(pubPayload, prisma, org);
+                message.ack();
+                break;
+            case 'shopee':
+                task = await routeShopee(pubPayload, prisma, org);
+                message.ack();
+                break;
+            case 'blibli':
+                message.nack();
+                break;
+            default:
+                break;
+        }
+    }).catch((err) => {
+        message.nack();
+        console.log(err);
     })
-    
     // message.nack()
     // throw new Error("error marina");
 }
 
-function tiktokHandler () {
-    
-}
-
 function errorHandler (error) {
     console.log(error)
+    throw new Error("Error worker ", {cause: error});
 }
 
 function start() {
-    console.log('Marina Worker started...');
-    const pubsub = new PubSub({projectId: projectId});
-    const topic = pubsub.topic(topicName);
-    const subs = topic.subscription(subsName);
-    subs.on('message', messageHandler);
-    subs.on('error', errorHandler)
-
+    console.log('Marina Worker started... ', env);
+    if  (env == 'production') {
+        const pubsub = new PubSub({projectId: projectId});
+        const topic = pubsub.topic(topicName);
+        const subs = topic.subscription(subsName);
+        subs.on('message', messageHandler);
+        subs.on('error', errorHandler)
+    } else {
+        workQueue.process(maxJobsPerWorker, async (job, done) => {
+            processJob(job, done);
+        });
+    }
     // subs.on('message', (messageHandler) => {
     //     messageHandler.
-    // });
-    // workQueue.process(maxJobsPerWorker, async (job, done) => {
-    //     processJob(job, done);
     // });
 }
 
