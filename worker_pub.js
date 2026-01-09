@@ -4,11 +4,8 @@ let maxJobsPerWorker = 10;
 let { workQueue } = require('./config/redis.config');
 const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
-// const prisma = new PrismaClient();
 let env = /* process.env.NODE_ENV || */ 'production';
-const fs = require('fs');
 const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
-const express = require('express');
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR, callShopee } = require('./functions/shopee/function');
@@ -23,7 +20,6 @@ const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
 const { routeLazada } = require('./functions/lazada/router_function');
 const { routeShopee } = require('./functions/shopee/router_function');
-const app = express();
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
 
@@ -72,7 +68,6 @@ function messageHandler (message) {
             message.ack();
             return;
         }
-        let task = {};
         switch (mStore.channel.name) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (task) => {
@@ -93,10 +88,12 @@ function messageHandler (message) {
                 message.nack();
                 break;
             default:
+                message.nack();
                 break;
         }
     }).catch((err) => {
         message.nack();
+        console.log('eror here')
         console.log(err);
     })
     // message.nack()
@@ -143,10 +140,10 @@ async function processJob(jobData, done) {
             processBlibli(jobData.data, done);
             break;
         case TOKOPEDIA:
-            processTokopedia(jobData.data, done);
+            processTokopedia(jobData.data, done); // moved to tiktok
             break;
         case TOKOPEDIA_CHAT:
-            processTokopediaChat(jobData.data, done);
+            processTokopediaChat(jobData.data, done); // moved to tiktok
             break;
         case SHOPEE:
             processShopee(jobData.data, done);
@@ -374,7 +371,7 @@ async function processLazada(body, done) {
                 getProductParams, body.refreshToken,
                 body.token, body.mStoreId, body.orgId,
                 body.tenantDB, isOms).then(async (productDetail) => {
-                    console.log((productDetail))
+                    // console.log((productDetail))
                     // console.log(JSON.stringify(productDetail))
                     await prisma.products.update({
                         where: {
