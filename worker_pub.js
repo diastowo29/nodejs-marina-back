@@ -36,6 +36,7 @@ function messageHandler (message) {
     console.log("inbound: " + message.id);
     const pubPayload = gcpParser(message.data);
     const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
+    console.log(storeId);
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId
@@ -52,9 +53,6 @@ function messageHandler (message) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        console.log(org);
-        console.log(org[1])
-        console.log(getTenantDB(org[1]).url)
         const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
