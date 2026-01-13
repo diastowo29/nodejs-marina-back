@@ -36,7 +36,7 @@ function messageHandler (message) {
     console.log("inbound: " + message.id);
     const pubPayload = gcpParser(message.data);
     const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
-    console.log(storeId);
+    console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId
