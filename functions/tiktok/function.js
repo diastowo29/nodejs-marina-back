@@ -564,7 +564,7 @@ async function collectTiktokProduct (body, done) {
                 })
             } else {
                 console.log('no product created')
-                done.nack();
+                done.ack();
             }
             // done(null, {response: 'testing'});
         }).catch(function(err) {
@@ -572,8 +572,8 @@ async function collectTiktokProduct (body, done) {
             // done(new Error(err));
         })
     } else {
-        done.ack();
         console.log('product not found %s', body.product_id);
+        done.ack();
     }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {

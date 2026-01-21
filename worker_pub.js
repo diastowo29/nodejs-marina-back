@@ -32,9 +32,9 @@ throng({
     start
 });
 
-function messageHandler (message) {
-    console.log("inbound: " + message.id);
-    const pubPayload = gcpParser(message.data);
+function messageHandler (pubMessage) {
+    console.log("inbound: " + pubMessage.id);
+    const pubPayload = gcpParser(pubMessage.data);
     const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
     // console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
@@ -48,7 +48,7 @@ function messageHandler (message) {
         if (!baseStore) {
             console.log(JSON.stringify(pubPayload))
             console.log('cannot find the client');
-            message.ack();
+            pubMessage.ack();
             return;
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
@@ -67,37 +67,37 @@ function messageHandler (message) {
             }
         });
         if (!mStore) {
-            message.ack();
+            pubMessage.ack();
             return;
         }
         switch (mStore.channel.name) {
             case 'tiktok':
-                routeTiktok(pubPayload, prisma, org).then(async (task) => {
-                    processTiktok(task, message);
+                routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
+                    processTiktok(taskPayload, pubMessage);
                 });
                 break;
             case 'lazada':
-                routeLazada(pubPayload, prisma, org).then(async (task) => {
-                    processLazada(task, message);
+                routeLazada(pubPayload, prisma, org).then(async (taskPayload) => {
+                    processLazada(taskPayload, pubMessage);
                 });
                 break;
             case 'shopee':
-                routeShopee(pubPayload, prisma, org).then(async (task) => {
-                    processShopee(task, message);
+                routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
+                    processShopee(taskPayload, pubMessage);
                 });
                 break;
             case 'blibli':
-                message.nack();
+                pubMessage.nack();
                 break;
             default:
-                message.nack();
+                pubMessage.nack();
                 break;
         }
     }).catch((err) => {
-        message.nack();
+        pubMessage.nack();
         console.log(err);
     })
-    // message.nack()
+    // pubMessage.nack()
     // throw new Error("error marina");
 }
 
@@ -700,22 +700,22 @@ async function processShopee(body, done) {
     } */
 }
 
-async function processTiktok(body, done) {
+async function processTiktok(body, pubMessage) {
     if (body.code == 1) {
         /* ==== ORDERS UPDATE==== */
         if (body.status != 'UNPAID') {
-            collectTiktokOrder(body, done);
+            collectTiktokOrder(body, pubMessage);
         }
     } else if (body.code == 16 || body.code == 15) {
         /* PRODUCT STATUS UPDATE */
-        collectTiktokProduct(body, done);
+        collectTiktokProduct(body, pubMessage);
     } else if (body.code == 12 || body.code == 11) {
-        collectReturnRequest(body, done);
+        collectReturnRequest(body, pubMessage);
     } else if (body.code == 14) {
-        forwardConversation(body, done);
+        forwardConversation(body, pubMessage);
     } else {
         console.log('code %s not implemented yet', body.code);
-        done.ack();
+        pubMessage.ack();
     }
 }
 
