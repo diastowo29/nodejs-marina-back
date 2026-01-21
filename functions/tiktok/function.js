@@ -34,6 +34,7 @@ async function collectTiktokOrder (body, done) {
                 done.nack();
             });
         } else {
+            const districtAddress = tiktokOrderIdx.recipient_address.district_info ||  '';
             prisma.orders.update({
                 where: {
                     origin_id: tiktokOrderIdx.id
@@ -52,10 +53,10 @@ async function collectTiktokOrder (body, done) {
                     },
                     status: tiktokOrderIdx.status,
                     payment_id: tiktokOrderIdx.payment_method_name,
-                    recp_addr_country: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L0').address_name,
-                    recp_addr_province: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L1').address_name,
-                    recp_addr_city: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L2').address_name,
-                    recp_addr_district: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L3').address_name,
+                    recp_addr_country: (districtAddress) ? districtAddress.find(address => address.address_level == 'L0').address_name : '',
+                    recp_addr_province: (districtAddress) ? districtAddress.find(address => address.address_level == 'L1').address_name : '',
+                    recp_addr_city: (districtAddress) ? districtAddress.find(address => address.address_level == 'L2').address_name : '',
+                    recp_addr_district: (districtAddress) ? districtAddress.find(address => address.address_level == 'L3').address_name : '',
                     recp_addr_full: tiktokOrderIdx.recipient_address.full_address,
                     recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
                     recp_phone: tiktokOrderIdx.recipient_address.phone_number,
