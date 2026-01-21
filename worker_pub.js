@@ -36,7 +36,7 @@ function messageHandler (message) {
     console.log("inbound: " + message.id);
     const pubPayload = gcpParser(message.data);
     const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
-    console.log(process.env.BASE_DATABASE_URL);
+    // console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId
@@ -53,7 +53,7 @@ function messageHandler (message) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        console.log(getTenantDB(org[1]).url);
+        // console.log(getTenantDB(org[1]).url);
         const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
@@ -715,9 +715,7 @@ async function processTiktok(body, done) {
         forwardConversation(body, done);
     } else {
         console.log('code %s not implemented yet', body.code);
-        if (env !== 'production') {
-            done(null, {response: 'testing'});
-        }
+        done.ack();
     }
 }
 
