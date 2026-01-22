@@ -104,8 +104,7 @@ async function collectTiktokOrder (body, done) {
                                 origin_id: tiktokOrderIdx.user_id.toString()
                             },
                             create: {
-                                origin_id: tiktokOrderIdx.user_id.toString(),
-    
+                                origin_id: tiktokOrderIdx.user_id.toString()
                             }
                         }
                     }

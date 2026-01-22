@@ -6,9 +6,9 @@ const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetai
 const { lazCall } = require('./functions/lazada/caller');
 let env = /* process.env.NODE_ENV || */ 'production';
 const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
-const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_ORDER_DETAIL, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
+const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
-const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR, callShopee } = require('./functions/shopee/function');
+const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR } = require('./functions/shopee/function');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
 const { getPrismaClientForTenant } = require('./services/prismaServices');
 const { Prisma, PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
@@ -22,10 +22,12 @@ const { routeLazada } = require('./functions/lazada/router_function');
 const { routeShopee } = require('./functions/shopee/router_function');
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
+const pubSubTopic = process.env.PUBSUB_TOPIC || 'marina-main-topic-dev';
+const pubSubTopicSubs = process.env.PUBSUB_TOPIC_SUBS || 'marina-main-topic-dev-sub';
 
 const projectId = process.env.GCP_PROJECT_ID;
-const topicName = 'lazada-order-stream';
-const subsName = 'order-subs';
+const topicName = pubSubTopic;
+const subsName = pubSubTopicSubs;
 
 throng({
     workers,
@@ -35,6 +37,9 @@ throng({
 function messageHandler (pubMessage) {
     console.log("inbound: " + pubMessage.id);
     const pubPayload = gcpParser(pubMessage.data);
+    if (pubPayload.ping) {
+        return pubMessage.ack();
+    }
     const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
     // console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
