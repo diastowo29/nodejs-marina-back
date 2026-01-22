@@ -11,7 +11,7 @@ let prisma = new PrismaClient();
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
 
-async function collectTiktokOrder (body, done) {
+async function collectTiktokOrder (body, subs) {
     let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
     if (tiktokOrder) {
         prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
@@ -28,13 +28,14 @@ async function collectTiktokOrder (body, done) {
                     tracking_number: tiktokOrderIdx.tracking_number
                 }
             }).then(() => {
-                done.ack();
+                subs.ack();
             }).catch((err) => {
                 console.error(`Error updating order ${tiktokOrderIdx.id}:`, err);
-                done.nack();
+                subs.nack();
             });
         } else {
             const districtAddress = tiktokOrderIdx.recipient_address.district_info ||  '';
+            console.log(body.syncItems);
             prisma.orders.update({
                 where: {
                     origin_id: tiktokOrderIdx.id
@@ -72,31 +73,33 @@ async function collectTiktokOrder (body, done) {
                     total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
                     total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
                     shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
-                    order_items: {
-                        create: tiktokOrderIdx.line_items.map((item) => {
-                            return {
-                                qty: 1,
-                                total_price: Number.parseInt(item.sale_price),
-                                origin_id: item.id,
-                                package_id: item.package_id,
-                                products: {
-                                    connectOrCreate: {
-                                        where: {
-                                            origin_id: `${item.product_id}-${item.sku_id}`
-                                        },
-                                        create: {
-                                            name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
-                                            origin_id: `${item.product_id}-${item.sku_id}`,
-                                            price: Number.parseInt(item.original_price),
-                                            sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
-                                            currency: item.currency,
-                                            url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
-                                            storeId: body.m_shop_id
+                    ...(!body.syncItems) ? {} : {
+                        order_items: {
+                            create: tiktokOrderIdx.line_items.map((item) => {
+                                return {
+                                    qty: 1,
+                                    total_price: Number.parseInt(item.sale_price),
+                                    origin_id: item.id,
+                                    package_id: item.package_id,
+                                    products: {
+                                        connectOrCreate: {
+                                            where: {
+                                                origin_id: `${item.product_id}-${item.sku_id}`
+                                            },
+                                            create: {
+                                                name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
+                                                origin_id: `${item.product_id}-${item.sku_id}`,
+                                                price: Number.parseInt(item.original_price),
+                                                sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
+                                                currency: item.currency,
+                                                url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
+                                                storeId: body.m_shop_id
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        })
+                            })
+                        }
                     },
                     customers: {
                         connectOrCreate: {
@@ -149,27 +152,29 @@ async function collectTiktokOrder (body, done) {
                             skipDuplicates: true,
                         }).then(() => {
                             console.log('all product img updated');
-                            done.ack();
+                            subs.ack();
                         }, (err) => {
                             console.log(err)
-                            done.nack();
+                            subs.nack();
                         });
                     })
+                } else {
+                    subs.ack();
                 }
             }).catch(function(err) {
                 console.log(err);
                 console.log(JSON.stringify(tiktokOrderIdx));
-                // done(new Error(err));
-                done.nack();
+                // subs(new Error(err));
+                subs.nack();
             });
         }
     } else {
         console.log('no order found');
-        done.ack();
+        subs.ack();
     }
 }
 
-async function collectReturnRequest (body, done) {
+async function collectReturnRequest (body, subs) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     var data = {}
     var returnCancel = [];
@@ -232,10 +237,10 @@ async function collectReturnRequest (body, done) {
                 }
             }).then((rr) => {
                 console.log(rr);
-                done.ack();
+                subs.ack();
             }).catch((err) => {
                 console.log(err);
-                done.nack();
+                subs.nack();
             });
                 // await prisma.return_refund.create({
                 //     data: {
@@ -293,7 +298,7 @@ async function collectReturnRequest (body, done) {
 
         } else {
             console.log('still no return found -- ignoring for now');
-            done.ack();
+            subs.ack();
         }
     } else {
         const ccData = returnData.cancellations.find(cc => cc.cancel_id == body.returnId)
@@ -324,7 +329,7 @@ async function collectReturnRequest (body, done) {
             console.log('cancellation created')
         }).catch((err) => {
             console.log(err);
-            done.nack();
+            subs.nack();
         });
     }
 
@@ -389,12 +394,12 @@ async function collectReturnRequest (body, done) {
             // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
-                done.ack();
+                subs.ack();
             }).catch((err) => {
                 if (err.response && err.response.data) {
                     console.log(JSON.stringify(err.response.data));
                 }
-                done.nack();
+                subs.nack();
             })
         }
     }
@@ -402,7 +407,7 @@ async function collectReturnRequest (body, done) {
     // done(null, {response: 'testing'});
 }
 
-async function collectTiktokProduct (body, done) {
+async function collectTiktokProduct (body, subs) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     // const prisma = getPrismaClient(body.tenantDB);
     // -- UPDATE USING: callTiktok FUNCTION
@@ -484,7 +489,7 @@ async function collectTiktokProduct (body, done) {
                 }
             }).catch((err) => {
                 console.log(err);
-                done.nack();
+                subs.nack();
             });
             /* prisma.products.findMany({
                 where: {
@@ -557,23 +562,23 @@ async function collectTiktokProduct (body, done) {
                     skipDuplicates: true,
                     data: productImgs
                 }).then((imgCreated) => {
-                    done.ack();
+                    subs.ack();
                     console.log(imgCreated);
                 }).catch((imgFail) => {
                     console.log(imgFail);
                 })
             } else {
                 console.log('no product created')
-                done.ack();
+                subs.ack();
             }
-            // done(null, {response: 'testing'});
+            // subs(null, {response: 'testing'});
         }).catch(function(err) {
             console.log(err);
-            // done(new Error(err));
+            // subs(new Error(err));
         })
     } else {
         console.log('product not found %s', body.product_id);
-        done.ack();
+        subs.ack();
     }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {
@@ -585,11 +590,11 @@ async function collectTiktokProduct (body, done) {
         }
     }).catch(function(err) {
         console.log(err)
-        // done(new Error(err));
+        // subs(new Error(err));
     }) */
 }
 
-async function forwardConversation (body, done) {
+async function forwardConversation (body, subs) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
@@ -821,14 +826,14 @@ async function forwardConversation (body, done) {
                 break;
         }
 
-        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => { done.ack(); }, async (error) => {
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => { subs.ack(); }, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('conversation not found - error not handled yet!');
-                    done.nack();
+                    subs.nack();
                     /* console.log('recreate conversation');
                     let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
@@ -842,11 +847,14 @@ async function forwardConversation (body, done) {
                         })
                         postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
                     } */
+                } else {
+                    console.log(errorMessage);
+                    subs.nack();
                 }
             }
         })
     } else if (findSf) {
-        done.ack();
+        subs.ack();
         console.log('Salesforce integration not implemented yet');
         // done(new Error('Salesforce integration not implemented yet'));
     }

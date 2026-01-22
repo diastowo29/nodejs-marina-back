@@ -71,6 +71,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                 }
             });
             let syncProduct = [];
+            const syncItems = (newOrder.order_items.length == 0) ? true : false;
             newOrder.order_items.forEach(item => {
                 if (item.products.product_img.length == 0) {
                     syncProduct.push(item.products.origin_id);
@@ -91,6 +92,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                 tenantDB: getTenantDB(org[1]),
                 status: jsonBody.data.status,
                 org_id: org[0],
+                syncItems: syncItems,
                 syncProduct: syncProduct
             }
             /* if (jsonBody.type == 2) {
