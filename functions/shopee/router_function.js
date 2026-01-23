@@ -34,29 +34,26 @@ async function routeShopee (jsonBody, mPrisma, org) {
                         }
                     }
                 });
-                taskPayload = {
-                    channel: SHOPEE, 
-                    order_id: jsonBody.data.ordersn,
-                    id: newOrder.id,
-                    token: newOrder.store.token,
-                    code: payloadCode,
-                    m_shop_id: newOrder.store.id,
-                    shop_id: jsonBody.shop_id,
-                    refresh_token: newOrder.store.refresh_token,
-                    status: jsonBody.data.status,
-                    tenantDB: tenantDbUrl,
-                    org_id: org[1]
-                }
                 if (newOrder.order_items.length == 0 || jsonBody.data.status == 'SHIPPED') {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
-                        // pushTask(env, taskPayload);
+                        taskPayload = {
+                            channel: SHOPEE, 
+                            order_id: jsonBody.data.ordersn,
+                            id: newOrder.id,
+                            token: newOrder.store.token,
+                            code: payloadCode,
+                            m_shop_id: newOrder.store.id,
+                            shop_id: jsonBody.shop_id,
+                            refresh_token: newOrder.store.refresh_token,
+                            status: jsonBody.data.status,
+                            tenantDB: tenantDbUrl,
+                            org_id: org[1]
+                        }
                     } else {
                         console.log('Shopee store: %s Expired', newOrder.store.id);
                     }
                 }
-                // res.status(200).send({message: {id: newOrder.id}});
             } else {
-                console.log(JSON.stringify(jsonBody))
                 await prisma.return_refund.upsert({
                     where: {
                         origin_id: jsonBody.data.ordersn 
@@ -75,7 +72,6 @@ async function routeShopee (jsonBody, mPrisma, org) {
                     },
                     update: {}
                 })
-                // res.status(200).send({});
             }
             break;
         case 10:

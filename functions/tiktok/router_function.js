@@ -10,33 +10,12 @@ async function routeTiktok (jsonBody, prisma, org) {
     let taskPayload = {};
     switch (jsonBody.type) {
         case 1:
-            // const orderStatus = (jsonBody.data.order_status) ? jsonBody.data.order_status : jsonBody.data.reverse_event_type;
             let newOrder = await mPrisma.orders.upsert({
                 where: {
                     origin_id: jsonBody.data.order_id
                 },
                 update: {
                     status: jsonBody.data.order_status
-                    // temp_id: (jsonBody.data.order_status) ? '' : jsonBody.data.reverse_order_id,
-                    // ...(jsonBody.data.order_status) && {status: jsonBody.data.order_status},
-                    /* ...(jsonBody.data.reverse_event_type) && {
-                        return_refund: {
-                            upsert: {
-                                create: {
-                                    origin_id: jsonBody.data.reverse_order_id,
-                                    total_amount: 0,
-                                    status: orderStatus
-                                },
-                                update: {
-                                    status: orderStatus
-                                },
-                                where: {
-                                    origin_id: jsonBody.data.reverse_order_id
-                                }
-
-                            }
-                        }
-                    }, */
                 },
                 create: {
                     origin_id: jsonBody.data.order_id,
@@ -212,25 +191,18 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     integration: rr.order.store.channel.client.integration,
                                     org_id: org[0]
                                 }
-                                // pushTask(env, taskPayload);
-                                // res.status(200).send({})
                             } else {
-                                // res.status(400).send({error: 'No return/refund data found'});
+                                throw new Error("rrData not found");
                             }
                         } else {
-                            // res.status(400).send({error: 'No return/refund data found'});
+                            throw new Error("rrData not found");
                         }
                     }).catch((err) => {
                         console.log(err);
-                        // res.status(400).send({error: err});
+                        throw new Error(err);
                     })
-                } else {
-                    // res.status(200).send({})
                 }
-            }).catch ((err) => {
-                console.log(err);
-                // res.status(400).send({error: err});
-            });
+            })
             break;
         case 12:
             mPrisma.return_refund.upsert({
@@ -315,26 +287,15 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     integration: rr.order.store.channel.client.integration,
                                     org_id: org[1]
                                 }
-                                // console.log('goto worker')
-                                // pushTask(env, taskPayload);
-                                // res.status(200).send({return_refund: rr.id, origin_id: rr.origin_id, status: rr.status});
                             } else {
-                                // res.status(400).send({error: 'No return/refund data found'});
+                                throw new Error("rrData not found");
                             }
                         } else {
-                            // res.status(400).send({error: 'No return/refund data found'});
+                            throw new Error("rrData not found");
                         }
-                    }).catch((err) => {
-                        console.log(err);
-                        // res.status(400).send({error: err});
                     })
-                } else {
-                    // res.status(200).send({})
                 }
-            }).catch ((err) => {
-                console.log(err);
-                // res.status(400).send({error: err});
-            });
+            })
             break;
         case 14:
                 // console.log(JSON.stringify(jsonBody));
@@ -344,8 +305,8 @@ async function routeTiktok (jsonBody, prisma, org) {
             }
             try {
                 const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
-                // const userName = `Customer ${jsonBody.data.sender.im_user_id}`;
-                console.log(`message ${jsonBody.data.content} id: ${jsonBody.data.message_id}`)
+                console.log(`tts_notification_id: ${jsonBody.tts_notification_id} message_id: ${jsonBody.data.message_id} from ${jsonBody.data.sender.role}`);
+                // console.log(`message ${jsonBody.data.content}`)
                 let upsertMessage = await mPrisma.omnichat.upsert({
                     where: {
                         origin_id: jsonBody.data.conversation_id
@@ -427,12 +388,11 @@ async function routeTiktok (jsonBody, prisma, org) {
                             org_id: org[1],
                             syncCustomer: (upsertMessage.customer) ? false : true
                         }
-                        // pushTask(env, taskPayload);
                     }
                 }
-                // res.status(200).send({message: {id: upsertMessage.id}});
             } catch (err) {
                 console.log(err);
+                throw new Error(err);                
             }
             break;
         case 15:

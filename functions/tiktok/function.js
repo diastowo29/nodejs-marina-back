@@ -35,7 +35,6 @@ async function collectTiktokOrder (body, subs) {
             });
         } else {
             const districtAddress = tiktokOrderIdx.recipient_address.district_info ||  '';
-            console.log(body.syncItems);
             prisma.orders.update({
                 where: {
                     origin_id: tiktokOrderIdx.id

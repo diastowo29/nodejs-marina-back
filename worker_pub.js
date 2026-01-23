@@ -40,7 +40,7 @@ function messageHandler (pubMessage) {
     if (pubPayload.ping) {
         return pubMessage.ack();
     }
-    const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id;
+    const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id || pubPayload.store.code;
     // console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
         where: {
@@ -78,7 +78,30 @@ function messageHandler (pubMessage) {
         switch (mStore.channel.name) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
-                    processTiktok(taskPayload, pubMessage);
+                    if (taskPayload) {
+                        if (taskPayload.code == 1) {
+                            /* ==== ORDERS UPDATE==== */
+                            if (taskPayload.status != 'UNPAID') {
+                                collectTiktokOrder(taskPayload, pubMessage);
+                            }
+                        } else if (taskPayload.code == 16 || taskPayload.code == 15) {
+                            /* PRODUCT STATUS UPDATE */
+                            collectTiktokProduct(taskPayload, pubMessage);
+                        } else if (taskPayload.code == 12 || taskPayload.code == 11) {
+                            collectReturnRequest(taskPayload, pubMessage);
+                        } else if (taskPayload.code == 14) {
+                            forwardConversation(taskPayload, pubMessage);
+                        } else {
+                            console.log('code %s not implemented yet', taskPayload.code);
+                            pubMessage.ack();
+                        }
+                        // processTiktok(taskPayload, pubMessage);
+                    } else {
+                        pubMessage.ack();
+                    }
+                }).catch((error) => {
+                    console.log(error);
+                    pubMessage.nack();
                 });
                 break;
             case 'lazada':
@@ -92,15 +115,16 @@ function messageHandler (pubMessage) {
                 });
                 break;
             case 'blibli':
-                pubMessage.nack();
+                console.log('blibli message received');
+                pubMessage.ack();
                 break;
             default:
                 pubMessage.nack();
                 break;
         }
     }).catch((err) => {
-        pubMessage.nack();
         console.log(err);
+        pubMessage.nack();
     })
     // pubMessage.nack()
     // throw new Error("error marina");
@@ -113,72 +137,72 @@ function errorHandler (error) {
 
 function start() {
     console.log('Marina Worker started... ', env);
-    if  (env == 'production') {
+    // if  (env == 'production') {
         const pubsub = new PubSub({projectId: projectId});
         const topic = pubsub.topic(topicName);
         const subs = topic.subscription(subsName);
         subs.on('message', messageHandler);
         subs.on('error', errorHandler)
-    } else {
-        workQueue.process(maxJobsPerWorker, async (job, done) => {
-            processJob(job, done);
-        });
-    }
+    // } else {
+        // workQueue.process(maxJobsPerWorker, async (job, done) => {
+        //     processJob(job, done);
+        // });
+    // }
     // subs.on('message', (messageHandler) => {
     //     messageHandler.
     // });
 }
 
-async function processJob(jobData, done) {
-    // let body = jobData.data.body;
-    // console.log(jobData);
-    // console.log(JSON.stringify(body))
-    // console.log(jobData.data.channel);
-    // console.log(Buffer.from(body.message.data, 'base64').toString('ascii'));
-    switch (jobData.data.channel) {
-        case LAZADA:
-            processLazada(jobData.data, done);
-            break;
-        case LAZADA_CHAT:
-            processLazadaChat(jobData.data, done);
-            break;
-        case BLIBLI:
-            processBlibli(jobData.data, done);
-            break;
-        case TOKOPEDIA:
-            processTokopedia(jobData.data, done); // moved to tiktok
-            break;
-        case TOKOPEDIA_CHAT:
-            processTokopediaChat(jobData.data, done); // moved to tiktok
-            break;
-        case SHOPEE:
-            processShopee(jobData.data, done);
-            break;
-        case TIKTOK:
-            processTiktok(jobData.data, done);
-            break;
-        case TIKTOK_CHAT:
-            break;
-        default:
-            console.log(jobData.data);
-           /*  const formData = new FormData();
-            formData.append('data', fs.createReadStream(jobData.data.files))
-            try {
-                const uploaded = await api.post(UPLOAD_IMAGE(formData), formData, {
-                    headers: {
-                        'x-tts-access-token': 'ROW_V381WwAAAABLnq7xXOmscBX-2auOuaCindVaZtRIQ7EWKejWoQytgRvgHUK6PwUNZdE2MkJkyzWGC_oe0oI4AF3HgcWm8AFsTgtyi-SxPGonwyBLlXVpOBCfEXYi65wqB294knTTRfp9rm1B94T8tNCBijaGJf8V',
-                        'content-type': 'multipart/form-data'
-                    }
-                });
-                console.log(uploaded.data);
-            } catch (err) {
-                console.log(err)
-            } */
-            console.log('channel not supported: ', jobData.data.channel);
-            done.nack();
-            break;
-    }
-}
+// async function processJob(jobData, done) {
+//     // let body = jobData.data.body;
+//     // console.log(jobData);
+//     // console.log(JSON.stringify(body))
+//     // console.log(jobData.data.channel);
+//     // console.log(Buffer.from(body.message.data, 'base64').toString('ascii'));
+//     switch (jobData.data.channel) {
+//         case LAZADA:
+//             processLazada(jobData.data, done);
+//             break;
+//         case LAZADA_CHAT:
+//             processLazadaChat(jobData.data, done);
+//             break;
+//         case BLIBLI:
+//             processBlibli(jobData.data, done);
+//             break;
+//         case TOKOPEDIA:
+//             processTokopedia(jobData.data, done); // moved to tiktok
+//             break;
+//         case TOKOPEDIA_CHAT:
+//             processTokopediaChat(jobData.data, done); // moved to tiktok
+//             break;
+//         case SHOPEE:
+//             processShopee(jobData.data, done);
+//             break;
+//         case TIKTOK:
+//             processTiktok(jobData.data, done);
+//             break;
+//         case TIKTOK_CHAT:
+//             break;
+//         default:
+//             console.log(jobData.data);
+//            /*  const formData = new FormData();
+//             formData.append('data', fs.createReadStream(jobData.data.files))
+//             try {
+//                 const uploaded = await api.post(UPLOAD_IMAGE(formData), formData, {
+//                     headers: {
+//                         'x-tts-access-token': 'ROW_V381WwAAAABLnq7xXOmscBX-2auOuaCindVaZtRIQ7EWKejWoQytgRvgHUK6PwUNZdE2MkJkyzWGC_oe0oI4AF3HgcWm8AFsTgtyi-SxPGonwyBLlXVpOBCfEXYi65wqB294knTTRfp9rm1B94T8tNCBijaGJf8V',
+//                         'content-type': 'multipart/form-data'
+//                     }
+//                 });
+//                 console.log(uploaded.data);
+//             } catch (err) {
+//                 console.log(err)
+//             } */
+//             console.log('channel not supported: ', jobData.data.channel);
+//             done.nack();
+//             break;
+//     }
+// }
 
 async function processLazadaChat(body, done) {
     let refresh_token = 'refToken';
@@ -485,7 +509,7 @@ async function processTokopediaChat(body, done) {
 
 }
 
-async function processShopee(body, done) {
+async function processShopee(body, pubMessage) {
     // console.log(JSON.stringify(body));
     /* WORKER PART */
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
@@ -496,9 +520,9 @@ async function processShopee(body, done) {
     if (body.code == 3) {
         /* ==== ORDERS ==== */
         if (body.status == 'SHIPPED') {
-            collectShopeeTrackNumber(body, done);
+            collectShopeeTrackNumber(body, pubMessage);
         } else {
-            collectShopeeOrder(body, done);
+            collectShopeeOrder(body, pubMessage);
         }
     } else if (body.code == 9999) {
         let accToken = body.token;
@@ -606,7 +630,7 @@ async function processShopee(body, done) {
                         console.log('Error getting list of model');
                     }
                     if (env !== 'production') {
-                        done(null, {response: 'testing'});
+                        pubMessage(null, {response: 'testing'});
 
                     }
                 }).catch((err) => {
@@ -615,19 +639,19 @@ async function processShopee(body, done) {
     
             } else {
                 console.log(productsInfo.data);
-                done.nack();
+                pubMessage.nack();
             }
         } else {
             console.log(products.data);
-            done.nack();
+            pubMessage.nack();
         }
     } else if (body.code == 10) {
-        forwardConversation(body, done);
+        forwardConversation(body, pubMessage);
     } else if (body.code == 29) {
-        collectShopeeRR(body, done);
+        collectShopeeRR(body, pubMessage);
     } else {
         console.log('shopee code not supported: ', body.code);
-        done.ack();
+        pubMessage.ack();
     }
 
     /* let orderDetail = await api.get(
@@ -705,24 +729,24 @@ async function processShopee(body, done) {
     } */
 }
 
-async function processTiktok(body, pubMessage) {
-    if (body.code == 1) {
-        /* ==== ORDERS UPDATE==== */
-        if (body.status != 'UNPAID') {
-            collectTiktokOrder(body, pubMessage);
-        }
-    } else if (body.code == 16 || body.code == 15) {
-        /* PRODUCT STATUS UPDATE */
-        collectTiktokProduct(body, pubMessage);
-    } else if (body.code == 12 || body.code == 11) {
-        collectReturnRequest(body, pubMessage);
-    } else if (body.code == 14) {
-        forwardConversation(body, pubMessage);
-    } else {
-        console.log('code %s not implemented yet', body.code);
-        pubMessage.ack();
-    }
-}
+// async function processTiktok(body, pubMessage) {
+//     if (body.code == 1) {
+//         /* ==== ORDERS UPDATE==== */
+//         if (body.status != 'UNPAID') {
+//             collectTiktokOrder(body, pubMessage);
+//         }
+//     } else if (body.code == 16 || body.code == 15) {
+//         /* PRODUCT STATUS UPDATE */
+//         collectTiktokProduct(body, pubMessage);
+//     } else if (body.code == 12 || body.code == 11) {
+//         collectReturnRequest(body, pubMessage);
+//     } else if (body.code == 14) {
+//         forwardConversation(body, pubMessage);
+//     } else {
+//         console.log('code %s not implemented yet', body.code);
+//         pubMessage.ack();
+//     }
+// }
 
 async function processBlibli(body, done) {
     /* let orderItems = [];
