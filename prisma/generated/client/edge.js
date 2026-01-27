@@ -366,7 +366,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "D:\\Working\\Node JS\\nodejs-marina-back\\prisma\\generated\\client",
+      "value": "/Users/trees.mbpro/Documents/NodeJs/nodejs-marina-back/prisma/generated/client",
       "fromEnvVar": null
     },
     "config": {
@@ -375,17 +375,16 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "darwin",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "D:\\Working\\Node JS\\nodejs-marina-back\\prisma\\schema.prisma",
+    "sourceFilePath": "/Users/trees.mbpro/Documents/NodeJs/nodejs-marina-back/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../..",
   "clientVersion": "6.15.0",
@@ -394,6 +393,7 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": true,
   "inlineDatasources": {
     "db": {
       "url": {
