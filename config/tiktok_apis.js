@@ -5,8 +5,9 @@ const HOST = 'https://auth.tiktok-shops.com';
 const OPEN_HOST = 'https://open-api.tiktokglobalshop.com';
 const excludeKeys = ["access_token", "sign"]
 
-const APP_SECRET = process.env.TIKTOK_APP_SECRET;
-const APP_KEY = process.env.TIKTOK_APP_KEY;
+const tiktokConfig = JSON.parse(decryptData(process.env.TIKTOK_CONFIG));
+const APP_KEY = tiktokConfig.TIKTOK_APP_KEY;
+const APP_SECRET = tiktokConfig.TIKTOK_APP_SECRET;
 const apiVersion = '202309';
 
 function GET_TOKEN_API (authCode) {

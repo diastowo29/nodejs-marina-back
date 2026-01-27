@@ -21,13 +21,13 @@ router.get('/', async function(req, res, next) {
 //     res.status(200).send({});
 // })
 
-router.get('/generate_jwt', function(req, res, next) {
+/* router.get('/generate_jwt', function(req, res, next) {
     const token = jwt.sign({
         time: Date(),
         userId: 12,
     }, process.env.MARINA_SECRETZ);
     res.status(200).send({token: token});
-})
+}) */
 
 router.get('/jwts', checkJwt, function(req, res, next) {
     console.log(req.auth);

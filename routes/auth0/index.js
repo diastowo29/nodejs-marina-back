@@ -72,7 +72,7 @@ router.post('/hook', async function (req, res, next) {
                 console.log(`SQL Creation: ${response.config.data.name} status: ${response.data.status}`);
                 await basePrisma.clients.create({
                     data: {
-                        org_id: company,
+                        org_id: Buffer.from(`${orgId}:${company}`, 'ascii').toString('base64'),
                         db_user: orgId,
                         db_pass: encryptData(orgId)
                     }

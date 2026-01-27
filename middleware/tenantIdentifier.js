@@ -1,11 +1,13 @@
 const { whitelistUrl } = require("../config/urls");
+const { decryptData } = require("../functions/encryption");
 const { getPrismaClientForTenant } = require("../services/prismaServices");
 
 const getTenantDB = (tenantId) => {
-  const dbUser = process.env.DB_USER;
-  const dbPassword = process.env.DB_PASSWORD;
-  const dbHost = process.env.DB_HOST;
-  const dbParams = process.env.DB_PARAMS;
+  const dbConfig = JSON.parse(decryptData(process.env.DB_CONFIG));
+  const dbUser = dbConfig.DB_USER;
+  const dbPassword = dbConfig.DB_PASSWORD;
+  const dbHost = (process.env.NODE_ENV === 'production') ? dbConfig.DB_HOST : dbConfig.DB_HOST_IP;
+  const dbParams = (process.env.NODE_ENV === 'production') ? dbConfig.DB_PARAMS : '';
   if (tenantId == 'org_SdVZvtRmlurL47iY') {
     tenantId = 'realco_db';
   }

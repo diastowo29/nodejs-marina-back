@@ -212,7 +212,7 @@ const sampleOrderRr = {
 	}
 }
 
-async function collectShopeeOrder (body, done) {
+async function collectShopeeOrder (body, pubSubs) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     /* const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
@@ -241,8 +241,10 @@ async function collectShopeeOrder (body, done) {
     }
     const order = await callShopee('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
     if ((order.data.error) || (order.data.response.order_list.length === 0)) {
+        console.log('order id: %s', body.order_id);
         console.log(order.data);
         console.log('order error');
+        pubSubs.nack();
         // done(null, {response: 'order not found'});
         return;
     }
@@ -420,6 +422,7 @@ async function collectShopeeOrder (body, done) {
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
             if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
                 console.log('products not found');
+                pubSubs.nack();
                 return;
             } else {
                 let productImgs = [];
@@ -434,16 +437,20 @@ async function collectShopeeOrder (body, done) {
                     skipDuplicates: true,
                     data: productImgs
                 }).then(() => {
+                    pubSubs.ack();
                     console.log('all product img updated');
                 }, (err) => {
+                    pubSubs.nack();
                     console.log(err)
                 });
             }
         }, (err) => {
             console.log(err);
+            pubSubs.nack();
         });
     }).catch((err) => {
         console.log(err);
+        pubSubs.nack();
     })
     // done(null, {response: 'testing'});
 }

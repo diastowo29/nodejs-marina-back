@@ -652,24 +652,26 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 return res.status(400).send({error: err});
             }); */
             // console.log(newStore);
-            console.log(clientStored[0]);
-            if (clientStored[0]) {
-                /* DO SYNC PRODUCTS */
-                let taskPayload = {
-                    channel: SHOPEE,
-                    code: 9999,
-                    shop_id: req.body.shop_id,
-                    token: encryptData(token.data.access_token),
-                    refresh_token: encryptData(token.data.refresh_token),
-                    org_id: req.tenantId,
-                    tenantDB: req.tenantDB
-                }
-                // console.log(taskPayload);
-                pushTask(env, taskPayload)
+            /* COMMENT SINCE MOVING TO PUB/SUB */
+            // console.log(clientStored[0]);
+            // if (clientStored[0]) {
+            //     /* DO SYNC PRODUCTS */
+            //     let taskPayload = {
+            //         channel: SHOPEE,
+            //         code: 9999,
+            //         shop_id: req.body.shop_id,
+            //         token: encryptData(token.data.access_token),
+            //         refresh_token: encryptData(token.data.refresh_token),
+            //         org_id: req.tenantId,
+            //         tenantDB: req.tenantDB
+            //     }
+            //     pushTask(env, taskPayload)
                 res.status(200).send(clientStored[0]);
-            } else {
-                res.status(400).send(clientStored[0]);
-            }
+            // } else {
+            //     res.status(400).send(clientStored[0]);
+            // }
+            /* COMMENT SINCE MOVING TO PUB/SUB */
+
         } else {
             return res.status(400).send({error: 'No response from Shopee API'});
         }

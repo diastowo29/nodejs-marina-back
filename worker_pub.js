@@ -44,7 +44,7 @@ function messageHandler (pubMessage) {
     // console.log(process.env.BASE_DATABASE_URL);
     basePrisma.stores.findUnique({
         where: {
-            origin_id: storeId
+            origin_id: storeId.toString()
         },
         include: {
             clients: true
@@ -72,6 +72,7 @@ function messageHandler (pubMessage) {
             }
         });
         if (!mStore) {
+            console.log('store not found in tenant db');
             pubMessage.ack();
             return;
         }
@@ -111,14 +112,21 @@ function messageHandler (pubMessage) {
                 break;
             case 'shopee':
                 routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
-                    processShopee(taskPayload, pubMessage);
+                    // console.log(taskPayload);
+                    if (taskPayload.code) {
+                        processShopee(taskPayload, pubMessage);
+                    } else {
+                        pubMessage.ack();
+                    }
                 });
                 break;
             case 'blibli':
                 console.log('blibli message received');
+                console.log(JSON.stringify(pubPayload));
                 pubMessage.ack();
                 break;
             default:
+                console.log('default channel');
                 pubMessage.nack();
                 break;
         }

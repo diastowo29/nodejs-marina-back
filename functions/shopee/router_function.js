@@ -7,6 +7,7 @@ async function routeShopee (jsonBody, mPrisma, org) {
     prisma = mPrisma
     let taskPayload = {};
     let payloadCode = jsonBody.code;
+    const tenantDbUrl = getTenantDB(org[1]);
     switch (payloadCode) {
         case 3:
             if (!jsonBody.data.status.includes('cancel')) {
