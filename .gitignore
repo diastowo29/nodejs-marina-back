@@ -3,6 +3,7 @@ node_modules
 .env
 .env.*
 app.yaml
+app.yaml.old.txt
 private.pem
 public.pub
 manual.txt
@@ -12,3 +13,5 @@ private.key
 baseSeeder.js
 test.js
 helper
+ecosystem.config.js
+helper.js

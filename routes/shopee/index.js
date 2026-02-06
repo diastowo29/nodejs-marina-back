@@ -478,7 +478,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
     }
     prisma = req.prisma;
     // const prisma = getPrismaClient(req.tenantDB);
-    // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
+    // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_CHAT_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
     // let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
     // if (authResponse.code != '0') {
@@ -652,24 +652,26 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 return res.status(400).send({error: err});
             }); */
             // console.log(newStore);
-            console.log(clientStored[0]);
-            if (clientStored[0]) {
-                /* DO SYNC PRODUCTS */
-                let taskPayload = {
-                    channel: SHOPEE,
-                    code: 9999,
-                    shop_id: req.body.shop_id,
-                    token: encryptData(token.data.access_token),
-                    refresh_token: encryptData(token.data.refresh_token),
-                    org_id: req.tenantId,
-                    tenantDB: req.tenantDB
-                }
-                // console.log(taskPayload);
-                pushTask(env, taskPayload)
+            /* COMMENT SINCE MOVING TO PUB/SUB */
+            // console.log(clientStored[0]);
+            // if (clientStored[0]) {
+            //     /* DO SYNC PRODUCTS */
+            //     let taskPayload = {
+            //         channel: SHOPEE,
+            //         code: 9999,
+            //         shop_id: req.body.shop_id,
+            //         token: encryptData(token.data.access_token),
+            //         refresh_token: encryptData(token.data.refresh_token),
+            //         org_id: req.tenantId,
+            //         tenantDB: req.tenantDB
+            //     }
+            //     pushTask(env, taskPayload)
                 res.status(200).send(clientStored[0]);
-            } else {
-                res.status(400).send(clientStored[0]);
-            }
+            // } else {
+            //     res.status(400).send(clientStored[0]);
+            // }
+            /* COMMENT SINCE MOVING TO PUB/SUB */
+
         } else {
             return res.status(400).send({error: 'No response from Shopee API'});
         }

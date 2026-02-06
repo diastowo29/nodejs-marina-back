@@ -1,8 +1,8 @@
-let appKeyOMS = process.env.LAZ_OMS_APP_KEY_ID
-let appKeyCHAT = process.env.LAZ_APP_KEY_ID
+const { decryptData } = require("../functions/encryption");
+let appKeyOMS = (process.env.LAZ_OMS_APP_KEY_ID) ? decryptData(process.env.LAZ_OMS_APP_KEY_ID) : decryptData('NmIyNWYyZjg1ZDliNThlOTM0YTA1ZWVkNDJkNDI3MzAwZmFhYmI4NzkyZjA5MWQ2YTgyYTUyODIzMjE1ZGQ4NDE2YmJhZTY1NjZhMjg0NDY4ZWQ1MWY3NmFkYjc5YmYy');
+let appKeyCHAT = decryptData(process.env.LAZ_CHAT_KEY_ID);
 let lazadaHost = 'https://api.lazada.co.id/rest';
 let lazadaAuthHost = 'https://auth.lazada.com/rest';
-// console.log(appKeyOMS, appKeyCHAT)
 
 function convertOrgName (org_name) {
     return org_name.toString().toLowerCase().split(' ').join('_');
@@ -134,6 +134,8 @@ module.exports = {
     lazGetToken,
     lazGetSellerInfo,
     lazGetShipProvider,
+    appKeyCHAT,
+    appKeyOMS,
     lazGetProducts,
     PATH_WEBHOOK: '/webhook',
     PATH_ORDER: '/order',

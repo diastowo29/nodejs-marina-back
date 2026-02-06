@@ -4,4 +4,5 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npx prisma generate --schema=prisma/schema.prisma
-CMD ["node", "worker.js"]
+RUN npx prisma generate --schema=prisma/schemaBase.prisma
+CMD ["node", "worker_pub.js"]

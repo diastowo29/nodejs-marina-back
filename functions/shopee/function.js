@@ -11,7 +11,7 @@ const { PrismaClient } = require("../../prisma/generated/client");
 const { doCreateZdTicket } = require("../zendesk/function");
 let prisma = new PrismaClient();
 
-async function collectShopeeTrackNumber(body, done) {
+async function collectShopeeTrackNumber(body) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const tenantConfig = {
         org_id: body.org_id,
@@ -33,16 +33,18 @@ async function collectShopeeTrackNumber(body, done) {
             }).catch((err) => {
                 console.log(err);
                 console.log('Error updating tracking number');
+                throw new Error(err);
             })
         } else {
             console.log('Tracking number not found for orderId: ' + body.order_id);
         }
     } catch (err) {
         console.log(err);
+        throw new Error(err);
     }
 }
 
-async function collectShopeeRR (body, done) {
+async function collectShopeeRR (body) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const tenantConfig = {
         org_id: body.org_id,
@@ -80,6 +82,7 @@ async function collectShopeeRR (body, done) {
             }).catch((rrErr) => {
                 console.log(rrErr);
                 console.log('Update rrItem failed');
+                throw new Error(rrErr);
             })
             const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
             if (findZd) {
@@ -91,6 +94,7 @@ async function collectShopeeRR (body, done) {
                 }).catch((err) => {
                     console.log(err);
                     console.log('Failed create zd ticket');
+                    throw new Error(err);
                 })
             }
         } else {
@@ -99,10 +103,11 @@ async function collectShopeeRR (body, done) {
         }
     }).catch((errRr) => {
         console.log(errRr);
-    })
+        throw new Error(errRr);
+    });
 }
 
-const sampleOrderRr = {
+/* const sampleOrderRr = {
 	"request_id": "d52ca43b277a4f9292fb8be658bfd33d",
 	"error": "-",
 	"message": "-",
@@ -210,9 +215,9 @@ const sampleOrderRr = {
         "return_refund_request_type": 0,
         "validation_type": "seller_validation"
 	}
-}
+} */
 
-async function collectShopeeOrder (body, done) {
+async function collectShopeeOrder (body) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     /* const order = await api.get(
         GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id)
@@ -241,10 +246,10 @@ async function collectShopeeOrder (body, done) {
     }
     const order = await callShopee('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
     if ((order.data.error) || (order.data.response.order_list.length === 0)) {
+        console.log('order error: %s', body.order_id);
         console.log(order.data);
-        console.log('order error');
-        // done(null, {response: 'order not found'});
-        return;
+        // pubSubs.nack();
+        throw new Error(order.data);
     }
     let orderData = order.data.response.order_list[0];
     console.log('GOT ORDER DETAILS');
@@ -415,12 +420,14 @@ async function collectShopeeOrder (body, done) {
             }
         });
 
+        console.log(productsToFetch.length);
         getProductVarian(productsToFetch, body.shop_id);
-
+        // get product images
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
             if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
+                console.log(shopeeProducts.data)
                 console.log('products not found');
-                return;
+                throw new Error(shopeeProducts.data);
             } else {
                 let productImgs = [];
                 shopeeProducts.data.response.item_list.forEach(item => {
@@ -437,13 +444,16 @@ async function collectShopeeOrder (body, done) {
                     console.log('all product img updated');
                 }, (err) => {
                     console.log(err)
+                    throw new Error(err);
                 });
             }
         }, (err) => {
-            console.log(err);
+            console.log('error 1');
+            throw new Error(err);
         });
     }).catch((err) => {
         console.log(err);
+        throw new Error(err);
     })
     // done(null, {response: 'testing'});
 }

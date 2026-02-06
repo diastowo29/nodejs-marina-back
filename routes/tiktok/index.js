@@ -526,20 +526,6 @@ router.post(PATH_WEBHOOK, async function (req, res, next) {
                 res.status(200).send({message: 'event type not handled: ' + jsonBody.type});
                 break;
         }
-        // const mPrisma = getPrismaClient(getTenantDB(org[1]));
-        /* if ((jsonBody.type == 1) || (jsonBody.type == 2)) {
-        } else if (jsonBody.type == 12) {
-
-        } else if (jsonBody.type == 16) {
-            
-        } else if (jsonBody.type == 14) {
-           
-        } else if (jsonBody.type == 6) {
-            
-        } else {
-            console.log('code type not supported: %s', jsonBody.type)
-            res.status(200).send({error: 'code type not supported'});
-        } */
     }).catch((err) => {
         console.log(err);
         res.status(400).send({error: err});

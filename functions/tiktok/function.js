@@ -11,10 +11,10 @@ let prisma = new PrismaClient();
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
 
-async function collectTiktokOrder (body, done) {
-    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
+async function collectTiktokOrder (body, subs) {
+    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId);
     if (tiktokOrder) {
-        prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+        prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
         // const prisma = getPrismaClient(body.tenantDB);
         const tiktokOrderIdx = tiktokOrder.data.data.orders[0];
         console.log(`Worker order origin_id: ${tiktokOrderIdx.id}`);
@@ -27,10 +27,14 @@ async function collectTiktokOrder (body, done) {
                 data: {
                     tracking_number: tiktokOrderIdx.tracking_number
                 }
+            }).then(() => {
+                subs.ack();
             }).catch((err) => {
                 console.error(`Error updating order ${tiktokOrderIdx.id}:`, err);
+                subs.nack();
             });
         } else {
+            const districtAddress = tiktokOrderIdx.recipient_address.district_info ||  '';
             prisma.orders.update({
                 where: {
                     origin_id: tiktokOrderIdx.id
@@ -49,10 +53,10 @@ async function collectTiktokOrder (body, done) {
                     },
                     status: tiktokOrderIdx.status,
                     payment_id: tiktokOrderIdx.payment_method_name,
-                    recp_addr_country: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L0').address_name,
-                    recp_addr_province: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L1').address_name,
-                    recp_addr_city: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L2').address_name,
-                    recp_addr_district: tiktokOrderIdx.recipient_address.district_info.find(address => address.address_level == 'L3').address_name,
+                    recp_addr_country: (districtAddress) ? districtAddress.find(address => address.address_level == 'L0').address_name : '',
+                    recp_addr_province: (districtAddress) ? districtAddress.find(address => address.address_level == 'L1').address_name : '',
+                    recp_addr_city: (districtAddress) ? districtAddress.find(address => address.address_level == 'L2').address_name : '',
+                    recp_addr_district: (districtAddress) ? districtAddress.find(address => address.address_level == 'L3').address_name : '',
                     recp_addr_full: tiktokOrderIdx.recipient_address.full_address,
                     recp_addr_postal_code: tiktokOrderIdx.recipient_address.postal_code,
                     recp_phone: tiktokOrderIdx.recipient_address.phone_number,
@@ -68,31 +72,33 @@ async function collectTiktokOrder (body, done) {
                     total_amount: Number.parseInt(tiktokOrderIdx.payment.total_amount),
                     total_product_price: Number.parseInt(tiktokOrderIdx.payment.original_total_product_price),
                     shipping_price: Number.parseInt(tiktokOrderIdx.payment.shipping_fee),
-                    order_items: {
-                        create: tiktokOrderIdx.line_items.map((item) => {
-                            return {
-                                qty: 1,
-                                total_price: Number.parseInt(item.sale_price),
-                                origin_id: item.id,
-                                package_id: item.package_id,
-                                products: {
-                                    connectOrCreate: {
-                                        where: {
-                                            origin_id: `${item.product_id}-${item.sku_id}`
-                                        },
-                                        create: {
-                                            name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
-                                            origin_id: `${item.product_id}-${item.sku_id}`,
-                                            price: Number.parseInt(item.original_price),
-                                            sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
-                                            currency: item.currency,
-                                            url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
-                                            storeId: body.m_shop_id
+                    ...(!body.syncItems) ? {} : {
+                        order_items: {
+                            create: tiktokOrderIdx.line_items.map((item) => {
+                                return {
+                                    qty: 1,
+                                    total_price: Number.parseInt(item.sale_price),
+                                    origin_id: item.id,
+                                    package_id: item.package_id,
+                                    products: {
+                                        connectOrCreate: {
+                                            where: {
+                                                origin_id: `${item.product_id}-${item.sku_id}`
+                                            },
+                                            create: {
+                                                name: (item.sku_name == '') ? item.product_name : `${item.product_name} - ${item.sku_name}`,
+                                                origin_id: `${item.product_id}-${item.sku_id}`,
+                                                price: Number.parseInt(item.original_price),
+                                                sku: (item.seller_sku == '') ? item.sku_name : item.seller_sku,
+                                                currency: item.currency,
+                                                url: `https://www.tiktok.com/view/product/$${item.product_id}?utm_campaign=client_share&utm_medium=android&utm_source=whatsapp`,
+                                                storeId: body.m_shop_id
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        })
+                            })
+                        }
                     },
                     customers: {
                         connectOrCreate: {
@@ -100,8 +106,7 @@ async function collectTiktokOrder (body, done) {
                                 origin_id: tiktokOrderIdx.user_id.toString()
                             },
                             create: {
-                                origin_id: tiktokOrderIdx.user_id.toString(),
-    
+                                origin_id: tiktokOrderIdx.user_id.toString()
                             }
                         }
                     }
@@ -126,7 +131,7 @@ async function collectTiktokOrder (body, done) {
                     console.log('Sync products')
                     let productPromises = [];
                     body.syncProduct.forEach(item => {
-                        productPromises.push(callTiktok('GET', GET_PRODUCT(item.split('-')[0], body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id))
+                        productPromises.push(callTiktok('GET', GET_PRODUCT(item.split('-')[0], body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId))
                     });
                     Promise.all(productPromises).then((products) => {
                         let productImgs = [];
@@ -146,24 +151,30 @@ async function collectTiktokOrder (body, done) {
                             skipDuplicates: true,
                         }).then(() => {
                             console.log('all product img updated');
+                            subs.ack();
                         }, (err) => {
                             console.log(err)
+                            subs.nack();
                         });
                     })
+                } else {
+                    subs.ack();
                 }
             }).catch(function(err) {
                 console.log(err);
                 console.log(JSON.stringify(tiktokOrderIdx));
-                // done(new Error(err));
+                // subs(new Error(err));
+                subs.nack();
             });
         }
     } else {
         console.log('no order found');
+        subs.ack();
     }
 }
 
-async function collectReturnRequest (body, done) {
-    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+async function collectReturnRequest (body, subs) {
+    prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
     var data = {}
     var returnCancel = [];
     let isRR = false;
@@ -173,12 +184,12 @@ async function collectReturnRequest (body, done) {
     if (isRR) {
         data = { order_ids: [body.order_id] };
         returnCancel = await Promise.all([
-            callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id),
-            callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id)
+            callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId),
+            callTiktok('get', GET_RETURN_RECORDS(body.returnId, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId)
         ]);
     } else if (body.status == 'CANCELLATION') {
         data = { cancel_ids: [body.returnId] }
-        returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
+        returnCancel = await callTiktok('post', SEARCH_CANCELLATION(body.cipher, data), data,body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId);
     }
     let returnData = (isRR) ? returnCancel[0].data.data : returnCancel.data.data;
     const refundEvidence = (isRR) ? returnCancel[1].data.data : null;
@@ -189,7 +200,7 @@ async function collectReturnRequest (body, done) {
             returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
         } else {
             await new Promise(resolve => setTimeout(resolve, 2000));
-            returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.org_id);
+            returnData = await callTiktok('post', SEARCH_RETURN(body.cipher, data), data, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId);
             if (returnData.return_orders && returnData.return_orders.length > 0) {
                 returnOrder = returnData.return_orders.find(rr => rr.return_id == body.returnId);
             }
@@ -225,8 +236,10 @@ async function collectReturnRequest (body, done) {
                 }
             }).then((rr) => {
                 console.log(rr);
+                subs.ack();
             }).catch((err) => {
                 console.log(err);
+                subs.nack();
             });
                 // await prisma.return_refund.create({
                 //     data: {
@@ -284,6 +297,7 @@ async function collectReturnRequest (body, done) {
 
         } else {
             console.log('still no return found -- ignoring for now');
+            subs.ack();
         }
     } else {
         const ccData = returnData.cancellations.find(cc => cc.cancel_id == body.returnId)
@@ -314,6 +328,7 @@ async function collectReturnRequest (body, done) {
             console.log('cancellation created')
         }).catch((err) => {
             console.log(err);
+            subs.nack();
         });
     }
 
@@ -378,10 +393,12 @@ async function collectReturnRequest (body, done) {
             // console.log(ticketData)
             createTicket(findZd.baseUrl, findZd.credent.find(cred => cred.key == 'ZD_API_TOKEN').value, ticketData).then((ticket) => {
                 console.log('ticket created: ' + ticket.data.ticket.id);
+                subs.ack();
             }).catch((err) => {
                 if (err.response && err.response.data) {
                     console.log(JSON.stringify(err.response.data));
                 }
+                subs.nack();
             })
         }
     }
@@ -389,8 +406,8 @@ async function collectReturnRequest (body, done) {
     // done(null, {response: 'testing'});
 }
 
-async function collectTiktokProduct (body, done) {
-    prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+async function collectTiktokProduct (body, subs) {
+    prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
     // const prisma = getPrismaClient(body.tenantDB);
     // -- UPDATE USING: callTiktok FUNCTION
     
@@ -398,7 +415,7 @@ async function collectTiktokProduct (body, done) {
         where: { origin_id: body.shop_id }
     });
     // console.log(tiktokStore);
-    const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB, body.org_id);
+    const productData = await callTiktok('get', GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {}, tiktokStore.token, tiktokStore.refresh_token, tiktokStore.id, body.tenantDB, body.orgId);
     // const productData = response.data.data;
     /* let data = productData.skus.map(item => ({
             origin_id: `${productData.id}-${item.id}`,
@@ -471,6 +488,7 @@ async function collectTiktokProduct (body, done) {
                 }
             }).catch((err) => {
                 console.log(err);
+                subs.nack();
             });
             /* prisma.products.findMany({
                 where: {
@@ -543,20 +561,23 @@ async function collectTiktokProduct (body, done) {
                     skipDuplicates: true,
                     data: productImgs
                 }).then((imgCreated) => {
+                    subs.ack();
                     console.log(imgCreated);
                 }).catch((imgFail) => {
                     console.log(imgFail);
                 })
             } else {
                 console.log('no product created')
+                subs.ack();
             }
-            // done(null, {response: 'testing'});
+            // subs(null, {response: 'testing'});
         }).catch(function(err) {
             console.log(err);
-            // done(new Error(err));
+            // subs(new Error(err));
         })
     } else {
         console.log('product not found %s', body.product_id);
+        subs.ack();
     }
     /* api.get(GET_PRODUCT(body.product_id, tiktokStore.secondary_token), {
         headers: {
@@ -568,16 +589,17 @@ async function collectTiktokProduct (body, done) {
         }
     }).catch(function(err) {
         console.log(err)
-        // done(new Error(err));
+        // subs(new Error(err));
     }) */
 }
 
-async function forwardConversation (body, done) {
+async function forwardConversation (body, subs) {
     const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
     const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
     if (findZd) {
-        let userExternalId = (body.syncCustomer) ? `tiktok-${body.imUserId}-${body.shopId}` : `tiktok-${body.message.customer.origin_id}-${body.shopId}`
-        prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
+        /* SHOPEE NOT SUPPORTED YET */
+        let userExternalId = body.userExternalId
+        prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
         const suncoAppId = findZd.credent.find(cred => cred.key == 'SUNCO_APP_ID').value;
         const suncoAppKey = findZd.credent.find(cred => cred.key == 'SUNCO_APP_KEY').value;
         const suncoAppSecret = findZd.credent.find(cred => cred.key == 'SUNCO_APP_SECRET').value;
@@ -588,7 +610,7 @@ async function forwardConversation (body, done) {
         let buyerId = (body.syncCustomer) ?  body.imUserId : body.message.customer.origin_id;
         let imUserId = '';
         let buyerName = (body.syncCustomer) ? `Customer ${body.imUserId}` : body.message.customer.name;
-        let suncoConvId;
+        let suncoConvId = body.message.externalId;
         if (body.syncCustomer) {
             try {
                 prisma.customers.findUnique({
@@ -615,8 +637,8 @@ async function forwardConversation (body, done) {
                         })
                     } else {
                         console.log('Sync Customers');
-                        // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
-                        const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.org_id)
+                        // const tiktokMessages = await callTiktok('GET', GET_MESSAGE(body.message.origin_id, body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.orgId)
+                        const tiktokConvList = await callTiktok('GET', GET_CONVERSATION(body.message.store.secondary_token), {}, body.message.store.token, body.message.store.refresh_token, body.message.store.id, body.tenantDB, body.orgId)
                         // console.log(JSON.stringify(tiktokConvList.data.data));
                         let buyerFound = false;
                         tiktokConvList.data.data.conversations.forEach(conversation => {
@@ -699,7 +721,7 @@ async function forwardConversation (body, done) {
                 [`dataCapture.ticketField.${findZd.notes.split('-')[2]}`]: body.message.store.origin_id,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[3]}`]: body.channel,
                 [`dataCapture.ticketField.${findZd.notes.split('-')[4]}`]: body.message.store.origin_id,
-                marina_org_id: body.org_id
+                marina_org_id: body.orgId
             }
             let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId);
             let conversationBody = suncoUser;
@@ -709,9 +731,7 @@ async function forwardConversation (body, done) {
             await prisma.omnichat.update({
                 where:{ id: body.message.id },
                 data:{ externalId: suncoConversation.conversation.id }
-            })
-        } else {
-            suncoConvId = body.message.externalId;
+            });
         }
         console.log('Sunco Conv ID: ' + suncoConvId);
         console.log('Sunco User External ID: ' + userExternalId);
@@ -725,92 +745,84 @@ async function forwardConversation (body, done) {
         }
 
         /* NEED TO SUPPORT SHOPEE */
-        switch (body.chat_type) {
-            case "TEXT":
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: (messageContent.hasOwnProperty('content')) ? messageContent.content : '-- text sample -- '
-                }
-                break;
-            case "IMAGE":
-                suncoMessagePayload.content = {
-                    type: "image",
-                    mediaUrl: (messageContent.hasOwnProperty('url')) ? messageContent.url : '-- image sample -- ',
-                    text: 'unsupported media type'
-                }
-                break;
-            case "VIDEO":
-                suncoMessagePayload.content = {
-                    type: "image",
-                    mediaUrl: (messageContent.hasOwnProperty('url')) ? messageContent.url : '-- video sample -- ',
-                    text: 'unsupported media type'
-                }
-                break;
-            case "PRODUCT_CARD": 
-                var content = (messageContent.hasOwnProperty('product_id')) ? `PBuyer send a Product\n\nroduct: ${messageContent.product_id}` : '-- product sample -- ';
-                try {
-                    const product = await prisma.products.findFirst({
-                        where: {
-                            origin_id: {
-                                startsWith: messageContent.product_id
-                            }
-                        },
-                        select: {
-                            name: true,
-                            url: true,
-                            product_img: true
-                        }
-                    })
-                    if (product) {
-                        content = `Buyer send a Product\n\nProduct: ${messageContent.product_id}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}`;
-                    }
-                } catch (error) {
-                    console.log(error);
-                }
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: content
-                }
-                break;
-            case "ORDER_CARD": 
-                var content = (messageContent.hasOwnProperty('order_id')) ? `Buyer send an Order\n\nOrder: ${messageContent.order_id}` : '-- order sample -- ';
-                try {
-                    if (messageContent.hasOwnProperty('order_id')) {
-                        prisma.orders.findUnique({
-                            where: {
-                                origin_id: messageContent.order_id
-                            }
-                        }).then((order) => {
-                            if (order) {
-                                content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}` 
-                            }
-                        }).catch((err) => {
-                            console.log(err)
-                        })
-                    }
-                } catch (err) {
-                    console.log(err);
-                }
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: content
-                }
-                break;
-            default:
-                suncoMessagePayload.content = {
-                    type: "text",
-                    text: '-- default sample -- '
-                }
-                break;
+        const getMediaUrl = (content) => {
+            return getValue(content, ['url', 'imgUrl', 'mediaUrl', 'thumbnail', 'thumb', 'urls', 'media']) || (Array.isArray(content.urls) ? content.urls[0] : null) || '-- media sample -- ';
         }
 
-        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => {}, async (error) => {
+        // Build payload content supporting multiple channels and chat types (async since we may query DB)
+        const buildSuncoMessageContent = async (body, messageContent) => {
+            const chatType = body.chat_type;
+            try {
+                switch (chatType) {
+                    case 'TEXT':
+                        return { type: 'text', text: getValue(messageContent, ['content', 'txt', 'text', 'message']) || '-- text sample --' };
+
+                    case 'IMAGE':
+                        return { type: 'image', mediaUrl: getMediaUrl(messageContent), text: getValue(messageContent, ['caption', 'text']) || '' };
+
+                    case 'VIDEO':
+                        // Use 'video' type when available; fallback to 'file' or 'image' if needed
+                        return { type: 'video', mediaUrl: getMediaUrl(messageContent), text: getValue(messageContent, ['caption', 'text']) || 'unsupported media type' };
+
+                    case 'PRODUCT_CARD': {
+                        const pid = getValue(messageContent, ['product_id', 'productId', 'product', 'itemId']) || getValue(messageContent, ['pid']);
+                        let content = '-- product sample -- ';
+                        if (pid) {
+                            try {
+                                const product = await prisma.products.findFirst({
+                                    where: { origin_id: { startsWith: pid.toString() } },
+                                    select: { name: true, url: true, product_img: true }
+                                });
+                                if (product) {
+                                    content = `Buyer send a Product\n\nProduct: ${pid}\nProduct name: ${product.name}\nProduct URL: ${product.url}\nProduct Image: ${(product.product_img && product.product_img.length > 0) ? product.product_img[0].originalUrl : '-no image-'}`;
+                                } else {
+                                    content = `Buyer send a Product\n\nProduct: ${pid}`;
+                                }
+                            } catch (err) {
+                                console.log(err);
+                            }
+                        }
+                        return { type: 'text', text: content };
+                    }
+
+                    case 'ORDER_CARD': {
+                        const oid = getValue(messageContent, ['order_id', 'orderId', 'order']) || null;
+                        let content = '-- order sample -- ';
+                        if (oid) {
+                            try {
+                                const order = await prisma.orders.findUnique({ where: { origin_id: oid } });
+                                if (order) {
+                                    content = `Buyer send an Order\n\nOrder: ${order.origin_id}\nTotal order value: ${order.total_amount}`;
+                                } else {
+                                    content = `Buyer send an Order\n\nOrder: ${oid}`;
+                                }
+                            } catch (err) {
+                                console.log(err);
+                            }
+                        }
+                        return { type: 'text', text: content };
+                    }
+
+                    default:
+                        // Provide a generic fallback that includes raw payload preview for debugging
+                        return { type: 'text', text: getValue(messageContent, ['content', 'text']) || `-- ${chatType} sample --` };
+                }
+            } catch (err) {
+                console.log('Error building message content', err);
+                return { type: 'text', text: '-- default sample -- ' };
+            }
+        }
+
+        suncoMessagePayload.content = await buildSuncoMessageContent(body, messageContent);
+        // console.log(suncoMessagePayload);
+        postMessage(suncoAppId, suncoConvId, suncoMessagePayload).then(() => { subs.ack(); }, async (error) => {
             console.log('error here')
             console.log(JSON.parse(error.message))
             const errorMessage = JSON.parse(error.message);
             if (errorMessage.errors && errorMessage.errors.length > 0) {
                 if (errorMessage.errors[0].code == 'conversation_not_found') {
                     console.log('conversation not found - error not handled yet!');
+                    subs.nack();
                     /* console.log('recreate conversation');
                     let suncoUser = await createSuncoUser(userExternalId, buyerName, suncoAppId)
                     let conversationBody = suncoUser;
@@ -824,18 +836,27 @@ async function forwardConversation (body, done) {
                         })
                         postMessage(suncoAppId, suncoConvId, suncoMessagePayload)
                     } */
+                } else {
+                    console.log(errorMessage);
+                    subs.nack();
                 }
             }
         })
-    }
-
-    if (findSf) {
+    } else if (findSf) {
+        subs.ack();
         console.log('Salesforce integration not implemented yet');
         // done(new Error('Salesforce integration not implemented yet'));
     }
 }
 
-async function callTiktok (method, url, body, token, refreshToken, mShopId, tenantDB, org_id) {
+const getValue = (obj, keys) => {
+    for (const k of keys) {
+        if (obj && (obj[k] !== undefined && obj[k] !== null && obj[k] !== '')) return obj[k];
+    }
+    return null;
+}
+
+async function callTiktok (method, url, body, token, refreshToken, mShopId, tenantDB, orgId) {
     return api({
         method: method,
         url: url,
@@ -854,7 +875,7 @@ async function callTiktok (method, url, body, token, refreshToken, mShopId, tena
                 throw new Error('Failed to refresh token');
             }
             // const prisma = getPrismaClient(tenantDB);
-            prisma = getPrismaClientForTenant(org_id, tenantDB.url);
+            prisma = getPrismaClientForTenant(orgId, tenantDB.url);
             const _stored = await prisma.store.update({
                 where: {
                     id: mShopId
@@ -884,5 +905,6 @@ module.exports = {
     collectTiktokProduct,
     collectReturnRequest,
     forwardConversation,
-    callTiktok
+    callTiktok,
+    getValue
 }

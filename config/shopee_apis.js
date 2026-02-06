@@ -1,14 +1,15 @@
-const SHOPEE_HOST = process.env.SHOPEE_API_HOST || 'https://openplatform.sandbox.test-stable.shopee.sg';
+var CryptoJS = require("crypto-js");
+const { decryptData } = require("../functions/encryption");
+
+const shopeeConfig = JSON.parse(decryptData(process.env.SHOPEE_CONFIG));
+const SHOPEE_HOST = shopeeConfig.SHOPEE_API_HOST || 'https://openplatform.sandbox.test-stable.shopee.sg';
+const PARTNER_ID = shopeeConfig.SHOPEE_PARTNER_ID;
+const PARTNER_KEY = shopeeConfig.SHOPEE_PARTNER_KEY;
+
 const AUTH_ENDPOINT = '/api/v2/shop/auth_partner';
 const GET_ORDER_DETAIL_PATH = '/api/v2/order/get_order_detail';
 const GET_SHOPEE_SHOP_INFO_PATH = '/api/v2/shop/get_shop_info';
 const GET_SHOPEE_TOKEN = '/api/v2/auth/token/get';
-var CryptoJS = require("crypto-js");
-const { decryptData } = require("../functions/encryption");
-
-const PARTNER_ID = process.env.SHOPEE_PARTNER_ID;
-const PARTNER_KEY = process.env.SHOPEE_PARTNER_KEY;
-
 const GET_SHOPEE_REFRESH_TOKEN = '/api/v2/auth/access_token/get';
 // const GET_SHOPEE_PRODUCTS_LIST = '/api/v2/product/get_item_list';
 // const GET_SHOPEE_PRODUCTS_INFO = '/api/v2/product/get_item_base_info';
