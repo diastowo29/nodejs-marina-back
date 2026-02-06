@@ -70,7 +70,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                 returnId: newOrder.temp_id,
                 tenantDB: getTenantDB(org[1]),
                 status: jsonBody.data.status,
-                org_id: org[0],
+                orgId: org[0],
                 syncItems: syncItems,
                 syncProduct: syncProduct
             }
@@ -90,7 +90,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                     customer_id: newOrder.customers.origin_id,
                     shop_id: jsonBody.shop_id,
                     integration: newOrder.store.channel.client.integration,
-                    org_id: org[0]
+                    orgId: org[0]
                 }
             } */
             break;
@@ -189,7 +189,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     customer_id: rr.order.customers.origin_id,
                                     shop_id: jsonBody.shop_id,
                                     integration: rr.order.store.channel.client.integration,
-                                    org_id: org[0]
+                                    orgId: org[0]
                                 }
                             } else {
                                 throw new Error("rrData not found");
@@ -285,7 +285,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     customer_id: rr.order.customers.origin_id,
                                     shop_id: jsonBody.shop_id,
                                     integration: rr.order.store.channel.client.integration,
-                                    org_id: org[1]
+                                    orgId: org[1]
                                 }
                             } else {
                                 throw new Error("rrData not found");
@@ -304,10 +304,10 @@ async function routeTiktok (jsonBody, prisma, org) {
                 // return res.status(200).send({message: 'system message, ignoring'});
             }
             try {
-                const userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
+                let userExternalId = `tiktok-${jsonBody.data.sender.im_user_id}-${jsonBody.shop_id}`
                 console.log(`tts_notification_id: ${jsonBody.tts_notification_id} message_id: ${jsonBody.data.message_id} from ${jsonBody.data.sender.role}`);
                 // console.log(`message ${jsonBody.data.content}`)
-                let upsertMessage = await mPrisma.omnichat.upsert({
+                const upsertMessage = await mPrisma.omnichat.upsert({
                     where: {
                         origin_id: jsonBody.data.conversation_id
                     },
@@ -375,6 +375,9 @@ async function routeTiktok (jsonBody, prisma, org) {
                 });
                 if (upsertMessage.store.channel.client.integration.length > 0) {
                     if (jsonBody.data.sender.role == 'BUYER') {
+                        if (upsertMessage.customer) {
+                            userExternalId = `tiktok-${upsertMessage.customer.origin_id}-${jsonBody.shop_id}`;
+                        }
                         taskPayload = {
                             channel: TIKTOK,
                             code: jsonBody.type,
@@ -385,7 +388,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                             message_content: jsonBody.data.content,
                             tenantDB: getTenantDB(org[1]),
                             shopId: jsonBody.shop_id,
-                            org_id: org[1],
+                            orgId: org[1],
                             syncCustomer: (upsertMessage.customer) ? false : true
                         }
                     }
@@ -405,7 +408,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                 code: jsonBody.type,
                 product_id: productUpdtId,
                 shop_id: jsonBody.shop_id,
-                org_id: org[1]
+                orgId: org[1]
             }
             // pushTask(env, taskPayload);
             break;
@@ -419,7 +422,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                 code: jsonBody.type,
                 product_id: productId,
                 shop_id: jsonBody.shop_id,
-                org_id: org[1]
+                orgId: org[1]
             }
             // pushTask(env, taskPayload);
             break;

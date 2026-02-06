@@ -2,19 +2,18 @@ let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 1;
 let maxJobsPerWorker = 10;
 let { workQueue } = require('./config/redis.config');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts } = require('./config/utils');
+const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts, appKeyOMS } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 let env = /* process.env.NODE_ENV || */ 'production';
-const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
 const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR } = require('./functions/shopee/function');
-const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation } = require('./functions/tiktok/function');
+const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation, getValue } = require('./functions/tiktok/function');
 const { getPrismaClientForTenant } = require('./services/prismaServices');
 const { Prisma, PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
 const { PrismaClient } = require('./prisma/generated/client');
-const { encryptData } = require('./functions/encryption');
+const { encryptData, decryptData } = require('./functions/encryption');
 const { PubSub } = require('@google-cloud/pubsub');
 const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
@@ -35,13 +34,15 @@ throng({
 });
 
 function messageHandler (pubMessage) {
-    console.log("inbound: " + pubMessage.id);
     const pubPayload = gcpParser(pubMessage.data);
-    if (pubPayload.ping) {
+    if (pubPayload.ping ) {
         return pubMessage.ack();
     }
-    const storeId = pubPayload.seller_id || pubPayload.shop_id || pubPayload.store_id || pubPayload.store.code;
-    // console.log(process.env.BASE_DATABASE_URL);
+    const storeId = getValue(pubPayload, ['seller_id', 'shop_id', 'store_id', 'store_code']);
+    if (!storeId || storeId == 'null') {
+        return pubMessage.ack();
+    }
+    console.log("inbound: " + pubMessage.id);
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId.toString()
@@ -107,7 +108,11 @@ function messageHandler (pubMessage) {
                 break;
             case 'lazada':
                 routeLazada(pubPayload, prisma, org).then(async (taskPayload) => {
-                    processLazada(taskPayload, pubMessage);
+                    if (taskPayload.code) {
+                        processLazada(taskPayload, pubMessage);
+                    } else {
+                        pubMessage.ack();
+                    }
                 });
                 break;
             case 'shopee':
@@ -132,6 +137,7 @@ function messageHandler (pubMessage) {
         }
     }).catch((err) => {
         console.log(err);
+        console.log("inbound error: " + pubMessage.id);
         pubMessage.nack();
     })
     // pubMessage.nack()
@@ -212,7 +218,7 @@ function start() {
 //     }
 // }
 
-async function processLazadaChat(body, done) {
+/* async function processLazadaChat(body, done) {
     let refresh_token = 'refToken';
     let token = body.token.split('~')[lazGetSessionDetail.pos];
     prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
@@ -285,11 +291,10 @@ async function processLazadaChat(body, done) {
         });
     }
 
-}
+} */
 
-async function processLazada(body, done) {
+async function processLazada(body, pubMessage) {
     let addParams = `order_id=${body.orderId}`;
-    let refresh_token = 'refToken';
     const isOms = true;
     // let refresh_token = body.refresh_token.split('~')[lazGetOrderDetail.pos];
     // const prisma = getPrismaClient(body.tenantDB);
@@ -300,11 +305,11 @@ async function processLazada(body, done) {
             try {
                 let orderDetailPromise = await Promise.all([
                     lazCall(lazGetOrderDetail,
-                        addParams, refresh_token,
+                        addParams, body.refresh_token,
                         body.token, body.storeId, body.orgId,
                         body.tenantDB, isOms),
                     lazCall(lazGetOrderItems,
-                        addParams, refresh_token,
+                        addParams, body.refresh_token,
                         body.token, body.storeId, body.orgId,
                         body.tenantDB, isOms),
                 ]);
@@ -394,18 +399,48 @@ async function processLazada(body, done) {
                     }
                 }).then((order) => {
                     console.log('order synced: ' + order.id)
-                    done.ack();
+                    pubMessage.ack();
                 })
             } catch (err) {
                 console.log(err);
-                done.nack();
+                pubMessage.nack();
+            }
+            break;
+        case 2:
+            let apiParams = `session_id=${body.sessionId}`;
+            if (body.from_account_type == 1) {
+                if (body.new) {
+                    let session = await lazCall(lazGetSessionDetail, apiParams, 
+                        body.refresh_token, body.token, body.storeId, body.orgId,
+                                body.tenantDB, false);
+                    if (session && session.success) {
+                        console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
+                        await prisma.customers.update({
+                            where: {
+                                origin_id: session.data.buyer_id.toString()
+                            },
+                            data: {
+                                name: session.data.title
+                            }
+                        });
+                        // pubMessage.ack();
+                    } else {
+                        console.log(session);
+                        console.log('session invalid: %s', body.sessionId);
+                        // pubMessage.ack();
+                    }
+                }
+                forwardConversation(body, pubMessage);
+            } else {
+                console.log('lazada chat not from customer');
+                pubMessage.ack();
             }
             break;
         case 3: 
             console.log('code 3');
             // console.log(body);
             const getProductParams = `item_id=${body.productId}`
-            lazCall(lazGetProducts(lazadaOmsAppKey),
+            lazCall(lazGetProducts(appKeyOMS),
                 getProductParams, body.refreshToken,
                 body.token, body.mStoreId, body.orgId,
                 body.tenantDB, isOms).then(async (productDetail) => {
@@ -449,16 +484,16 @@ async function processLazada(body, done) {
                             }
                         }
                     })
-                    done.ack();
+                    pubMessage.ack();
                 }).catch((err) => {
                     console.log('error fetching product detail');
                     console.log(err);
-                    done.nack();
+                    pubMessage.nack();
                 });
             break;
         default:
             console.log(`code: ${body.code} is not supported yet`)
-            done.ack();
+            pubMessage.ack();
             break;
     }
 }
@@ -528,9 +563,19 @@ async function processShopee(body, pubMessage) {
     if (body.code == 3) {
         /* ==== ORDERS ==== */
         if (body.status == 'SHIPPED') {
-            collectShopeeTrackNumber(body, pubMessage);
+            collectShopeeTrackNumber(body).catch((error) => {
+                console.log('error on worker function');
+                console.log(JSON.stringify(body));
+                console.log(error);
+                pubMessage.nack();
+            })
         } else {
-            collectShopeeOrder(body, pubMessage);
+            collectShopeeOrder(body).catch((error) => {
+                console.log('error on worker function');
+                console.log(JSON.stringify(body));
+                console.log(error);
+                pubMessage.nack();
+            })
         }
     } else if (body.code == 9999) {
         let accToken = body.token;
@@ -638,11 +683,12 @@ async function processShopee(body, pubMessage) {
                         console.log('Error getting list of model');
                     }
                     if (env !== 'production') {
-                        pubMessage(null, {response: 'testing'});
+                        pubMessage.ack();
 
                     }
                 }).catch((err) => {
                     console.log(err);
+                    pubMessage.nack();
                 });
     
             } else {
@@ -654,9 +700,16 @@ async function processShopee(body, pubMessage) {
             pubMessage.nack();
         }
     } else if (body.code == 10) {
-        forwardConversation(body, pubMessage);
+        // forwardConversation(body, pubMessage);
+        console.log('shopee chat not forwararded yet');
+        pubMessage.ack();
     } else if (body.code == 29) {
-        collectShopeeRR(body, pubMessage);
+        collectShopeeRR(body, pubMessage).catch((error) => {
+            console.log('error on worker function');
+            console.log(JSON.stringify(body));
+            console.log(error);
+            pubMessage.nack();
+        })
     } else {
         console.log('shopee code not supported: ', body.code);
         pubMessage.ack();

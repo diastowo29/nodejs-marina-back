@@ -1,6 +1,5 @@
-const { LAZADA } = require('../../config/utils');
+const { LAZADA, CHAT_TEXT } = require('../../config/utils');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
-const { Prisma } = require('../../prisma/generated/baseClient');
 const { PrismaClient } = require('../../prisma/generated/client');
 let mPrisma = new PrismaClient();
 
@@ -9,80 +8,158 @@ async function routeLazada (jsonBody, prisma, org) {
     const taskPayload = {
         channel: LAZADA,
         orgId: org[1],
-        tenantDB: getTenantDB(org[1]),
-        code: jsonBody.message_type,
+        tenantDB: getTenantDB(org[1])
     }
     if (jsonBody.message_type == 0) {
         const orderId = jsonBody.data.trade_order_id; 
         console.log(`inbound order ${orderId} from ${jsonBody.seller_id}`);
-        try {
-            let newOrder = await mPrisma.orders.upsert({
-                where: {
-                    origin_id: orderId.toString(),
-                },
-                create: {
-                    origin_id: orderId.toString(),
-                    status: jsonBody.data.order_status,
-                    updatedAt: new Date(),
-                    store: {
-                        connect: {
-                            origin_id: jsonBody.seller_id.toString()
-                        }
+        let newOrder = await mPrisma.orders.upsert({
+            where: {
+                origin_id: orderId.toString(),
+            },
+            create: {
+                origin_id: orderId.toString(),
+                status: jsonBody.data.order_status,
+                updatedAt: new Date(),
+                store: {
+                    connect: {
+                        origin_id: jsonBody.seller_id.toString()
                     }
-                },
-                update: {
-                    status: jsonBody.data.order_status,
-                },
-                include: {
-                    store: true,
-                    order_items: true,
                 }
-            });
+            },
+            update: {
+                status: jsonBody.data.order_status
+            },
+            include: {
+                store: true,
+                order_items: true
+            }
+        });
+        if (newOrder.order_items.length == 0) {
             taskPayload['token'] = newOrder.store.token;
             taskPayload['refresh_token'] = newOrder.store.refresh_token;
             taskPayload['orderId'] = orderId; 
             taskPayload['customerId'] = jsonBody.data.buyer_id;
             taskPayload['id'] = newOrder.id;
             taskPayload['storeId'] = newOrder.storeId;
+            taskPayload['code'] = jsonBody.message_type;
             taskPayload['jobId'] = orderId.toString();
-            if (newOrder.order_items.length == 0) {
-                // pushTask(env, taskPayload);
-            }
-            // res.status(200).send({id: newOrder.id});
-        } catch (err) {
-            console.log(err);
-            if (err instanceof Prisma.PrismaClientKnownRequestError) {
-                if (err.code === 'P2002') {
-                    let taskPayload = {
-                        channel: LAZADA,
-                        status: jsonBody.data.order_status,
-                        updatedAt: new Date(),
-                        orderId: jsonBody.data.trade_order_id,
-                        new: false,
-                    }
-                    // pushTask(env, taskPayload);
-                    // res.status(200).send({});
-                } else {
-                    // res.status(400).send({err: err});
-                }
-            } else {
-                console.log(err);
-                // res.status(400).send({err: err});
-            }
         }
+    } else if (jsonBody.message_type == 2) {
+        const bodyData = jsonBody.data;
+        const sessionId = bodyData.session_id;
+        const userId = bodyData.from_user_id;
+        const messageId = bodyData.message_id;
+        const userExternalId = `lazada-${userId}-${jsonBody.seller_id}`
+        const conversation = await mPrisma.omnichat.upsert({
+            where: {
+                origin_id: sessionId
+            },
+            update: {
+                last_message: bodyData.content,
+                last_messageId: messageId,
+                updatedAt: new Date(),
+                messages: {
+                    connectOrCreate: {
+                        where: { origin_id: messageId },
+                        create: {
+                            origin_id: messageId,
+                            line_text: bodyData.content,
+                            author: userId,
+                            chat_type: CHAT_TEXT
+                        }
+                    }
+                },
+            },
+            create: {
+                origin_id: sessionId,
+                last_message: bodyData.content,
+                last_messageId: messageId,
+                store: {
+                    connect: { origin_id: jsonBody.seller_id }
+                },
+                messages: {
+                    create: {
+                        origin_id: messageId,
+                        line_text: bodyData.content,
+                        author: userId,
+                        chat_type: CHAT_TEXT
+                    }
+                },
+                customer: {
+                    connectOrCreate: {
+                        where: { origin_id: userId.toString() },
+                        create: { origin_id: userId.toString() }
+                    }
+                }
+            },
+            select: {
+                id: true,
+                origin_id: true,
+                externalId: true,
+                customer: true,
+                storeId: true,
+                store: {
+                    include: {
+                        channel: {
+                            select: {
+                                client: {
+                                    select: {
+                                        integration: {
+                                            select: {
+                                                name: true,
+                                                notes: true,
+                                                id: true,
+                                                credent: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        let chatType = '';
+        if (bodyData.template_id == 1) {
+            chatType = 'TEXT';
+        } else if (bodyData.template_id == 3 || bodyData.template_id == 4) {
+            chatType = 'IMAGE';
+        } else if (bodyData.template_id == 10006){
+            chatType = "PRODUCT_CARD";
+        } else {
+            chatType = 'UNKNOWN';
+        }
+        /* SOON */
+        /* const taskMessage = {
+            integration: conversation.store.channel.client.integration,
+            customer: conversation.customer,
+            conversationExternalId: conversation.externalId,
+            messageId: conversation.id
+        } */
+        /* SOON */
+        taskPayload['sessionId']= sessionId;
+        taskPayload['id']= conversation.id;
+        taskPayload['token']= conversation.store.token;
+        taskPayload['storeId']= conversation.storeId;
+        taskPayload['refresh_token']= conversation.store.refresh_token;
+        taskPayload['userExternalId']= userExternalId;
+        taskPayload['msgExternalId']= conversation.externalId;
+        taskPayload['message'] = conversation;
+        taskPayload['message_content'] = bodyData.content;
+        taskPayload['code'] = jsonBody.message_type;
+        taskPayload['from_account_type'] = bodyData.from_account_type
+        taskPayload['chat_type'] = chatType;
+        taskPayload['new'] = (conversation.customer?.name == null) ? true : false;
     } else if (jsonBody.message_type == 14) {
-        mPrisma.orders.update({
+        await mPrisma.orders.update({
             where: {
                 origin_id: jsonBody.data.trade_order_id
             },
             data: {
                 status: jsonBody.data.status
             }
-        }).then(() => {
-            // res.status(200).send({})
-        }).catch((err) => {
-            console.log(err);
-            // res.status(500).send({})
         });
     } else if(jsonBody.message_type == 21) {
         // product review
@@ -117,17 +194,16 @@ async function routeLazada (jsonBody, prisma, org) {
                 }
             }
         });
-        taskPayload['productId'] = jsonBody.data.item_id
-        taskPayload['mStoreId'] = newProduct.storeId
-        taskPayload['token'] = newProduct.store.token
-        taskPayload['refreshToken'] = newProduct.store.refresh_token
-        taskPayload['mProductId'] = newProduct.id
-        taskPayload['jobId'] = jsonBody.data.item_id
-        // pushTask(env, taskPayload);
-        // res.status(200).send({})
+        taskPayload['productId'] = jsonBody.data.item_id;
+        taskPayload['mStoreId'] = newProduct.storeId;
+        taskPayload['token'] = newProduct.store.token;
+        taskPayload['refreshToken'] = newProduct.store.refresh_token;
+        taskPayload['mProductId'] = newProduct.id;
+        taskPayload['jobId'] = jsonBody.data.item_id;
+        taskPayload['code'] = jsonBody.message_type;
     } else {
         console.log('inbound another message type');
-        // res.status(200).send({});
+        console.log(JSON.stringify(jsonBody));
     }
     return taskPayload;
 }

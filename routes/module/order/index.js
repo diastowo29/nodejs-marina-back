@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA, lazGetOrderDetail, lazGetShipProvider } = require('../../../config/utils');
+const { TIKTOK, SHOPEE, LAZADA, BLIBLI, TOKOPEDIA, lazGetOrderDetail, lazGetShipProvider, appKeyOMS } = require('../../../config/utils');
 const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
@@ -15,7 +15,7 @@ const { lazCall } = require('../../../functions/lazada/caller');
 let mPrisma = new PrismaClient();
 // const upload = multer({ dest: 'uploads/' });
 const upload = multer({ storage: multer.memoryStorage() });
-const lazadaOmsAppKey = process.env.LAZ_OMS_APP_KEY_ID;
+const lazadaOmsAppKey = appKeyOMS;
 
 router.get('/', async function(req, res, next) {
     const channel = req.query.channel || req.query.c;

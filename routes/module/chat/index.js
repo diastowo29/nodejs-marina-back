@@ -149,34 +149,32 @@ router.post('/sunco/event', async function(req, res, next){
     let sourceType = payload.message.source.type;
     let messageAuthor = payload.message.author.type;
     try {
-        if (messageAuthor == 'business' && (sourceType == 'zd:agentWorkspace' || sourceType == 'ultimate' || sourceType == 'zd:agentCopilot' || sourceType == 'api:conversations')) {
-            console.log('message author is bussines')
-          if (payload.conversation?.metadata?.origin_source_integration) {
-            console.log('origin_source_integration is missing')
-            console.log(JSON.stringify(req.body));
-            return res.status(200).send({});
-          }
-
-          if (payload.conversation.metadata.marina_org_id) {
-            const org_id = payload.conversation.metadata.marina_org_id;
-            if (payload.message.content.type == chatContentType.IMAGE) {
+        if (messageAuthor == 'business' && (sourceType == 'zd:agentWorkspace' 
+            || sourceType == 'ultimate' 
+            || sourceType == 'zd:agentCopilot' 
+            || sourceType == 'api:conversations')) {
+            // console.log('message author is bussines')
+            if (payload.conversation?.metadata?.origin_source_integration) {
+                console.log('origin_source_integration is missing')
                 console.log(JSON.stringify(req.body));
+                return res.status(200).send({});
             }
-            try {
+
+            if (payload.conversation.metadata.marina_org_id) {
+                const org_id = payload.conversation.metadata.marina_org_id;
+                if (payload.message.content.type == chatContentType.IMAGE) {
+                    console.log(JSON.stringify(req.body));
+                }
                 let body = await suncoAgentMessage(payload, org_id);
                 // console.log(JSON.stringify(body));
                 let sendMessage =  await sendMessageToBuyer(body, org_id);
                 console.log(sendMessage);
                 return res.status((sendMessage.success) ? 200 : 400).send((sendMessage.success) ? sendMessage.chat : sendMessage.error);
-            } catch (err) {
-                console.log(err);
-                return res.status(400).send({});
+            } else {
+                console.log('metadata is missing')
+                console.log(JSON.stringify(req.body));
+                return res.status(200).send({});
             }
-          } else {
-            console.log('metadata is missing')
-            console.log(JSON.stringify(req.body));
-            return res.status(200).send({});
-          }
         }
         res.status(200).send({});
     } catch (err) {

@@ -10,7 +10,15 @@ let prisma = new PrismaClient();
 // let authCode = '0_131455_GASLfFPyp1I932tbZyULcRBt28498';
 
 async function lazCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
-    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), decryptData(token), api.endpoint, additionalParams);
+    const lazadaParamsObject = {
+        appKey: api.appKey,
+        code: '',
+        ts: Date.now(),
+        token: (token) ? decryptData(token) : '',
+        endpoint: api.endpoint,
+        addonParams: additionalParams
+    }
+    const lazCommonParams = lazParamz(lazadaParamsObject);
     let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
     return axios.get(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
@@ -33,7 +41,15 @@ async function lazCall (api, additionalParams, refToken, token, storeId, orgId, 
 }
 
 async function lazPostGetCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
-    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), decryptData(token), api.endpoint, additionalParams);
+    const lazadaParamsObject = {
+        appKey: api.appKey,
+        code: '',
+        ts: Date.now(),
+        token: (token) ? decryptData(token) : '',
+        endpoint: api.endpoint,
+        addonParams: additionalParams
+    }
+    const lazCommonParams = lazParamz(lazadaParamsObject);
     let completeUrl = `${api.host}${api.endpoint}?${lazCommonParams.params}&sign=${lazCommonParams.signed}`;
     return axios.post(completeUrl).then(async function(result) {
         if (result.data.code == 'IllegalAccessToken') {
@@ -54,7 +70,15 @@ async function lazPostGetCall (api, additionalParams, refToken, token, storeId, 
 }
 
 async function lazPostCall (api, additionalParams, refToken, token, storeId, orgId, tenantDB, isOms) {
-    let lazCommonParams = lazParamz(api.appKey, '', Date.now(), token, api.endpoint, additionalParams);
+    const lazadaParamsObject = {
+        appKey: api.appKey,
+        code: '',
+        ts: Date.now(),
+        token: (token) ? decryptData(token) : '',
+        endpoint: api.endpoint,
+        addonParams: additionalParams
+    }
+    let lazCommonParams = lazParamz(lazadaParamsObject);
     lazCommonParams.sorted['sign'] = lazCommonParams.signed;
     let completeUrl = `${api.host}${api.endpoint}`;
     // console.log(completeUrl);
@@ -81,9 +105,17 @@ async function lazPostCall (api, additionalParams, refToken, token, storeId, org
 }
 
 async function refreshToken (api, refreshToken, storeId, orgId, tenantDB, isOms) {
-    console.log(' --- refreshing token --- ');
     let addonParams = `refresh_token=${refreshToken}`;
-    let params = lazParamz(api.appKey, '', Date.now(), 'currentToken', lazRefreshToken, addonParams);
+    const lazadaParamsObject = {
+        appKey: api.appKey,
+        code: '',
+        ts: Date.now(),
+        token: '',
+        endpoint: lazRefreshToken,
+        addonParams: addonParams
+    }
+    console.log(' --- refreshing token --- ');
+    let params = lazParamz(lazadaParamsObject);
     prisma = getPrismaClientForTenant(orgId, tenantDB.url);
     return axios.get(`${lazadaAuthHost}${lazRefreshToken}?${params.params}&sign=${params.signed}`).then(function(result) {
         console.log('refresh response')
@@ -112,10 +144,10 @@ async function refreshToken (api, refreshToken, storeId, orgId, tenantDB, isOms)
     })
 }
 
-function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
+function lazParamz (lazadaParamsObject) {
     let addOns = [];
-    if (addonParams!= '') {
-        let addOnsSplit = addonParams.split('&')
+    if (lazadaParamsObject.addonParams!= '') {
+        let addOnsSplit = lazadaParamsObject.addonParams.split('&')
         addOnsSplit.forEach(addOn => {
             addOns.push({
                 [addOn.split('=')[0]]: addOn.split('=')[1]
@@ -124,9 +156,9 @@ function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
     }
 
     let params = {
-        app_key: key.split('-_-')[0],
-        timestamp: ts,
-        ...(accToken == '' ? {} : { access_token: accToken }),
+        app_key: lazadaParamsObject.appKey.split('-_-')[0],
+        timestamp: lazadaParamsObject.ts,
+        ...(lazadaParamsObject.token == '' ? {} : { access_token: lazadaParamsObject.token }),
         sign_method: 'sha256'
     };
     if (addOns.length > 0) {
@@ -139,7 +171,7 @@ function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
         Obj[key] = params[key];
         return Obj;
     }, {});
-    let joinedPresigned = endpoint;
+    let joinedPresigned = lazadaParamsObject.endpoint;
     let joinedParams;
     for(let keys in sortedObject) {
         let joined = [keys, sortedObject[keys]].join('');
@@ -151,7 +183,7 @@ function lazParamz (key, code, ts, accToken, endpoint, addonParams) {
             joinedParams = [joinedParams, joined].join('');
         }
     }
-    let signed = CryptoJS.HmacSHA256(joinedPresigned, key.split('-_-')[1]).toString(CryptoJS.enc.Hex).toUpperCase();
+    let signed = CryptoJS.HmacSHA256(joinedPresigned, lazadaParamsObject.appKey.split('-_-')[1]).toString(CryptoJS.enc.Hex).toUpperCase();
     return {signed: signed, params: joinedParams, sorted: sortedObject};
 }
 

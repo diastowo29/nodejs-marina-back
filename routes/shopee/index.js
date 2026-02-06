@@ -478,7 +478,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
     }
     prisma = req.prisma;
     // const prisma = getPrismaClient(req.tenantDB);
-    // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
+    // let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_CHAT_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
     // let addParams = `code=${req.body.code}`;
     // let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
     // if (authResponse.code != '0') {

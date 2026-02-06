@@ -2,8 +2,8 @@ var express = require('express');
 const SunshineConversationsClient = require('sunshine-conversations-client');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient, Prisma } = require('../../prisma/generated/baseClient');
-const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat, CHAT_TEXT, PATH_CHAT, PATH_AUTH, PATH_ORDER } = require('../../config/utils');
-const { lazParamz, lazCall, lazPostCall } = require('../../functions/lazada/caller');
+const { LAZADA, LAZADA_CHAT, lazGetOrderItems, lazadaAuthHost, lazGetSellerInfo, lazadaHost, sampleLazOMSToken, lazPackOrder, lazGetToken, lazReplyChat, CHAT_TEXT, PATH_CHAT, PATH_AUTH, PATH_ORDER, appKeyCHAT, appKeyOMS } = require('../../config/utils');
+const { lazCall } = require('../../functions/lazada/caller');
 const { gcpParser } = require('../../functions/gcpParser');
 const { pushTask } = require('../../functions/queue/task');
 const { getPrismaClientForTenant } = require('../../services/prismaServices');
@@ -465,7 +465,7 @@ router.post(PATH_CHAT, async function(req, res, next) {
 router.post(PATH_AUTH, async function(req, res, next) {
     /* NEED TO CHECK IF ITS OMS OR CHAT (TOKEN OR SECONDARY_TOKEN) */
     mPrisma = req.prisma;
-    let appKeyId = (req.body.app == 'chat') ? process.env.LAZ_APP_KEY_ID : process.env.LAZ_OMS_APP_KEY_ID;
+    let appKeyId = (req.body.app == 'chat') ? appKeyCHAT : appKeyOMS;
     let addParams = `code=${req.body.code}`;
     let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
     if (authResponse.code != '0') {
