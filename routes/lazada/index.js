@@ -463,7 +463,6 @@ router.post(PATH_CHAT, async function(req, res, next) {
 })
 
 router.post(PATH_AUTH, async function(req, res, next) {
-    /* NEED TO CHECK IF ITS OMS OR CHAT (TOKEN OR SECONDARY_TOKEN) */
     mPrisma = req.prisma;
     let appKeyId = (req.body.app == 'chat') ? appKeyCHAT : appKeyOMS;
     let addParams = `code=${req.body.code}`;
@@ -518,8 +517,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     origin_id: sellerResponse.data.seller_id.toString()
                 },
                 update: {
-                    token: encryptData(token),
-                    refresh_token: encryptData(refToken),
+                    ...(req.body.app == 'chat') ? {secondary_token: encryptData(token)} : {token: encryptData(token)},
+                    ...(req.body.app == 'chat') ? {secondary_refresh_token: encryptData(refToken)} : {refresh_token: encryptData(refToken)} ,
                     status: 'ACTIVE',
                     channel: {
                         connectOrCreate: {
