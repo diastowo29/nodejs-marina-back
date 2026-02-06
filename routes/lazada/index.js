@@ -467,14 +467,16 @@ router.post(PATH_AUTH, async function(req, res, next) {
     mPrisma = req.prisma;
     let appKeyId = (req.body.app == 'chat') ? appKeyCHAT : appKeyOMS;
     let addParams = `code=${req.body.code}`;
-    let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '', appKeyId);
+    let authResponse = await lazCall(lazGetToken(appKeyId), addParams, '', '');
     if (authResponse.code != '0') {
+        console.log(authResponse);
         return res.status(400).send({process: 'generate_token', response: authResponse});
     }
     let token = authResponse.access_token;
     let refToken = authResponse.refresh_token;
-    let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', refToken, token);
+    let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', encryptData(refToken), encryptData(token));
     if (sellerResponse.code != '0') {
+        console.log(sellerResponse);
         return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
     }
     // const mPrisma = getPrismaClient(req.tenantDB);
@@ -529,7 +531,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                                 client: {
                                     connectOrCreate: {
                                         where: {
-                                                origin_id: req.auth.payload.org_id
+                                            origin_id: req.auth.payload.org_id
                                         },
                                         create: {
                                             name: req.auth.payload.org_id,
