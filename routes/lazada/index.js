@@ -473,10 +473,16 @@ router.post(PATH_AUTH, async function(req, res, next) {
     }
     let token = authResponse.access_token;
     let refToken = authResponse.refresh_token;
-    let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', encryptData(refToken), encryptData(token));
-    if (sellerResponse.code != '0') {
-        console.log(sellerResponse);
-        return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
+    let sellerId = '';
+    if (req.body.app == 'chat') {
+        sellerId = authResponse.country_user_info[0].seller_id.toString();
+    } else {
+        let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', encryptData(refToken), encryptData(token));
+        if (sellerResponse.code != '0') {
+            console.log(sellerResponse);
+            return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
+        }
+        sellerId = sellerResponse.data.seller_id.toString();
     }
     // const mPrisma = getPrismaClient(req.tenantDB);
     const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
@@ -484,10 +490,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
         let newClients = await Promise.all([
             basePrisma.stores.upsert({
                 where: {
-                    origin_id: sellerResponse.data.seller_id.toString()
+                    origin_id: sellerId.toString()
                 },
                 create: {
-                    origin_id: sellerResponse.data.seller_id.toString(),
+                    origin_id: sellerId.toString(),
                     clients: {
                         connectOrCreate: {
                             where: {
@@ -514,27 +520,29 @@ router.post(PATH_AUTH, async function(req, res, next) {
             }),
             mPrisma.store.upsert({
                 where: {
-                    origin_id: sellerResponse.data.seller_id.toString()
+                    origin_id: sellerId.toString()
                 },
                 update: {
                     ...(req.body.app == 'chat') ? {secondary_token: encryptData(token)} : {token: encryptData(token)},
-                    ...(req.body.app == 'chat') ? {secondary_refresh_token: encryptData(refToken)} : {refresh_token: encryptData(refToken)} ,
+                    ...(req.body.app == 'chat') ? {secondary_refresh_token: encryptData(refToken)} : {refresh_token: encryptData(refToken)},
                     status: 'ACTIVE',
-                    channel: {
-                        connectOrCreate: {
-                            where: {
-                                name: LAZADA
-                            },
-                            create: {
-                                name: LAZADA,
-                                client: {
-                                    connectOrCreate: {
-                                        where: {
-                                            origin_id: req.auth.payload.org_id
-                                        },
-                                        create: {
-                                            name: req.auth.payload.org_id,
-                                            origin_id: req.auth.payload.org_id
+                    ...(req.body.app == 'chat') ? {} : {
+                        channel: {
+                            connectOrCreate: {
+                                where: {
+                                    name: LAZADA
+                                },
+                                create: {
+                                    name: LAZADA,
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
                                         }
                                     }
                                 }
@@ -543,7 +551,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     }
                 },
                 create: {
-                    origin_id: sellerResponse.data.seller_id.toString(),
+                    origin_id: sellerId.toString(),
                     name: sellerResponse.data.name,
                     token: encryptData(token),
                     refresh_token: encryptData(refToken),
