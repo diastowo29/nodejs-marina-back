@@ -1,8 +1,6 @@
 let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 1;
-let maxJobsPerWorker = 10;
-let { workQueue } = require('./config/redis.config');
-const { LAZADA, BLIBLI, TOKOPEDIA, TOKOPEDIA_CHAT, LAZADA_CHAT, lazGetOrderDetail, lazGetOrderItems, sampleLazOMSToken, lazGetSessionDetail, SHOPEE, TIKTOK, TIKTOK_CHAT, lazGetProducts, appKeyOMS } = require('./config/utils');
+const { lazGetOrderDetail, lazGetOrderItems, lazGetSessionDetail, lazGetProducts, appKeyOMS } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 let env = /* process.env.NODE_ENV || */ 'production';
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
@@ -10,10 +8,10 @@ const { api } = require('./functions/axios/interceptor');
 const { collectShopeeOrder, generateShopeeToken, collectShopeeTrackNumber, collectShopeeRR } = require('./functions/shopee/function');
 const { collectTiktokOrder, collectTiktokProduct, collectReturnRequest, forwardConversation, getValue } = require('./functions/tiktok/function');
 const { getPrismaClientForTenant } = require('./services/prismaServices');
-const { Prisma, PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
+const { PrismaClient: prismaBaseClient } = require('./prisma/generated/baseClient');
 const { getTenantDB } = require('./middleware/tenantIdentifier');
 const { PrismaClient } = require('./prisma/generated/client');
-const { encryptData, decryptData } = require('./functions/encryption');
+const { encryptData } = require('./functions/encryption');
 const { PubSub } = require('@google-cloud/pubsub');
 const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
@@ -166,132 +164,6 @@ function start() {
     //     messageHandler.
     // });
 }
-
-// async function processJob(jobData, done) {
-//     // let body = jobData.data.body;
-//     // console.log(jobData);
-//     // console.log(JSON.stringify(body))
-//     // console.log(jobData.data.channel);
-//     // console.log(Buffer.from(body.message.data, 'base64').toString('ascii'));
-//     switch (jobData.data.channel) {
-//         case LAZADA:
-//             processLazada(jobData.data, done);
-//             break;
-//         case LAZADA_CHAT:
-//             processLazadaChat(jobData.data, done);
-//             break;
-//         case BLIBLI:
-//             processBlibli(jobData.data, done);
-//             break;
-//         case TOKOPEDIA:
-//             processTokopedia(jobData.data, done); // moved to tiktok
-//             break;
-//         case TOKOPEDIA_CHAT:
-//             processTokopediaChat(jobData.data, done); // moved to tiktok
-//             break;
-//         case SHOPEE:
-//             processShopee(jobData.data, done);
-//             break;
-//         case TIKTOK:
-//             processTiktok(jobData.data, done);
-//             break;
-//         case TIKTOK_CHAT:
-//             break;
-//         default:
-//             console.log(jobData.data);
-//            /*  const formData = new FormData();
-//             formData.append('data', fs.createReadStream(jobData.data.files))
-//             try {
-//                 const uploaded = await api.post(UPLOAD_IMAGE(formData), formData, {
-//                     headers: {
-//                         'x-tts-access-token': 'ROW_V381WwAAAABLnq7xXOmscBX-2auOuaCindVaZtRIQ7EWKejWoQytgRvgHUK6PwUNZdE2MkJkyzWGC_oe0oI4AF3HgcWm8AFsTgtyi-SxPGonwyBLlXVpOBCfEXYi65wqB294knTTRfp9rm1B94T8tNCBijaGJf8V',
-//                         'content-type': 'multipart/form-data'
-//                     }
-//                 });
-//                 console.log(uploaded.data);
-//             } catch (err) {
-//                 console.log(err)
-//             } */
-//             console.log('channel not supported: ', jobData.data.channel);
-//             done.nack();
-//             break;
-//     }
-// }
-
-/* async function processLazadaChat(body, done) {
-    let refresh_token = 'refToken';
-    let token = body.token.split('~')[lazGetSessionDetail.pos];
-    prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
-    try {
-        let apiParams = `session_id=${body.sessionId}`;
-        if (body.new) {
-            let session = await lazCall(lazGetSessionDetail, apiParams, 
-                refresh_token, token, body.storeId, body.orgId,
-                        body.tenantDB, false);
-            if (session && session.success) {
-                console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
-                await prisma.omnichat_user.update({
-                    where: {
-                        origin_id: session.data.buyer_id.toString()
-                    },
-                    data: {
-                        username: session.data.title,
-                        thumbnailUrl: session.data.head_url
-                    }
-                });
-            } else {
-                console.log('session invalid');
-            }
-        }
-    } catch (err) {
-        if (err instanceof Prisma.PrismaClientUnknownRequestError) {
-            console.log(err.code);
-            console.log(err.meta);
-            console.log('error');
-        } else {
-            console.log(err);
-        }
-    }
-    let messageContent = JSON.parse(body.body.data.content)
-    let suncoMessagePayload = {
-        author: {
-            type: 'user',
-            userExternalId: body.user_external_id
-        }
-    }
-
-    if (body.body.data.template_id == 1) { // text
-        let contentText
-        if(body.body.data.hasOwnProperty('process_msg')){
-            contentText = body.body.data.process_msg
-        } else {
-            contentText = messageContent.txt
-        }
-        suncoMessagePayload.content = {
-            type: "text",
-            text: contentText
-        }
-    } else if (body.body.data.template_id == 3 || body.body.data.template_id == 4) { // attachment or sticker
-        suncoMessagePayload.content = {
-            type: 'image',
-            mediaUrl: messageContent.imgUrl
-        }
-    } else { // product attachment_type = 3
-        suncoMessagePayload.content = {
-            type: 'image',
-            text: `${messageContent.title}\n${messageContent.actionUrl}`,
-            mediaUrl: messageContent.pic
-        }
-    }
-
-    await postMessage(body.message_external_id, suncoMessagePayload)
-    if (env !== 'production') {
-        done(null, {
-            response: 'testing'
-        });
-    }
-
-} */
 
 async function processLazada(body, pubMessage) {
     let addParams = `order_id=${body.orderId}`;
@@ -498,60 +370,6 @@ async function processLazada(body, pubMessage) {
     }
 }
 
-async function processTokopedia(body, done) {
-    /* console.log(JSON.stringify(body));
-    if (env !== 'production') {
-        done(null, {
-            response: 'testing'
-        });
-    } */
-
-}
-
-async function processTokopediaChat(body, done) {
-    console.log('process tokopedia chat', body);
-    /* let suncoMessagePayload = {
-        author: {
-            type: 'user',
-            userExternalId: body.user_external_id
-        }
-    }
-
-    if (body.body.payload.attachment_type == 0) { // text
-        suncoMessagePayload.content = {
-            type: "text",
-            text: body.body.message
-        }
-    } else if (body.body.payload.attachment_type == 2) { // attachment
-        suncoMessagePayload.content = {
-            type: 'image',
-            mediaUrl: body.body.payload.image.image_url
-        }
-    } else if(body.body.payload.attachment_type == 3){ // product attachment_type = 3
-        suncoMessagePayload.content = {
-            type: 'image',
-            text: body.body.payload.product.product_url,
-            mediaUrl: body.body.payload.product.image_url
-        }
-    }else{ //sticker
-        suncoMessagePayload.content = {
-            type: 'text',
-            text: `:${body.body.message}:`
-        }
-    }
-
-    let suncoMessage = await postMessage(body.message_external_id, suncoMessagePayload)
-    // done(null, {
-    //     response: 'testing'
-    // });
-    console.log(JSON.stringify(body));
-    if (env !== 'production') {
-
-        done(null, {response: 'testing'});
-    } */
-
-}
-
 async function processShopee(body, pubMessage) {
     // console.log(JSON.stringify(body));
     /* WORKER PART */
@@ -714,100 +532,7 @@ async function processShopee(body, pubMessage) {
         console.log('shopee code not supported: ', body.code);
         pubMessage.ack();
     }
-
-    /* let orderDetail = await api.get(
-        `${SHOPEE_HOST}${GET_ORDER_DETAIL_PATH}?${shopInfoParams}`,
-    ).catch(function(err) {
-        console.log(err.response.data);
-        return res.status(400).send({error: err.response.data});
-    });
-
-    console.log(orderDetail); */
-
-    /* if (orderDetail.data) {
-        if (orderDetail.data.error) {
-            return;
-        }
-        // if orderlist length > 0
-        let orderX = orderDetail.data.response.order_list[0];
-        let order = await prisma.orders.update({
-            where: {
-                origin_id: orderX.order_sn
-            },
-            data: {
-                status: orderX.order_status,
-                recp_addr_city: orderX.recipient_address.city,
-                recp_addr_district: orderX.recipient_address.district,
-                recp_addr_full: orderX.recipient_address.full_address,
-                recp_addr_postal_code: orderX.recipient_address.zipcode,
-                recp_addr_province: orderX.recipient_address.state,
-                recp_addr_country: orderX.recipient_address.country,
-                recp_name: orderX.recipient_address.name,
-                recp_phone: orderX.recipient_address.phone,
-                logistic: {
-                    connectOrCreate: {
-                        where: {
-                            name: orderX.shipping_carrier
-                        },
-                        create: {
-                            name: orderX.shipping_carrier
-                        }
-                    }
-                },
-                origin_id: orderX.order_sn,
-                shipping_price: orderX.estimated_shipping_fee,
-                total_amount: orderX.total_amount,
-                order_items: {
-                    createMany: {
-                        data: orderX.item_list.map(item => ({
-                            origin_id: `${orderId}-${item.item_id}`,
-                            qty: item.model_quantity_purchased,
-                            notes: orderX.note,
-                            total_price: item.model_discounted_price,
-                            products: {
-                                connectOrCreate: {
-                                    where: {
-                                        origin_id: item.item_id.toString()
-                                    },
-                                    create: {
-                                        name: item.item_name,
-                                        price: item.model_original_price,
-                                        sku: item.item_sku,
-                                        origin_id: item.item_id.toString(),
-                                        store: {
-                                            connect: {
-                                                origin_id: storeId.toString()
-                                            }
-                                        },
-                                    }
-                                }
-                            }
-                        }))
-                    }
-                }
-            }
-        })
-    } */
 }
-
-// async function processTiktok(body, pubMessage) {
-//     if (body.code == 1) {
-//         /* ==== ORDERS UPDATE==== */
-//         if (body.status != 'UNPAID') {
-//             collectTiktokOrder(body, pubMessage);
-//         }
-//     } else if (body.code == 16 || body.code == 15) {
-//         /* PRODUCT STATUS UPDATE */
-//         collectTiktokProduct(body, pubMessage);
-//     } else if (body.code == 12 || body.code == 11) {
-//         collectReturnRequest(body, pubMessage);
-//     } else if (body.code == 14) {
-//         forwardConversation(body, pubMessage);
-//     } else {
-//         console.log('code %s not implemented yet', body.code);
-//         pubMessage.ack();
-//     }
-// }
 
 async function processBlibli(body, done) {
     /* let orderItems = [];

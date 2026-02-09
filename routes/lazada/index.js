@@ -474,10 +474,11 @@ router.post(PATH_AUTH, async function(req, res, next) {
     let token = authResponse.access_token;
     let refToken = authResponse.refresh_token;
     let sellerId = '';
+    let sellerResponse = {};
     if (req.body.app == 'chat') {
         sellerId = authResponse.country_user_info[0].seller_id.toString();
     } else {
-        let sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', encryptData(refToken), encryptData(token));
+        sellerResponse = await lazCall(lazGetSellerInfo(appKeyId), '', encryptData(refToken), encryptData(token));
         if (sellerResponse.code != '0') {
             console.log(sellerResponse);
             return res.status(400).send({process: 'get_seller_info', response: sellerResponse});
