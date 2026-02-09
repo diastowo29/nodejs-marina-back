@@ -553,7 +553,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 },
                 create: {
                     origin_id: sellerId.toString(),
-                    name: sellerResponse.data.name,
+                    ...(req.body.app == 'chat') ? {} : { name: sellerResponse.data.name },
                     token: encryptData(token),
                     refresh_token: encryptData(refToken),
                     status: 'ACTIVE',
