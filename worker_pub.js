@@ -1,6 +1,6 @@
 let throng = require('throng');
 let workers = process.env.WEB_CONCURRENCY || 1;
-const { lazGetOrderDetail, lazGetOrderItems, lazGetSessionDetail, lazGetProducts, appKeyOMS } = require('./config/utils');
+const { lazGetOrderDetail, lazGetOrderItems, lazGetSessionDetail, lazGetProducts, appKeyOMS, BLIBLI, SHOPEE, LAZADA, TIKTOK } = require('./config/utils');
 const { lazCall } = require('./functions/lazada/caller');
 let env = /* process.env.NODE_ENV || */ 'production';
 const { GET_SHOPEE_PRODUCTS_LIST, GET_SHOPEE_PRODUCTS_INFO, GET_SHOPEE_PRODUCTS_MODEL } = require('./config/shopee_apis');
@@ -17,6 +17,7 @@ const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
 const { routeLazada } = require('./functions/lazada/router_function');
 const { routeShopee } = require('./functions/shopee/router_function');
+const { processBlibli } = require('./functions/blibli/function');
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
 const pubSubTopic = process.env.PUBSUB_TOPIC || 'marina-main-topic-dev';
@@ -36,7 +37,10 @@ function messageHandler (pubMessage) {
     if (pubPayload.ping ) {
         return pubMessage.ack();
     }
-    const storeId = getValue(pubPayload, ['seller_id', 'shop_id', 'store_id', 'store_code']);
+    if (pubPayload.store && pubPayload.store.code) {
+        pubPayload.store_code = pubPayload.store.code;
+    }
+    const storeId = getValue(pubPayload, ['seller_id', 'shop_id', 'store_id', 'store_code', 'storeCode']);
     if (!storeId || storeId == 'null') {
         return pubMessage.ack();
     }
@@ -75,8 +79,9 @@ function messageHandler (pubMessage) {
             pubMessage.ack();
             return;
         }
+        pubPayload['marinaStoreId'] = mStore.id;
         switch (mStore.channel.name) {
-            case 'tiktok':
+            case TIKTOK:
                 routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
                     if (taskPayload) {
                         if (taskPayload.code == 1) {
@@ -104,7 +109,7 @@ function messageHandler (pubMessage) {
                     pubMessage.nack();
                 });
                 break;
-            case 'lazada':
+            case LAZADA:
                 routeLazada(pubPayload, prisma, org).then(async (taskPayload) => {
                     if (taskPayload.code) {
                         processLazada(taskPayload, pubMessage);
@@ -113,7 +118,7 @@ function messageHandler (pubMessage) {
                     }
                 });
                 break;
-            case 'shopee':
+            case SHOPEE:
                 routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
                     // console.log(taskPayload);
                     if (taskPayload.code) {
@@ -123,10 +128,15 @@ function messageHandler (pubMessage) {
                     }
                 });
                 break;
-            case 'blibli':
-                console.log('blibli message received');
+            case BLIBLI:
+                // console.log('blibli message received');
                 console.log(JSON.stringify(pubPayload));
-                pubMessage.ack();
+                processBlibli(pubPayload, prisma, org).then(async (blibli) => {
+                    console.log(blibli);
+                    if (blibli.done) {
+                        pubMessage.ack();
+                    }
+                });
                 break;
             default:
                 console.log('default channel');
@@ -534,7 +544,7 @@ async function processShopee(body, pubMessage) {
     }
 }
 
-async function processBlibli(body, done) {
+// async function processBlibli(body, done) {
     /* let orderItems = [];
     // console.log(JSON.stringify(body));
     const payload = body;
@@ -610,11 +620,11 @@ async function processBlibli(body, done) {
         console.log(err);
     } */
 
-    console.log(JSON.stringify(body));
-    if (env !== 'production') {
-        done(null, {
-            response: 'testing'
-        });
+    // console.log(JSON.stringify(body));
+    // if (env !== 'production') {
+    //     done(null, {
+    //         response: 'testing'
+    //     });
 
-    }
-}
+    // }
+// }
