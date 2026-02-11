@@ -131,12 +131,12 @@ function messageHandler (pubMessage) {
             case BLIBLI:
                 // console.log('blibli message received');
                 console.log(JSON.stringify(pubPayload));
-                processBlibli(pubPayload, prisma, org).then(async (blibli) => {
-                    console.log(blibli);
-                    if (blibli.done) {
+                // processBlibli(pubPayload, prisma, org).then(async (blibli) => {
+                    // console.log(blibli);
+                    // if (blibli.done) {
                         pubMessage.ack();
-                    }
-                });
+                //     }
+                // });
                 break;
             default:
                 console.log('default channel');
