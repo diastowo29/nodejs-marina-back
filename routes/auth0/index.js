@@ -14,7 +14,6 @@ router.get('/', function(req, res) {
 })
 
 router.post('/schema', async function(req, res, next) {
-    // console.log(req.headers)
     if (!req.body.org_id || !req.body.company_name) {
         return res.status(400).send({message: 'org_id or company_name is missing'});
     }
