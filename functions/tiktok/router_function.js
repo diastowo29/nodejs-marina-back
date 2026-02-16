@@ -314,6 +314,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                     update: {
                         last_message: jsonBody.data.content,
                         last_messageId: jsonBody.data.message_id,
+                        updatedAt: new Date(),
                         messages: {
                             connectOrCreate: {
                                 where: {

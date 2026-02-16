@@ -36,10 +36,19 @@ router.get('/comments', async function(req, res, next) {
     mPrisma = req.prisma;
     // const mPrisma = getPrismaClient(req.tenantDB);
     let comments = await mPrisma.omnichat_line.findMany({
+        where: {
+            NOT: {
+                line_text: '{\"content\":\"\"}'
+            }
+        },
         select: {
             chat_type: true
+        },
+        orderBy: {
+            createdAt: 'asc'
         }
     });
+    console.log(JSON.stringify(comments));
     res.status(200).send(comments);
 })
 
@@ -113,35 +122,59 @@ router.post('/initiate', async function(req, res, next) {
 // sent chat from marina ui
 router.post('/', async function(req, res, next) {
     let body = req.body;
-    let sendMessage =  await sendMessageToBuyer(body, req.tenantDB)
-    if(sendMessage.success){
-        res.status(200).send(sendMessage.chat)
-    }else{
-        res.status(400).send(sendMessage.error)
+    try {
+        let sendMessage =  await sendMessageToBuyer(body, req.tenantId)
+        if(sendMessage.success){
+            res.status(200).send(sendMessage.chat)
+        }else{
+            res.status(400).send(sendMessage.error)
+        }
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({error: err});
     }
 })
 
 router.get('/:id/comments', async function(req, res, next) {
     mPrisma = req.prisma;
     // const mPrisma = getPrismaClient(req.tenantDB);
-    let chat = await mPrisma.omnichat.findUnique({
-        where: {
-            id: Number.parseInt(req.params.id)
-        },
-        include: {
-            messages: true,
-            store: {
-                select: {
-                    id: true,
-                    channel: true,
-                    name:true,
-                    origin_id: true,
-                    status: true
+    try {
+        let omnichat = await Promise.all([
+            mPrisma.omnichat.findUnique({
+                where: {
+                    id: Number.parseInt(req.params.id)
+                },
+                include: {
+                    store: {
+                        select: {
+                            id: true,
+                            channel: true,
+                            name:true,
+                            origin_id: true,
+                            status: true
+                        }
+                    }
                 }
-            }
-        }
-    });
-    res.status(200).send(chat);
+            }),
+            mPrisma.omnichat_line.findMany({
+                where: {
+                    omnichatId: Number.parseInt(req.params.id),
+                    NOT: {
+                        line_text: '{\"content\":\"\"}'
+                    }
+                },
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            }),
+        ])
+        let chat = omnichat[0];
+        chat['messages'] = omnichat[1];
+        res.status(200).send(chat);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({error: err});
+    }
 });
 
 router.post('/sunco/event', async function(req, res, next){
@@ -294,14 +327,15 @@ async function sendMessageToBuyer(body, org_id) {
         if (!body.omnichat) {
             console.log('== get omnichat ==')
             // const mPrisma = getPrismaClient(getTenantDB(org_id));
-            mPrisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url)
+            mPrisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url);
             mStore = await mPrisma.store.findUnique({
                 where: {
                     origin_id: body.store_origin_id.toString()
                 }
             });
+        } else {
+            mStore = body.omnichat.store;
         }
-        mStore = body.omnichat.store;
         let contentChat = {
             ...(body.chat_type === chatContentType.TEXT ? {content: body.line_text} : {}),
             ...(body.chat_type === chatContentType.IMAGE ? {url: body.file_path, width: 1280, height: 720} : {}),

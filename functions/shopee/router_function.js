@@ -112,6 +112,7 @@ async function routeShopee (jsonBody, mPrisma, org) {
                         update: {
                             last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
                             last_messageId: jsonBody.data.content.message_id,
+                            updatedAt: new Date(),
                             messages: {
                                 create: {
                                     line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
