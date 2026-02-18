@@ -22,6 +22,24 @@ var crmRouter = require('./routes/module/crm');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
 const { tenantIdentifier } = require('./middleware/tenantIdentifier');
+const httpServer = require("http").createServer(app);
+const io = require("socket.io")(httpServer, {
+    path: '/',
+    cors: {
+      origin: ["http://localhost:3000"]
+    }
+});
+
+httpServer.listen(5000, () => {
+   console.log("Websocket started at port ", 5000)
+});
+
+io.on("connection", (socket) => {
+  socket.on('server-hear', (message) => {
+    const tenantId = message.tenant;
+    io.emit(tenantId, message);
+  });
+});
 
 var app = express();
 app.use(checkJwt);
@@ -32,6 +50,8 @@ app.set('view engine', 'pug');
 // app.listen(port, function () {
 //   console.log('Example app listening on port ' + port + '!');
 // });
+
+app.set('io', io);
 
 app.use(logger('dev'));
 app.use(express.json());

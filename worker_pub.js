@@ -17,6 +17,7 @@ const { gcpParser } = require('./functions/gcpParser');
 const { routeTiktok } = require('./functions/tiktok/router_function');
 const { routeLazada } = require('./functions/lazada/router_function');
 const { routeShopee } = require('./functions/shopee/router_function');
+const { io } = require('socket.io-client');
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
 const pubSubTopic = process.env.PUBSUB_TOPIC || 'marina-main-topic-dev';
@@ -32,6 +33,7 @@ throng({
 });
 
 function messageHandler (pubMessage) {
+    const socket = io('http://localhost:5000');
     const pubPayload = gcpParser(pubMessage.data);
     if (pubPayload.ping ) {
         return pubMessage.ack();
@@ -90,6 +92,7 @@ function messageHandler (pubMessage) {
                         } else if (taskPayload.code == 12 || taskPayload.code == 11) {
                             collectReturnRequest(taskPayload, pubMessage);
                         } else if (taskPayload.code == 14) {
+                            socket.emit('server-hear', {tenant: org[1], message: taskPayload.message.origin_id});
                             forwardConversation(taskPayload, pubMessage);
                         } else {
                             console.log('code %s not implemented yet', taskPayload.code);
