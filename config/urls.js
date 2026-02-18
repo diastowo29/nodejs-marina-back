@@ -8,7 +8,8 @@ const whitelistUrl = [
     '/api/v1/auth0/hook',
     '/api/v1/auth0/schema',
     '/api/v1/auth0/registration',
-    '/api/v1/auth0/pre-registration'
+    '/api/v1/auth0/pre-registration',
+    '/socket.io/'
 ]
 
 module.exports = { whitelistUrl };

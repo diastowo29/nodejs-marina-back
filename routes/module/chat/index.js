@@ -14,6 +14,13 @@ const { PrismaClient } = require('../../../prisma/generated/client');
 let mPrisma = new PrismaClient();
 const tokoAppId = process.env.TOKO_APP_ID;
 
+/* router.get('/sample', function (req, res, next) {
+    console.log(req.tenantId);
+    const io = req.app.get('io');
+    io.emit(req.tenantId, 'event to ' + req.tenantId);
+    res.status(200).send({})
+}); */
+
 router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;
     let chat = await mPrisma.omnichat.findMany({
@@ -29,7 +36,7 @@ router.get('/', async function(req, res, next) {
             updatedAt: 'desc'
         }
     });
-    res.status(200).send(chat);
+    res.status(200).send({omnichat: chat, tenant_id: req.tenantId});
 });
 
 router.get('/comments', async function(req, res, next) {
