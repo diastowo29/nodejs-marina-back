@@ -26,7 +26,7 @@ const httpServer = require("http").createServer(app);
 const io = require("socket.io")(httpServer, {
     path: '/',
     cors: {
-      origin: ["http://localhost:3000"]
+      origin: [process.env.FRONTEND_URL]
     }
 });
 
