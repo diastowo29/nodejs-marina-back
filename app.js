@@ -30,8 +30,8 @@ const io = require("socket.io")(httpServer, {
     }
 });
 
-httpServer.listen(5000, () => {
-   console.log("Websocket started at port ", 5000)
+httpServer.listen(8080, () => {
+   console.log("Websocket started at port ", 8080)
 });
 
 io.on("connection", (socket) => {
