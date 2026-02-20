@@ -33,7 +33,7 @@ throng({
 });
 
 function messageHandler (pubMessage) {
-    const socket = io('http://localhost:3002');
+    const socket = io(process.env.BE_HOST || 'http://localhost:3002');
     const pubPayload = gcpParser(pubMessage.data);
     if (pubPayload.ping ) {
         return pubMessage.ack();
