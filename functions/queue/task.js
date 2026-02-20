@@ -2,9 +2,9 @@ const {v2beta3} = require('@google-cloud/tasks');
 const { workQueue, jobOpts } = require('../../config/redis.config');
 const client = new v2beta3.CloudTasksClient();
 let project = process.env.GCP_PROJECT_ID;
-let queue = process.env.GCP_QUEUE;
+let queue = process.env.GCP_QUEUE || 'some google que name';
 let location = process.env.GCP_LOCATION;
-let url = process.env.GCP_WORKER_URL;
+let url = process.env.GCP_WORKER_URL || 'some google que url';
 
 async function addTask (payload) {
     const queuePath = client.queuePath(project, location, queue);

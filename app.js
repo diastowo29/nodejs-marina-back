@@ -22,24 +22,24 @@ var crmRouter = require('./routes/module/crm');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
 const { tenantIdentifier } = require('./middleware/tenantIdentifier');
-const httpServer = require("http").createServer(app);
-const io = require("socket.io")(httpServer, {
-    path: '/',
-    cors: {
-      origin: [process.env.FRONTEND_URL]
-    }
-});
+// const httpServer = require("http").createServer(app);
+// const io = require("socket.io")(httpServer, {
+//     path: '/',
+//     cors: {
+//       origin: [process.env.FRONTEND_URL]
+//     }
+// });
 
-httpServer.listen(8080, () => {
-   console.log("Websocket started at port ", 8080)
-});
+// httpServer.listen(8080, () => {
+//    console.log("Websocket started at port ", 8080)
+// });
 
-io.on("connection", (socket) => {
-  socket.on('server-hear', (message) => {
-    const tenantId = message.tenant;
-    io.emit(tenantId, message);
-  });
-});
+// io.on("connection", (socket) => {
+//   socket.on('server-hear', (message) => {
+//     const tenantId = message.tenant;
+//     io.emit(tenantId, message);
+//   });
+// });
 
 var app = express();
 app.use(checkJwt);
@@ -51,7 +51,7 @@ app.set('view engine', 'pug');
 //   console.log('Example app listening on port ' + port + '!');
 // });
 
-app.set('io', io);
+// app.set('io', io);
 
 app.use(logger('dev'));
 app.use(express.json());

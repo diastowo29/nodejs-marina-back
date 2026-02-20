@@ -33,7 +33,7 @@ throng({
 });
 
 function messageHandler (pubMessage) {
-    const socket = io('https://marina-apps.et.r.appspot.com');
+    const socket = io('http://localhost:3002');
     const pubPayload = gcpParser(pubMessage.data);
     if (pubPayload.ping ) {
         return pubMessage.ack();

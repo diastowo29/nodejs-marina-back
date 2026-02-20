@@ -6,7 +6,7 @@
     "start": "node ./bin/www",
     "prisma": "prisma generate --schema=prisma/schema.prisma",
     "prisma:base": "prisma generate --schema=prisma/schemaBase.prisma",
-    "watch": "nodemon ./start.js"
+    "watch_worker": "nodemon worker_pub.js -L"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.5",
@@ -40,7 +40,7 @@
     "throng": "^5.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9",
+    "nodemon": "^3.1.13",
     "prisma": "^6.0.1"
   }
 }
