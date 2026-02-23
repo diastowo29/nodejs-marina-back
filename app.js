@@ -51,7 +51,6 @@ app.set('view engine', 'pug');
 //   console.log('Example app listening on port ' + port + '!');
 // });
 
-// app.set('io', io);
 
 app.use(logger('dev'));
 app.use(express.json());

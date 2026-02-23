@@ -32,8 +32,7 @@ throng({
     start
 });
 
-function messageHandler (pubMessage) {
-    const socket = io(process.env.BE_HOST || 'http://localhost:3002');
+function messageHandler (pubMessage, socket) {
     const pubPayload = gcpParser(pubMessage.data);
     if (pubPayload.ping ) {
         return pubMessage.ack();
@@ -152,20 +151,12 @@ function errorHandler (error) {
 
 function start() {
     console.log('Marina Worker started... ', env);
-    // if  (env == 'production') {
-        const pubsub = new PubSub({projectId: projectId});
-        const topic = pubsub.topic(topicName);
-        const subs = topic.subscription(subsName);
-        subs.on('message', messageHandler);
-        subs.on('error', errorHandler)
-    // } else {
-        // workQueue.process(maxJobsPerWorker, async (job, done) => {
-        //     processJob(job, done);
-        // });
-    // }
-    // subs.on('message', (messageHandler) => {
-    //     messageHandler.
-    // });
+    const socket = io(process.env.BE_HOST || 'http://localhost:3002');
+    const pubsub = new PubSub({projectId: projectId});
+    const topic = pubsub.topic(topicName);
+    const subs = topic.subscription(subsName);
+    subs.on('message', (message) => messageHandler(message, socket));
+    subs.on('error', errorHandler)
 }
 
 async function processLazada(body, pubMessage) {
