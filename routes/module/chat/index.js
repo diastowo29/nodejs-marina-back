@@ -17,7 +17,7 @@ const tokoAppId = process.env.TOKO_APP_ID;
 router.get('/sample', function (req, res, next) {
     console.log('sample socket io');
     const io = req.app.get('io');
-    io.emit(req.tenantId, 'event to ' + req.tenantId);
+    io.emit('worker-event', 'event to ' + req.tenantId);
     res.status(200).send({})
 });
 

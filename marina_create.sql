@@ -1,10 +1,10 @@
--- public."_prisma_migrations" definition
+-- public._prisma_migrations definition
 
 -- Drop table
 
--- DROP TABLE public."_prisma_migrations";
+-- DROP TABLE public._prisma_migrations;
 
-CREATE TABLE public."_prisma_migrations" (
+CREATE TABLE public._prisma_migrations (
 	id varchar(36) NOT NULL,
 	checksum varchar(64) NOT NULL,
 	finished_at timestamptz NULL,
@@ -13,7 +13,7 @@ CREATE TABLE public."_prisma_migrations" (
 	rolled_back_at timestamptz NULL,
 	started_at timestamptz DEFAULT now() NOT NULL,
 	applied_steps_count int4 DEFAULT 0 NOT NULL,
-	CONSTRAINT "_prisma_migrations_pkey" PRIMARY KEY (id)
+	CONSTRAINT _prisma_migrations_pkey PRIMARY KEY (id)
 );
 
 
@@ -44,8 +44,10 @@ CREATE TABLE public.customers (
 	origin_id text NULL,
 	phone text NULL,
 	email text NULL,
+	im_origin_id text NULL,
 	CONSTRAINT customers_pkey PRIMARY KEY (id)
 );
+CREATE UNIQUE INDEX customers_im_origin_id_key ON public.customers USING btree (im_origin_id);
 CREATE UNIQUE INDEX customers_origin_id_key ON public.customers USING btree (origin_id);
 
 
@@ -62,24 +64,6 @@ CREATE TABLE public.logistic (
 	CONSTRAINT logistic_pkey PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX logistic_name_key ON public.logistic USING btree (name);
-
-
--- public.omnichat_user definition
-
--- Drop table
-
--- DROP TABLE public.omnichat_user;
-
-CREATE TABLE public.omnichat_user (
-	id serial4 NOT NULL,
-	username text NULL,
-	"thumbnailUrl" text NULL,
-	origin_id text NULL,
-	"createdAt" timestamp(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"externalId" text NULL,
-	CONSTRAINT omnichat_user_pkey PRIMARY KEY (id)
-);
-CREATE UNIQUE INDEX omnichat_user_origin_id_key ON public.omnichat_user USING btree (origin_id);
 
 
 -- public.omnicrm definition
@@ -213,10 +197,10 @@ CREATE TABLE public.omnichat (
 	"createdAt" timestamp(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	"updatedAt" timestamp(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	"storeId" int4 NULL,
-	"omnichat_userId" int4 NULL,
 	"externalId" text NULL,
+	"customersId" int4 NULL,
 	CONSTRAINT omnichat_pkey PRIMARY KEY (id),
-	CONSTRAINT "omnichat_omnichat_userId_fkey" FOREIGN KEY ("omnichat_userId") REFERENCES public.omnichat_user(id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT "omnichat_customersId_fkey" FOREIGN KEY ("customersId") REFERENCES public.customers(id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT "omnichat_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES public.store(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE UNIQUE INDEX omnichat_origin_id_key ON public.omnichat USING btree (origin_id);
@@ -235,11 +219,9 @@ CREATE TABLE public.omnichat_line (
 	line_text text NOT NULL,
 	"omnichatId" int4 NULL,
 	author text NULL,
-	"omnichat_userId" int4 NULL,
 	chat_type text NULL,
 	CONSTRAINT omnichat_line_pkey PRIMARY KEY (id),
-	CONSTRAINT "omnichat_line_omnichatId_fkey" FOREIGN KEY ("omnichatId") REFERENCES public.omnichat(id) ON DELETE SET NULL ON UPDATE CASCADE,
-	CONSTRAINT "omnichat_line_omnichat_userId_fkey" FOREIGN KEY ("omnichat_userId") REFERENCES public.omnichat_user(id) ON DELETE SET NULL ON UPDATE CASCADE
+	CONSTRAINT "omnichat_line_omnichatId_fkey" FOREIGN KEY ("omnichatId") REFERENCES public.omnichat(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE UNIQUE INDEX omnichat_line_origin_id_key ON public.omnichat_line USING btree (origin_id);
 
@@ -285,6 +267,14 @@ CREATE TABLE public.orders (
 	shipping_price int4 NULL,
 	total_amount int4 NULL,
 	"updatedAt" timestamp(3) NOT NULL,
+	buyer_service_fee int4 NULL,
+	handling_fee int4 NULL,
+	item_insurance_fee int4 NULL,
+	platform_discount int4 NULL,
+	seller_discount int4 NULL,
+	shipping_insurance_fee int4 NULL,
+	shipping_platform_discount int4 NULL,
+	shipping_seller_discount int4 NULL,
 	CONSTRAINT orders_pkey PRIMARY KEY (id),
 	CONSTRAINT "orders_customersId_fkey" FOREIGN KEY ("customersId") REFERENCES public.customers(id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT "orders_logisticId_fkey" FOREIGN KEY ("logisticId") REFERENCES public.logistic(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -314,6 +304,8 @@ CREATE TABLE public.products (
 	stock int4 NULL,
 	sku text NULL,
 	"storeId" int4 NULL,
+	url text NULL,
+	pre_order bool NULL,
 	CONSTRAINT products_pkey PRIMARY KEY (id),
 	CONSTRAINT "products_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES public.store(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -351,16 +343,38 @@ CREATE UNIQUE INDEX products_img_origin_id_key ON public.products_img USING btre
 CREATE TABLE public.return_refund (
 	id serial4 NOT NULL,
 	origin_id text NULL,
-	status text NULL,
+	system_status text NULL,
 	total_amount int4 NOT NULL,
 	return_type text NULL,
 	return_reason text NULL,
 	"ordersId" int4 NOT NULL,
+	status text NULL,
 	CONSTRAINT return_refund_pkey PRIMARY KEY (id),
 	CONSTRAINT "return_refund_ordersId_fkey" FOREIGN KEY ("ordersId") REFERENCES public.orders(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
-CREATE UNIQUE INDEX "return_refund_ordersId_key" ON public.return_refund USING btree ("ordersId");
 CREATE UNIQUE INDEX return_refund_origin_id_key ON public.return_refund USING btree (origin_id);
+
+
+-- public.varian definition
+
+-- Drop table
+
+-- DROP TABLE public.varian;
+
+CREATE TABLE public.varian (
+	id serial4 NOT NULL,
+	origin_id text NULL,
+	price int4 NOT NULL,
+	"name" text NOT NULL,
+	sku text NULL,
+	stock int4 NULL,
+	status text NULL,
+	pre_order bool NULL,
+	"productsOriginId" text NOT NULL,
+	CONSTRAINT varian_pkey PRIMARY KEY (id),
+	CONSTRAINT "varian_productsOriginId_fkey" FOREIGN KEY ("productsOriginId") REFERENCES public.products(origin_id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX varian_origin_id_key ON public.varian USING btree (origin_id);
 
 
 -- public.order_items definition
@@ -400,10 +414,10 @@ CREATE TABLE public.return_line_item (
 	currency text NULL,
 	refund_subtotal int4 NOT NULL,
 	refund_total int4 NOT NULL,
-	"order_itemsId" int4 NOT NULL,
 	"return_refundId" int4 NULL,
+	"order_itemsOriginId" text DEFAULT '250929R2XCR3QX-801976400'::text NOT NULL,
 	CONSTRAINT return_line_item_pkey PRIMARY KEY (id),
-	CONSTRAINT "return_line_item_order_itemsId_fkey" FOREIGN KEY ("order_itemsId") REFERENCES public.order_items(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT "return_line_item_order_itemsOriginId_fkey" FOREIGN KEY ("order_itemsOriginId") REFERENCES public.order_items(origin_id) ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT "return_line_item_return_refundId_fkey" FOREIGN KEY ("return_refundId") REFERENCES public.return_refund(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE UNIQUE INDEX return_line_item_origin_id_key ON public.return_line_item USING btree (origin_id);

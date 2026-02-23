@@ -30,7 +30,7 @@ const io = require("socket.io")(server, {
 });
 
 io.on("connection", (socket) => {
-  socket.on('server-hear', (message) => {
+  socket.on('worker-event', (message) => {
     console.log('get message from client ', message);
     const tenantId = message.tenant;
     io.emit(tenantId, message);

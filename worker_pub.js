@@ -92,7 +92,7 @@ function messageHandler (pubMessage) {
                         } else if (taskPayload.code == 12 || taskPayload.code == 11) {
                             collectReturnRequest(taskPayload, pubMessage);
                         } else if (taskPayload.code == 14) {
-                            socket.emit('server-hear', {tenant: org[1], message: taskPayload.message.origin_id});
+                            socket.emit('worker-event', {tenant: org[1], message: taskPayload.message.origin_id});
                             forwardConversation(taskPayload, pubMessage);
                         } else {
                             console.log('code %s not implemented yet', taskPayload.code);
