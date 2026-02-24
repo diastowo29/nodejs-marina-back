@@ -22,24 +22,6 @@ var crmRouter = require('./routes/module/crm');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
 const { tenantIdentifier } = require('./middleware/tenantIdentifier');
-// const httpServer = require("http").createServer(app);
-// const io = require("socket.io")(httpServer, {
-//     path: '/',
-//     cors: {
-//       origin: [process.env.FRONTEND_URL]
-//     }
-// });
-
-// httpServer.listen(8080, () => {
-//    console.log("Websocket started at port ", 8080)
-// });
-
-// io.on("connection", (socket) => {
-//   socket.on('server-hear', (message) => {
-//     const tenantId = message.tenant;
-//     io.emit(tenantId, message);
-//   });
-// });
 
 var app = express();
 app.use(checkJwt);
@@ -47,11 +29,6 @@ app.use(helmet());
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
-// app.listen(port, function () {
-//   console.log('Example app listening on port ' + port + '!');
-// });
-
-
 app.use(logger('dev'));
 app.use(express.json());
 app.use(tenantIdentifier); //// <<================= ENABLE THIS
@@ -81,10 +58,6 @@ app.use(function(req, res, next) {
   res.status(404).send({status: 404, message: 'Are you lost? This page does not exist.'});
 });
 
-// app.use(function(req, res, next) {
-//   console.log('middleware');
-//   next();
-// })
 
 // error handler
 app.use(function(err, req, res, next) {

@@ -30,8 +30,6 @@ const io = require('socket.io')(server, {
 });
 io.on('connection', (socket) => {
   console.log('socket connected : ', socket.id);
-  // const qtd = socket.client.conn.server.clientsCount;
-  // io.emit('novaconexao', qtd);
   socket.on('disconnect', () => {
     console.log('socket disconnected : ', socket.id);
     // io.emit('disconnecteduser', qtd - 1);

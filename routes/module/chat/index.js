@@ -14,12 +14,12 @@ const { PrismaClient } = require('../../../prisma/generated/client');
 let mPrisma = new PrismaClient();
 const tokoAppId = process.env.TOKO_APP_ID;
 
-router.get('/sample', function (req, res, next) {
+/* router.get('/sample', function (req, res, next) {
     console.log('sample socket io');
     const io = req.app.get('io');
     io.emit('worker-event', 'event to ' + req.tenantId);
     res.status(200).send({})
-});
+}); */
 
 router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;

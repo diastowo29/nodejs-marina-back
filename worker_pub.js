@@ -109,6 +109,9 @@ function messageHandler (pubMessage, socket) {
             case 'lazada':
                 routeLazada(pubPayload, prisma, org).then(async (taskPayload) => {
                     if (taskPayload.code) {
+                        if (taskPayload.code == 2) {
+                            socket.emit('worker-event', {tenant: org[1], message: taskPayload.message.origin_id});
+                        }
                         processLazada(taskPayload, pubMessage);
                     } else {
                         pubMessage.ack();
