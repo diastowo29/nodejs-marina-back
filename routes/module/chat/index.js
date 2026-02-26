@@ -24,6 +24,11 @@ const tokoAppId = process.env.TOKO_APP_ID;
 router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;
     let chat = await mPrisma.omnichat.findMany({
+        where: {
+            customer: {
+                NOT: null
+            }
+        },
         include: {
             customer: true,
             store: {
@@ -36,6 +41,7 @@ router.get('/', async function(req, res, next) {
             updatedAt: 'desc'
         }
     });
+    console.log(chat);
     res.status(200).send({omnichat: chat, tenant_id: req.tenantId});
 });
 
