@@ -492,14 +492,22 @@ router.post(PATH_AUTH, async function(req, res, next) {
     // }
 
     // console.log(JSON.stringify(req.body));
-  
+
+    const partnerBody = req.body.id;
+    const shopeePartnerId = PARTNER_ID;
+    const shopeePartnerKey = PARTNER_KEY;
+    if (partnerBody) {
+        partnerBody = Buffer.from(partnerBody, 'base64').toString('ascii');
+        shopeePartnerId = partnerBody.split(':')[0];
+        shopeePartnerKey = partnerBody.split(':')[1];
+    }
     const ts = Math.floor(Date.now() / 1000);
-    var shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_TOKEN}${ts}`;
+    var shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_TOKEN}${ts}`;
     // var sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-    var sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
+    var sign = createHmac('sha256', shopeePartnerKey).update(shopeeSignString).digest('hex');
     const bodyPayload = {
         code: req.body.code,
-        partner_id: Number.parseInt(PARTNER_ID),
+        partner_id: Number.parseInt(shopeePartnerId),
         shop_id: Number.parseInt(req.body.shop_id),
     }
 
@@ -507,7 +515,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
     let token = {};
     try {
         token = await api.post(
-            `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${PARTNER_ID}&timestamp=${ts}&sign=${sign}`,
+            `${SHOPEE_HOST}${GET_SHOPEE_TOKEN}?partner_id=${shopeePartnerId}&timestamp=${ts}&sign=${sign}`,
             JSON.stringify(bodyPayload),
             {
                 headers: {
@@ -531,10 +539,10 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(token.data);
             return res.status(400).send(token.data);
         }
-        shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
+        shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
         // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-        sign = createHmac('sha256', PARTNER_KEY).update(shopeeSignString).digest('hex');
-        const shopInfoParams = `partner_id=${PARTNER_ID}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
+        sign = createHmac('sha256', shopeePartnerKey).update(shopeeSignString).digest('hex');
+        const shopInfoParams = `partner_id=${shopeePartnerId}&timestamp=${ts}&access_token=${token.data.access_token}&shop_id=${req.body.shop_id}&sign=${sign}`;
         let shopInfo = {};
         try {
             shopInfo = await api.get(`${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`)
