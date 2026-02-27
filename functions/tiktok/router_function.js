@@ -312,7 +312,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                         origin_id: jsonBody.data.conversation_id
                     },
                     update: {
-                        /* last_message: jsonBody.data.content,
+                        last_message: jsonBody.data.content,
                         last_messageId: jsonBody.data.message_id,
                         updatedAt: new Date(),
                         messages: {
@@ -327,7 +327,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     chat_type: jsonBody.data.type
                                 }
                             }
-                        }, */
+                        },
                     },
                     create: {
                         last_message: jsonBody.data.content,
