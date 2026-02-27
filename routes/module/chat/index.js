@@ -26,7 +26,7 @@ router.get('/', async function(req, res, next) {
     let chat = await mPrisma.omnichat.findMany({
         where: {
             customer: {
-                NOT: null
+                isNot: null
             }
         },
         include: {

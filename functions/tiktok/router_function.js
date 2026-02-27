@@ -312,7 +312,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                         origin_id: jsonBody.data.conversation_id
                     },
                     update: {
-                        last_message: jsonBody.data.content,
+                        /* last_message: jsonBody.data.content,
                         last_messageId: jsonBody.data.message_id,
                         updatedAt: new Date(),
                         messages: {
@@ -327,7 +327,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     chat_type: jsonBody.data.type
                                 }
                             }
-                        },
+                        }, */
                     },
                     create: {
                         last_message: jsonBody.data.content,
@@ -374,9 +374,12 @@ async function routeTiktok (jsonBody, prisma, org) {
                         }
                     }
                 });
-                if (upsertMessage.store.channel.client.integration.length > 0) {
+                // if (upsertMessage.store.channel.client.integration.length > 0) {
+                    let doSyncCustomer = false;
                     if (jsonBody.data.sender.role == 'BUYER') {
+                        doSyncCustomer = true;
                         if (upsertMessage.customer) {
+                            doSyncCustomer = false;
                             userExternalId = `tiktok-${upsertMessage.customer.origin_id}-${jsonBody.shop_id}`;
                         }
                         taskPayload = {
@@ -390,10 +393,10 @@ async function routeTiktok (jsonBody, prisma, org) {
                             tenantDB: getTenantDB(org[1]),
                             shopId: jsonBody.shop_id,
                             orgId: org[1],
-                            syncCustomer: (upsertMessage.customer) ? false : true
+                            syncCustomer: doSyncCustomer
                         }
                     }
-                }
+                // }
             } catch (err) {
                 console.log(err);
                 throw new Error(err);                
