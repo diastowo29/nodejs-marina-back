@@ -556,7 +556,7 @@ async function callShopee (method, url, body, refreshToken, shopId, tenantConfig
         console.log(err.response.data)
         if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
             let newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
-            console.log(newToken)
+            console.log('shopid: ' + shopId + ' refresh token: ' +  refreshToken)
             if (!newToken.data.access_token) {
                 throw new Error('Failed to refresh token');
             }
