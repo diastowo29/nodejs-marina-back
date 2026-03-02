@@ -493,9 +493,9 @@ router.post(PATH_AUTH, async function(req, res, next) {
 
     // console.log(JSON.stringify(req.body));
 
-    const partnerBody = req.body.id;
-    const shopeePartnerId = PARTNER_ID;
-    const shopeePartnerKey = PARTNER_KEY;
+    let partnerBody = req.body.partner_id;
+    let shopeePartnerId = PARTNER_ID;
+    let shopeePartnerKey = PARTNER_KEY;
     if (partnerBody) {
         partnerBody = Buffer.from(partnerBody, 'base64').toString('ascii');
         shopeePartnerId = partnerBody.split(':')[0];
@@ -508,7 +508,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
     const bodyPayload = {
         code: req.body.code,
         partner_id: Number.parseInt(shopeePartnerId),
-        shop_id: Number.parseInt(req.body.shop_id),
+        shop_id: Number.parseInt(req.body.shop_id)
     }
 
     /* Generate shopee access token */

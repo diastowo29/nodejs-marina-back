@@ -421,7 +421,7 @@ async function collectShopeeOrder (body) {
         });
 
         console.log(productsToFetch.length);
-        getProductVarian(productsToFetch, body.shop_id);
+        getProductVarian(productsToFetch, body);
         // get product images
         api.get(GET_SHOPEE_PRODUCTS_INFO(body.token, productsToFetch, body.shop_id)).then((shopeeProducts) => {
             if ((shopeeProducts.data.error) || (shopeeProducts.data.response.item_list.length === 0)) {
@@ -458,11 +458,11 @@ async function collectShopeeOrder (body) {
     // done(null, {response: 'testing'});
 }
 
-async function getProductVarian (productIds, shopId) {
+async function getProductVarian (productIds, body) {
     const getModelIdsPromises = [];
     productIds.forEach(id => {
         getModelIdsPromises.push(
-            api.get(GET_SHOPEE_PRODUCTS_MODEL(accToken, id, shopId))
+            api.get(GET_SHOPEE_PRODUCTS_MODEL(body.token, id, body.shop_id))
         );
     });
     const varianPromise = await Promise.all(getModelIdsPromises);
