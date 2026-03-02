@@ -245,6 +245,10 @@ async function collectShopeeOrder (body) {
         tenantDB: body.tenantDB
     }
     const order = await callShopee('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+    if (!order) {
+        console.log(order);
+        throw new Error('Failed to retrieve order data');
+    }
     if ((order.data.error) || (order.data.response.order_list.length === 0)) {
         console.log('order error: %s', body.order_id);
         console.log(order.data);
