@@ -32,10 +32,10 @@ api.interceptors.response.use((response) => {
     // console.log(response);
     return response;
 }, async (error) => {
-    const originalRequest = error.config;
-    console.log('Interceptor Error');
+    // const originalRequest = error.config;
+    // console.log('Interceptor Error');
     // console.log(error);
-    if (error.hostname != 'partner.test-stable.shopeemobile.com')  {
+    /* if (error.hostname != 'partner.test-stable.shopeemobile.com')  {
         if (!error.response) {
             console.error('Network error:', error);
             return Promise.reject(new Error('Network error, please try again later.'));
@@ -65,7 +65,7 @@ api.interceptors.response.use((response) => {
             }
         }
     }
-    return Promise.reject(error);
+    return Promise.reject(error); */
 });
 
 async function generateTokpedToken () {

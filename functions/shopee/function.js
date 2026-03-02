@@ -499,14 +499,16 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
     let ts = Math.floor(Date.now() / 1000);
     const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
     const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+    const genTokenPayload =  {
+        refresh_token: decryptData(refToken),
+        partner_id: Number.parseInt(PARTNER_ID),
+        shop_id: Number.parseInt(shop_id),
+    };
+    console.log(genTokenPayload);
     let token = await axios({
         method: 'POST',
         url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
-        data: {
-            refresh_token: decryptData(refToken),
-            partner_id: Number.parseInt(PARTNER_ID),
-            shop_id: Number.parseInt(shop_id),
-        },
+        data: genTokenPayload,
     }).catch(async function (err) {
         if (err.response) {
             console.log(err.response.data);
