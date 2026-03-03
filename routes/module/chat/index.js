@@ -41,7 +41,7 @@ router.get('/', async function(req, res, next) {
             updatedAt: 'desc'
         }
     });
-    console.log(chat);
+    // console.log(chat);
     res.status(200).send({omnichat: chat, tenant_id: req.tenantId});
 });
 
@@ -61,7 +61,7 @@ router.get('/comments', async function(req, res, next) {
             createdAt: 'asc'
         }
     });
-    console.log(JSON.stringify(comments));
+    // console.log(JSON.stringify(comments));
     res.status(200).send(comments);
 })
 
