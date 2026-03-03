@@ -18,27 +18,30 @@ async function collectShopeeTrackNumber(body) {
         tenantDB: body.tenantDB
     }
     try {
-        const trackingNumber = await callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig);
-        console.log(trackingNumber);
-        if (trackingNumber.data && trackingNumber.data.response) {
-            console.log(trackingNumber.data.response);
-            prisma.orders.update({
-                where: {
-                    origin_id: body.order_id
-                },
-                data: {
-                    tracking_number: trackingNumber.data.response.tracking_number
-                }
-            }).then(() => {
-                console.log('Tracking number updated');
-            }).catch((err) => {
-                console.log(err);
-                console.log('Error updating tracking number');
-                throw new Error(err);
-            })
-        } else {
-            console.log('Tracking number not found for orderId: ' + body.order_id);
-        }
+        callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig).then((trackingNumber) => {
+            // console.log(trackingNumber);
+            if (trackingNumber.data && trackingNumber.data.response) {
+                // console.log(trackingNumber.data.response);
+                prisma.orders.update({
+                    where: {
+                        origin_id: body.order_id
+                    },
+                    data: {
+                        tracking_number: trackingNumber.data.response.tracking_number
+                    }
+                }).then(() => {
+                    console.log('Tracking number updated');
+                }).catch((err) => {
+                    console.log(err);
+                    console.log('Error updating tracking number');
+                    throw new Error(err);
+                })
+            } else {
+                console.log('Tracking number not found for orderId: ' + body.order_id);
+            }
+        }).catch((err) => {
+            console.log(err)
+        });
     } catch (err) {
         console.log(err);
         throw new Error(err);
@@ -502,19 +505,40 @@ async function getProductVarian (productIds, body) {
 async function generateShopeeToken (shop_id, refToken, tenantConfig) {
     prisma = getPrismaClientForTenant(tenantConfig.org_id, tenantConfig.tenantDB.url);
     let ts = Math.floor(Date.now() / 1000);
-    const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
-    const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
-    const genTokenPayload =  {
-        refresh_token: decryptData(refToken),
-        partner_id: Number.parseInt(PARTNER_ID),
-        shop_id: Number.parseInt(shop_id),
-    };
-    console.log(genTokenPayload);
-    let token = await axios({
-        method: 'POST',
-        url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
-        data: genTokenPayload,
-    }).catch(async function (err) {
+    try {
+        const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
+        const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
+        const genTokenPayload =  {
+            refresh_token: decryptData(refToken),
+            partner_id: Number.parseInt(PARTNER_ID),
+            shop_id: Number.parseInt(shop_id),
+        };
+        console.log(genTokenPayload);
+        let token = await axios({
+            method: 'POST',
+            url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
+            data: genTokenPayload,
+        });
+        if ((token.data) && (token.data.access_token)) {
+            await prisma.store.update({
+                where: {
+                    origin_id: shop_id.toString()
+                },
+                data: {
+                    token: encryptData(token.data.access_token),
+                    refresh_token: encryptData(token.data.refresh_token)
+                }
+            }).catch(function (err) {
+                console.log(err);
+                return err;
+            })
+            return token.data;
+        } else {
+            console.log('refresh token invalid');
+            console.log(token);
+            return;
+        }
+    } catch (err) {
         if (err.response) {
             console.log(err.response.data);
             if (err.response.data.error == 'shop_access_expired') {
@@ -532,50 +556,45 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
             console.log(err);
             return err;
         }
-    });
-    if ((token.data) && (token.data.access_token)) {
-        await prisma.store.update({
-            where: {
-                origin_id: shop_id.toString()
-            },
-            data: {
-                token: encryptData(token.data.access_token),
-                refresh_token: encryptData(token.data.refresh_token)
-            }
-        }).catch(function (err) {
-            console.log(err);
-            return err;
-        })
-        return token.data;
-    } else {
-        console.log('refresh token invalid');
-        console.log(token);
-        return;
     }
 }
 
 async function callShopee (method, url, body, refreshToken, shopId, tenantConfig) {
-    return api({
-        method: method,
-        url: url,
-        data: (body) ? body : {}
-    }).catch(async function (err) {
-        console.log(err.response.data)
-        if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-            let newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
-            console.log('shopid: ' + shopId + ' refresh token: ' +  refreshToken)
-            if (!newToken.data.access_token) {
-                throw new Error('Failed to refresh token');
+    try {
+        return await api({
+            method: method,
+            url: url,
+            data: (body) ? body : {}
+        });
+    } catch (err) {
+        const errorData = err.response?.data || {};
+        const statusCode = err.response?.status;
+        
+        console.log(`API Error - Status: ${statusCode}, Data:`, errorData);
+        
+        if ((statusCode === 403) && (errorData.error === 'invalid_acceess_token')) {
+            try {
+                console.log('Attempting to refresh token for shop:', shopId);
+                const newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
+                
+                if (!newToken || !newToken.access_token) {
+                    throw new Error('Failed to refresh token - no access token received');
+                }
+                
+                // Retry the original request with new token
+                return await api({
+                    method: method,
+                    url: url,
+                    data: (body) ? body : {}
+                });
+            } catch (refreshErr) {
+                console.error('Token refresh failed:', refreshErr.message);
+                throw new Error(`Token refresh failed: ${refreshErr.message}`);
             }
-            return api({
-                method: method,
-                url: url,
-                data: (body) ? body : {}
-            })
         } else {
-            throw new Error(err.response.data);
+            throw new Error(`Shopee API Error: ${JSON.stringify(errorData)}`);
         }
-    });
+    }
 }
 
 module.exports = {
