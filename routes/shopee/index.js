@@ -496,10 +496,20 @@ router.post(PATH_AUTH, async function(req, res, next) {
     let partnerBody = req.body.partner_id;
     let shopeePartnerId = PARTNER_ID;
     let shopeePartnerKey = PARTNER_KEY;
+    let tokenDbPayload = {
+        status: 'ACTIVE',
+        token: '',
+        refresh_token: ''
+    }
     if (partnerBody) {
         partnerBody = Buffer.from(partnerBody, 'base64').toString('ascii');
         shopeePartnerId = partnerBody.split(':')[0];
         shopeePartnerKey = partnerBody.split(':')[1];
+        tokenDbPayload = {
+            status: 'ACTIVE',
+            secondary_token: '',
+            secondary_refresh_token: ''
+        }
     }
     const ts = Math.floor(Date.now() / 1000);
     var shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_TOKEN}${ts}`;
@@ -510,7 +520,6 @@ router.post(PATH_AUTH, async function(req, res, next) {
         partner_id: Number.parseInt(shopeePartnerId),
         shop_id: Number.parseInt(req.body.shop_id)
     }
-
     /* Generate shopee access token */
     let token = {};
     try {
@@ -539,6 +548,12 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(token.data);
             return res.status(400).send(token.data);
         }
+        tokenDbPayload['token'] = encryptData(token.data.access_token);
+        tokenDbPayload['refresh_token'] = encryptData(token.data.refresh_token);
+        if (partnerBody) {
+            tokenDbPayload['secondary_token'] = encryptData(token.data.access_token);
+            tokenDbPayload['secondary_refresh_token'] = encryptData(token.data.refresh_token);
+        }
         shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
         // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
         sign = createHmac('sha256', shopeePartnerKey).update(shopeeSignString).digest('hex');
@@ -549,6 +564,17 @@ router.post(PATH_AUTH, async function(req, res, next) {
         } catch (err) {
             console.log(err.response.data);
             return res.status(400).send({error: err.response.data});
+        }
+
+        if (partnerBody) {
+            prisma.store.update({
+                where: {
+                    origin_id: req.body.shop_id.toString()
+                },
+                data: tokenDbPayload
+            }).then(() => {
+                return res.status(200).send({});
+            })
         }
         
         if (shopInfo.data) {
@@ -572,8 +598,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     create: {
                         origin_id: req.body.shop_id.toString(),
                         name: shopInfo.data.shop_name,
-                        token: encryptData(token.data.access_token),
                         status: 'ACTIVE',
+                        token: encryptData(token.data.access_token),
                         refresh_token: encryptData(token.data.refresh_token),
                         channel: {
                             connectOrCreate: {
