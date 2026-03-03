@@ -513,7 +513,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
             partner_id: Number.parseInt(PARTNER_ID),
             shop_id: Number.parseInt(shop_id),
         };
-        console.log(genTokenPayload);
+        // console.log(genTokenPayload);
         let token = await axios({
             method: 'POST',
             url: `${SHOPEE_HOST}${GET_SHOPEE_REFRESH_TOKEN}?sign=${sign}&partner_id=${PARTNER_ID}&timestamp=${ts}`,
