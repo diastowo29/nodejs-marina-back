@@ -19,6 +19,7 @@ async function collectShopeeTrackNumber(body) {
     }
     try {
         const trackingNumber = await callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+        console.log(trackingNumber);
         if (trackingNumber.data && trackingNumber.data.response) {
             console.log(trackingNumber.data.response);
             prisma.orders.update({
