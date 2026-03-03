@@ -528,10 +528,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
                     token: encryptData(token.data.access_token),
                     refresh_token: encryptData(token.data.refresh_token)
                 }
-            }).catch(function (err) {
-                console.log(err);
-                return err;
-            })
+            });
             return token.data;
         } else {
             console.log('refresh token invalid');
@@ -576,7 +573,7 @@ async function callShopee (method, url, body, refreshToken, shopId, tenantConfig
             try {
                 console.log('Attempting to refresh token for shop:', shopId);
                 const newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
-                
+                // console.log(newToken);
                 if (!newToken || !newToken.access_token) {
                     throw new Error('Failed to refresh token - no access token received');
                 }
