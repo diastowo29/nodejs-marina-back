@@ -383,6 +383,8 @@ async function processShopee(body, pubMessage) {
                 console.log(JSON.stringify(body));
                 console.log(error);
                 pubMessage.nack();
+            }).then(() => {
+                pubMessage.ack();
             })
         } else {
             collectShopeeOrder(body).catch((error) => {
@@ -390,6 +392,8 @@ async function processShopee(body, pubMessage) {
                 console.log(JSON.stringify(body));
                 console.log(error);
                 pubMessage.nack();
+            }).then(() => {
+                pubMessage.ack();
             })
         }
     } else if (body.code == 9999) {
