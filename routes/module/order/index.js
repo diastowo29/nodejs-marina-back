@@ -451,6 +451,7 @@ router.put('/:id', async function(req, res, next) {
             }
             break;
         case SHOPEE:
+            let callSpeParams = {};
             const tenantConfig = {
                 org_id: req.tenantId,
                 tenantDB: req.tenantDB
@@ -507,9 +508,9 @@ router.put('/:id', async function(req, res, next) {
             } else if (action == 'approve') {
                 try {
                     const cancellation = await Promise.all([
-                        api.post(SPE_HANDLE_CANCELLATION(order.store.accessToken, order.store.origin_id), {
+                        api.post(SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id), {
                             order_sn: order.origin_id,
-                            operation: "approve"
+                            operation: "ACCEPT"
                         }),
                         mPrisma.orders.update({
                             where: {
@@ -520,6 +521,7 @@ router.put('/:id', async function(req, res, next) {
                             }
                         })
                     ])
+                    // console.log(cancellation[0].data);
                     responseCode = 200;
                     responseData = cancellation[0].data;
                 } catch (err) {
@@ -534,7 +536,7 @@ router.put('/:id', async function(req, res, next) {
                 }
             } else if (action == 'reject') {
                 try {
-                    const approveCancel = await api.post(SPE_HANDLE_CANCELLATION(order.store.accessToken, order.store.origin_id), {
+                    const approveCancel = await api.post(SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id), {
                         order_sn: order.origin_id,
                         operation: 'REJECT'
                     });
@@ -554,23 +556,47 @@ router.put('/:id', async function(req, res, next) {
                 //GET SHIP PARAMS
                 try {
                     let accessToken = order.store.token;
+                    /* SHOULD BE USED SOON */
+                    callSpeParams = {
+                        method: 'get',
+                        url: SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id),
+                        body: {},
+                        refreshToken: order.store.refresh_token,
+                        shopOriginId: order.store.origin_id,
+                        tenantConfig: tenantConfig
+                    }
+                    /* SHOULD BE USED SOON */
                     const shipParams = await callShopee('get', GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig);
                     if (shipParams.data.error) {
                         return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
                     }
                     // console.log(JSON.stringify(shipParams.data));
+                    statusCode = 200;
+                    responseCode = 200;
+                    responseData = shipParams.data;
+                    data = {};
+                    if (!req.body.shipment) {
+                        return res.status(200).send({shipping_params: shipParams.data});
+                    }
                     let pickupParams = {};
-                    if (shipParams.data.response.pickup && shipParams.data.response.pickup.address_list) {
+                    if (req.body.shipment.address_id) {
                         pickupParams = {
-                            address_id: shipParams.data.response.pickup.address_list[0].address_id,
-                            pickup_time_id: shipParams.data.response.pickup.address_list[0].time_slot_list[0].pickup_time_id
+                            address_id: req.body.shipment.address_id,
                         }
                     }
                     const shipmentPayload = {
                         order_sn: order.origin_id,
                         pickup: pickupParams
                     };
-                    console.log(shipmentPayload);
+                    // console.log(shipmentPayload);
+                    callSpeParams = {
+                        method: 'post',
+                        url: SHOPEE_SHIP_ORDER(order.store.token, order.store.origin_id),
+                        body: JSON.stringify(shipmentPayload),
+                        refreshToken: order.store.refresh_token,
+                        shopOriginId: order.store.origin_id,
+                        tenantConfig: tenantConfig
+                    }
                     const shipArrangement = await callShopee('post', SHOPEE_SHIP_ORDER(accessToken, order.store.origin_id), JSON.stringify(shipmentPayload), order.store.refresh_token, order.store.origin_id, tenantConfig);
                     if (shipArrangement.data.error) {
                         return res.status(400).send({
@@ -579,9 +605,6 @@ router.put('/:id', async function(req, res, next) {
                             arrangement: shipArrangement.data
                         });
                     }
-                    statusCode = shipArrangement.status;
-                    responseCode = shipArrangement.statusCode;
-                    responseData = shipArrangement.data;
                 } catch (err) {
                     if (err.response) {
                         responseCode = err.response.statusCode;
@@ -647,6 +670,10 @@ router.put('/:id', async function(req, res, next) {
         /* case TOKOPEDIA:
             break; */
         default:
+            statusCode = 400;
+            responseData = 'Action for this channel is not available yet';
+            responseCode = 400;
+            data = {};
             break;
     }
     res.status(statusCode).send({
