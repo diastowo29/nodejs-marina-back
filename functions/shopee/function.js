@@ -18,30 +18,21 @@ async function collectShopeeTrackNumber(body) {
         tenantDB: body.tenantDB
     }
     try {
-        callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig).then((trackingNumber) => {
-            // console.log(trackingNumber);
-            if (trackingNumber.data && trackingNumber.data.response) {
-                // console.log(trackingNumber.data.response);
-                prisma.orders.update({
-                    where: {
-                        origin_id: body.order_id
-                    },
-                    data: {
-                        tracking_number: trackingNumber.data.response.tracking_number
-                    }
-                }).then(() => {
-                    console.log('Tracking number updated');
-                }).catch((err) => {
-                    console.log(err);
-                    console.log('Error updating tracking number');
-                    throw new Error(err);
-                })
-            } else {
-                console.log('Tracking number not found for orderId: ' + body.order_id);
-            }
-        }).catch((err) => {
-            console.log(err)
-        });
+        const trackingNumber = await callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+        if (trackingNumber.data && trackingNumber.data.response) {
+            // console.log(trackingNumber.data.response);
+            const _ = await prisma.orders.update({
+                where: {
+                    origin_id: body.order_id
+                },
+                data: {
+                    tracking_number: trackingNumber.data.response.tracking_number
+                }
+            });
+            console.log('success updating tracking number');
+        } else {
+            console.log('Tracking number not found for orderId: ' + body.order_id);
+        }
     } catch (err) {
         console.log(err);
         throw new Error(err);
