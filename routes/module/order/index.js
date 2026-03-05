@@ -566,29 +566,28 @@ router.put('/:id', async function(req, res, next) {
                         tenantConfig: tenantConfig
                     }
                     /* SHOULD BE USED SOON */
-                    const shipParams = await callShopee('get', GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig);
-                    if (shipParams.data.error) {
-                        return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
-                    }
-                    // console.log(JSON.stringify(shipParams.data));
-                    statusCode = 200;
-                    responseCode = 200;
-                    responseData = shipParams.data;
-                    data = {};
                     if (!req.body.shipment) {
+                        const shipParams = await callShopee('get', GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig);
+                        if (shipParams.data.error) {
+                            return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
+                        }
+                        // console.log(JSON.stringify(shipParams.data));
+                        statusCode = 200;
+                        responseCode = 200;
+                        responseData = shipParams.data;
+                        data = {};
                         return res.status(200).send({shipping_params: shipParams.data});
                     }
-                    let pickupParams = {};
-                    if (req.body.shipment.address_id) {
-                        pickupParams = {
-                            address_id: req.body.shipment.address_id,
-                        }
-                    }
-                    const shipmentPayload = {
+                    let shipmentPayload = {
                         order_sn: order.origin_id,
-                        pickup: pickupParams
-                    };
-                    // console.log(shipmentPayload);
+                        dropoff: {}
+                    }
+                    if (req.body.shipment.address_id) {
+                        shipmentPayload = {
+                            order_sn: order.origin_id,
+                            pickup: req.body.shipment.address_id
+                        };
+                    }
                     callSpeParams = {
                         method: 'post',
                         url: SHOPEE_SHIP_ORDER(order.store.token, order.store.origin_id),
@@ -605,6 +604,8 @@ router.put('/:id', async function(req, res, next) {
                             arrangement: shipArrangement.data
                         });
                     }
+                    responseCode = 200;
+                    responseData = cancellation[0].data;
                 } catch (err) {
                     if (err.response) {
                         responseCode = err.response.statusCode;
