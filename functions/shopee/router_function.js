@@ -79,10 +79,11 @@ async function routeShopee (jsonBody, mPrisma, org) {
             if (jsonBody.data.type == 'message') {
                 try {
                     const userExternalId = `shopee-${jsonBody.data.content.from_id}-${jsonBody.shop_id}`
+                    const msgContent = msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content);
                     let upsertMessage = await prisma.omnichat.upsert({
                         create: {
                             origin_id: jsonBody.data.content.conversation_id,
-                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                            last_message: msgContent,
                             last_messageId: jsonBody.data.content.message_id,
                             store: {
                                 connect: {
@@ -93,7 +94,7 @@ async function routeShopee (jsonBody, mPrisma, org) {
                                 connectOrCreate: {
                                     create: {
                                         origin_id: jsonBody.data.content.from_id.toString(),
-                                        name: jsonBody.data.content.from_user_name,
+                                        name: jsonBody.data.content.from_user_name
                                     },
                                     where: {
                                         origin_id: jsonBody.data.content.from_id.toString()
@@ -101,24 +102,34 @@ async function routeShopee (jsonBody, mPrisma, org) {
                                 }
                             },
                             messages: {
-                                create: {
-                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                    chat_type: jsonBody.data.content.message_type,
-                                    origin_id: jsonBody.data.content.message_id,
-                                    author: jsonBody.data.content.from_id.toString()
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: jsonBody.data.content.message_id
+                                    },
+                                    create: {
+                                        line_text: msgContent,
+                                        chat_type: jsonBody.data.content.message_type,
+                                        origin_id: jsonBody.data.content.message_id,
+                                        author: jsonBody.data.content.from_id.toString()
+                                    }
                                 }
                             }
                         },
                         update: {
-                            last_message: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
+                            last_message: msgContent,
                             last_messageId: jsonBody.data.content.message_id,
                             updatedAt: new Date(),
                             messages: {
-                                create: {
-                                    line_text: msgContainer(jsonBody.data.content.message_type, jsonBody.data.content.content),
-                                    chat_type: jsonBody.data.content.message_type,
-                                    origin_id: jsonBody.data.content.message_id,
-                                    author: jsonBody.data.content.from_id.toString()
+                                connectOrCreate: {
+                                    where: {
+                                        origin_id: jsonBody.data.content.message_id
+                                    },
+                                    create: {
+                                        line_text: msgContent,
+                                        chat_type: jsonBody.data.content.message_type,
+                                        origin_id: jsonBody.data.content.message_id,
+                                        author: jsonBody.data.content.from_id.toString()
+                                    }
                                 }
                             }
                         },
@@ -163,20 +174,14 @@ async function routeShopee (jsonBody, mPrisma, org) {
                                 message_content: jsonBody.data.content,
                                 tenantDB: getTenantDB(org[1]),
                                 org_id: org[1],
-                                syncCustomer: false //shopee dont need to sync customer
+                                syncCustomer: false
                             }
-                            // pushTask(env, taskPayload);
                         }
                     }
-                    // res.status(200).send({message: {id: upsertMessage.id}});
                 } catch (err) {
                     console.log(err);
                     console.log('Error upserting message for conversation %s', jsonBody.data.content.conversation_id);
-                    // res.status(500).send({error: 'Internal Server Error'});
                 }
-                /* no need to push to worker */
-            } else {
-                // res.status(200).send({message: 'Event type not message'});
             }
             break;
         case 29: 
