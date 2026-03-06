@@ -850,6 +850,51 @@ const getValue = (obj, keys) => {
     return null;
 }
 
+async function callTiktokNew (callParams) {
+    const { method, url, body, token, refreshToken, mShopId, tenantDB, orgId } = callParams;
+    return api({
+        method: method,
+        url: url,
+        data: (body) ? body : {},
+        headers: {
+            'x-tts-access-token': decryptData(token),
+            'content-type': 'application/json'
+        }
+    }).catch(async function (err) {
+        console.log(err.response.data)
+        if (err.response.data.code == 105002) {
+            console.log('Refreshing token...');
+            let newToken = await api.get(GET_REFRESH_TOKEN_API(decryptData(refreshToken)));
+            // console.log(newToken.data);
+            if (!newToken.data.data.access_token) {
+                throw new Error('Failed to refresh token');
+            }
+            // const prisma = getPrismaClient(tenantDB);
+            prisma = getPrismaClientForTenant(orgId, tenantDB.url);
+            const _stored = await prisma.store.update({
+                where: {
+                    id: mShopId
+                },
+                data: {
+                    token: encryptData(newToken.data.data.access_token),
+                    refresh_token: encryptData(newToken.data.data.refresh_token)
+                }
+            });
+            return api({
+                method: method,
+                url: url,
+                data: (body) ? body : {},
+                headers: {
+                    'x-tts-access-token': newToken.data.data.access_token,
+                    'content-type': 'application/json'
+                }
+            })
+        } else {
+            throw new Error(err.response.data);
+        }
+    });
+}
+
 async function callTiktok (method, url, body, token, refreshToken, mShopId, tenantDB, orgId) {
     return api({
         method: method,
@@ -900,5 +945,6 @@ module.exports = {
     collectReturnRequest,
     forwardConversation,
     callTiktok,
+    callTiktokNew,
     getValue
 }

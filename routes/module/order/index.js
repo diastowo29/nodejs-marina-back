@@ -5,11 +5,11 @@ const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER, SPE_HANDLE_CANCELLATION, SPE_GET_TRACKING_INFO } = require('../../../config/shopee_apis');
-const { generateShopeeToken, callShopee } = require('../../../functions/shopee/function');
+const { callShopeeNew } = require('../../../functions/shopee/function');
 const { decryptData } = require('../../../functions/encryption');
 var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
-const { callTiktok } = require('../../../functions/tiktok/function');
+const { callTiktok, callTiktokNew } = require('../../../functions/tiktok/function');
 const { getTenantDB } = require('../../../middleware/tenantIdentifier');
 const { lazCall } = require('../../../functions/lazada/caller');
 let mPrisma = new PrismaClient();
@@ -101,10 +101,15 @@ router.get('/', async function(req, res, next) {
 
 router.get('/:id/awb_track', async function(req, res, next) {
     mPrisma = req.prisma;
-    if (!req.params.id || !req.query.channel) {
+    
+    if (!req.params.id) {
         return res.status(400).send({
             error: 'Some parameters are missing'
         })
+    }
+    const tenantConfig = {
+        org_id: req.tenantId,
+        tenantDB: req.tenantDB
     }
     mPrisma.orders.findUnique({
         where: {
@@ -118,32 +123,57 @@ router.get('/:id/awb_track', async function(req, res, next) {
                     token: true,
                     origin_id: true,
                     secondary_token: true,
-                    refresh_token: true
+                    refresh_token: true,
+                    channel: {
+                        select: {
+                            name: true
+                        }
+                    }
                 }
             }
         }
     }).then(async (order) => {
-        if (req.query.channel == TIKTOK) {
-            callTiktok('GET', 
-                GET_SHIP_TRACKING(order.origin_id, order.store.secondary_token), {}, 
-                order.store.token, 
-                order.store.refresh_token, 
-                order.store.id, req.tenantDB, req.tenantId).then((tracking) => {
-                    if (tracking.data.data.tracking) {
-                        return res.status(200).send(tracking.data.data);
-                    } else {
-                        return res.status(200).send(tracking.data);
-                    }
-                }).catch((err) => {
-                    console.log(err);
-                    return res.status(500).send({ error: err.message });
-                })
-        } else if (req.query.channel == SHOPEE) {
-            const tenantConfig = {
-                org_id: req.tenantId,
-                tenantDB: req.tenantDB
-            }
-            callShopee('GET', SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig).then((orderTracking) => {
+        if (order.store.channel.name == TIKTOK) {
+            let callTiktokParams = {
+                refreshToken: order.store.refresh_token,
+                mShopId: order.store.id,
+                tenantDB: tenantConfig.tenantDB,
+                orgId: tenantConfig.org_id,
+                token: order.store.token,
+                method: 'get',
+                url: GET_SHIP_TRACKING(order.origin_id, order.store.secondary_token),
+                body: {},
+            };
+            callTiktokNew(callTiktokParams).then((tracking) => {
+                if (tracking.data.data.tracking) {
+                    return res.status(200).send(tracking.data.data);
+                } else {
+                    return res.status(200).send(tracking.data);
+                }
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).send({ error: err.message });
+            })
+        } else if (order.store.channel.name == SHOPEE) {
+            let callShopeeParams = {
+                refreshToken: order.store.refresh_token,
+                shopOriginId: order.store.origin_id,
+                tenantConfig: tenantConfig,
+                method: 'get',
+                url: SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id),
+                body: {},
+            };
+
+            callShopeeNew(callShopeeParams).then((orderTracking) => {
+                if (orderTracking.data && orderTracking.data.response) {
+                    return res.status(200).send({tracking: orderTracking.data.response.tracking_info})
+                }
+            }).catch((err) => {
+                console.log(err);
+                return res.status(500).send({ error: err.message });
+            })
+
+            /* callShopee('GET', SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig).then((orderTracking) => {
                 if (orderTracking.data && orderTracking.data.response) {
                     // return res.status(200).send({tracking: orderTracking.data})
                     return res.status(200).send({tracking: orderTracking.data.response.tracking_info})
@@ -151,10 +181,10 @@ router.get('/:id/awb_track', async function(req, res, next) {
             }).catch((err) => {
                 console.log(err);
                 return res.status(500).send({ error: err.message });
-            })
+            }) */
         } else {
             return res.status(200).send({
-                message: 'Available soon for this channel: ' + req.query.channel
+                message: 'Available soon for this channel: ' + order.store.channel.name
             })
         }
     }).catch((err) => {
@@ -301,6 +331,10 @@ router.put('/:id', async function(req, res, next) {
             error: 'action is required'
         });
     }
+    const tenantConfig = {
+        org_id: req.tenantId,
+        tenantDB: req.tenantDB
+    }
     let order = await mPrisma.orders.findUnique({
         where: {
             id: Number.parseInt(req.params.id)
@@ -423,13 +457,18 @@ router.put('/:id', async function(req, res, next) {
                 });
             }
             try {
-                const tiktokResponse = await callTiktok('POST', completeUrl, data, order.store.token, order.store.refresh_token, order.store.id, req.tenantDB, req.tenantId);
-                /* const tiktokResponse = await api.post(completeUrl, data, {
-                    headers: {
-                        'content-type': 'application/json',
-                        'x-tts-access-token': decryptData(order.store.token)
-                    }
-                }); */
+                let callTiktokParams = {
+                    refreshToken: order.store.refresh_token,
+                    mShopId: order.store.id,
+                    tenantDB: tenantConfig.tenantDB,
+                    orgId: tenantConfig.org_id,
+                    token: order.store.token,
+                    method: 'POST',
+                    url: completeUrl,
+                    body: data,
+                };
+                // const tiktokResponse = await callTiktok('POST', completeUrl, data, order.store.token, order.store.refresh_token, order.store.id, req.tenantDB, req.tenantId);
+                const tiktokResponse = await callTiktokNew(callTiktokParams);
                 statusCode = tiktokResponse.status;
                 responseCode = tiktokResponse.data.code;
                 responseData = tiktokResponse.data;
@@ -451,11 +490,11 @@ router.put('/:id', async function(req, res, next) {
             }
             break;
         case SHOPEE:
-            let callSpeParams = {};
-            const tenantConfig = {
-                org_id: req.tenantId,
-                tenantDB: req.tenantDB
-            }
+            let callShopeeParams = {
+                refreshToken: order.store.refresh_token,
+                shopOriginId: order.store.origin_id,
+                tenantConfig: tenantConfig
+            };
             if (action == 'cancel') {
                 const cancelPayload = {
                     order_sn: order.origin_id,
@@ -469,25 +508,14 @@ router.put('/:id', async function(req, res, next) {
                         })
                     })
                 }
+                callShopeeParams = {
+                    ...callShopeeParams,
+                    method: 'post',
+                    url: SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
+                    body: JSON.stringify(cancelPayload)
+                }
                 try {
-                    const cancelOrder = await callShopee('post', SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason), JSON.stringify(cancelPayload), order.store.refresh_token, order.store.origin_id, tenantConfig);
-                    /* const cancelOrder = await api.post(
-                        SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
-                        JSON.stringify(cancelPayload)).catch(async function (err) {
-                        if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-                            console.log(`error status ${err.status} response ${err.response.data.error}`);
-                            let newToken = await generateShopeeToken(order.store.origin_id, order.store.refresh_token, tenantConfig);
-                            if (newToken.access_token) {
-                                return api.post(
-                                    SHOPEE_CANCEL_ORDER(newToken.access_token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
-                                    JSON.stringify(cancelPayload)
-                                );
-                            }
-                        } else {
-                            console.log(err);
-                            return res.status(400).send(err);
-                        }
-                    }); */
+                    const cancelOrder = await callShopeeNew(callShopeeParams);
                     statusCode = cancelOrder.status;
                     responseCode = cancelOrder.statusCode;
                     responseData = cancelOrder.data;
@@ -507,11 +535,17 @@ router.put('/:id', async function(req, res, next) {
                 // res.status(200).send(cancelPayload);
             } else if (action == 'approve') {
                 try {
-                    const cancellation = await Promise.all([
-                        api.post(SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id), {
+                    callShopeeParams = {
+                        ...callShopeeParams,
+                        method: 'post',
+                        url: SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id),
+                        body: {
                             order_sn: order.origin_id,
                             operation: "ACCEPT"
-                        }),
+                        },
+                    }
+                    const cancellation = await Promise.all([
+                        callShopeeNew(callShopeeParams),
                         mPrisma.orders.update({
                             where: {
                                 origin_id: order.origin_id
@@ -521,7 +555,6 @@ router.put('/:id', async function(req, res, next) {
                             }
                         })
                     ])
-                    // console.log(cancellation[0].data);
                     responseCode = 200;
                     responseData = cancellation[0].data;
                 } catch (err) {
@@ -536,10 +569,16 @@ router.put('/:id', async function(req, res, next) {
                 }
             } else if (action == 'reject') {
                 try {
-                    const approveCancel = await api.post(SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id), {
-                        order_sn: order.origin_id,
-                        operation: 'REJECT'
-                    });
+                    callShopeeParams = {
+                        ...callShopeeParams,
+                        method: 'post',
+                        url: SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id),
+                        body: {
+                            order_sn: order.origin_id,
+                            operation: 'REJECT'
+                        }
+                    }
+                    const approveCancel = await callShopeeNew(callShopeeParams);
                     responseCode = 200;
                     responseData = approveCancel.data;
                 } catch (err) {
@@ -553,25 +592,18 @@ router.put('/:id', async function(req, res, next) {
                     }
                 }
             } else {
-                //GET SHIP PARAMS
                 try {
-                    let accessToken = order.store.token;
-                    /* SHOULD BE USED SOON */
-                    callSpeParams = {
+                    callShopeeParams = {
+                        ...callShopeeParams,
                         method: 'get',
                         url: SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id),
-                        body: {},
-                        refreshToken: order.store.refresh_token,
-                        shopOriginId: order.store.origin_id,
-                        tenantConfig: tenantConfig
+                        body: {}
                     }
-                    /* SHOULD BE USED SOON */
                     if (!req.body.shipment) {
-                        const shipParams = await callShopee('get', GET_SHOPEE_SHIP_PARAMS(accessToken, order.origin_id, order.store.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig);
+                        const shipParams = await callShopeeNew(callShopeeParams);
                         if (shipParams.data.error) {
                             return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
                         }
-                        // console.log(JSON.stringify(shipParams.data));
                         statusCode = 200;
                         responseCode = 200;
                         responseData = shipParams.data;
@@ -588,15 +620,13 @@ router.put('/:id', async function(req, res, next) {
                             pickup: req.body.shipment.address_id
                         };
                     }
-                    callSpeParams = {
+                    callShopeeParams = {
+                        ...callShopeeParams,
                         method: 'post',
                         url: SHOPEE_SHIP_ORDER(order.store.token, order.store.origin_id),
                         body: JSON.stringify(shipmentPayload),
-                        refreshToken: order.store.refresh_token,
-                        shopOriginId: order.store.origin_id,
-                        tenantConfig: tenantConfig
                     }
-                    const shipArrangement = await callShopee('post', SHOPEE_SHIP_ORDER(accessToken, order.store.origin_id), JSON.stringify(shipmentPayload), order.store.refresh_token, order.store.origin_id, tenantConfig);
+                    const shipArrangement = await callShopeeNew(callShopeeParams);
                     if (shipArrangement.data.error) {
                         return res.status(400).send({
                             parameter: shipParams.data,

@@ -547,6 +547,41 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
     }
 }
 
+async function callShopeeNew (callParams) {
+    const { method, url, body, refreshToken, shopId, tenantConfig } = callParams;
+    try {
+        return await api({
+            method: method,
+            url: url,
+            data: (body) ? body : {}
+        });
+    } catch (err) {
+        const errorData = err.response?.data || {};
+        const statusCode = err.response?.status;
+        console.log(`API Error - Status: ${statusCode}, Data:`, errorData);
+        if ((statusCode === 403) && (errorData.error === 'invalid_acceess_token')) {
+            try {
+                console.log('Attempting to refresh token for shop:', shopId);
+                const newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
+                if (!newToken || !newToken.access_token) {
+                    throw new Error('Failed to refresh token - no access token received');
+                }
+                return await api({
+                    method: method,
+                    url: url,
+                    data: (body) ? body : {}
+                });
+            } catch (refreshErr) {
+                console.error('Token refresh failed:', refreshErr.message);
+                throw new Error(`Token refresh failed: ${refreshErr.message}`);
+            }
+        } else {
+            throw new Error(`Shopee API Error: ${JSON.stringify(errorData)}`);
+        }
+    }
+}
+
+
 async function callShopee (method, url, body, refreshToken, shopId, tenantConfig) {
     try {
         return await api({
@@ -568,8 +603,6 @@ async function callShopee (method, url, body, refreshToken, shopId, tenantConfig
                 if (!newToken || !newToken.access_token) {
                     throw new Error('Failed to refresh token - no access token received');
                 }
-                
-                // Retry the original request with new token
                 return await api({
                     method: method,
                     url: url,
@@ -590,5 +623,6 @@ module.exports = {
     collectShopeeTrackNumber,
     generateShopeeToken,
     callShopee,
+    callShopeeNew,
     collectShopeeRR
 }
