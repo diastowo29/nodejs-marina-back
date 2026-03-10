@@ -289,6 +289,9 @@ function msgContainer (msgType, content) {
         case 'video':
             msgContent = content.video_url;
             break;
+        case 'item':
+            msgContent = `Product from Customer: ${content.item_id}`;
+            break;
         default:
             msgContent = content.text;
     }

@@ -42,7 +42,6 @@ function messageHandler (pubMessage, socket) {
     if (!storeId || storeId == 'null') {
         return pubMessage.ack();
     }
-    console.log("inbound: " + pubMessage.id);
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId.toString()
@@ -71,9 +70,7 @@ function messageHandler (pubMessage, socket) {
             },
             include: {
                 channel: {
-                    select: {
-                        name: true
-                    }
+                    select: { name: true }
                 }
             }
         });
