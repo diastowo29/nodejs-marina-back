@@ -18,6 +18,7 @@ const { routeTiktok } = require('./functions/tiktok/router_function');
 const { routeLazada } = require('./functions/lazada/router_function');
 const { routeShopee } = require('./functions/shopee/router_function');
 const { io } = require('socket.io-client');
+const logger = require('./config/logger');
 let prisma = new PrismaClient();
 const basePrisma = new prismaBaseClient();
 const pubSubTopic = process.env.PUBSUB_TOPIC || 'marina-main-topic-dev';
@@ -58,6 +59,11 @@ function messageHandler (pubMessage, socket) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
+        logger.log({
+            level: 'info',
+            message: `message received store id: ${storeId} id: ${pubMessage.id}`,
+            org_id: org[1]
+        });
         // console.log(getTenantDB(org[1]).url);
         const mStore = await prisma.store.findFirst({
             where: {
