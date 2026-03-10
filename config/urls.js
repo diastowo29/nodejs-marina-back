@@ -3,6 +3,7 @@ const whitelistUrl = [
     '/api/v1/lazada/order', 
     '/api/v1/lazada/chat', 
     '/api/v1/shopee/webhook', 
+    '/api/v1/shopee/shop_info', 
     '/api/v1/tiktok/webhook',
     '/api/v1/chats/sunco/event',
     '/api/v1/auth0/hook',

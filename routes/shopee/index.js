@@ -353,6 +353,24 @@ function msgContainer (msgType, content) {
     return msgContent;
 }
 
+router.post('/shop_info', async function(req, res, next) {
+    const token = decryptData(req.body.token);
+    const shopeePartnerId = req.body.partner_id;
+    const ts = Math.floor(Date.now() / 1000);
+    const shopeePartnerKey = req.body.partner_key;
+    const shopeeShopId = req.body.shop_id;
+    const shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token}${shopeeShopId}`;
+    const sign = createHmac('sha256', shopeePartnerKey).update(shopeeSignString).digest('hex');
+    const shopInfoParams = `partner_id=${shopeePartnerId}&timestamp=${ts}&access_token=${token}&shop_id=${shopeeShopId}&sign=${sign}`;
+    try {
+        const shopInfo = await api.get(`${SHOPEE_HOST}${GET_SHOPEE_SHOP_INFO_PATH}?${shopInfoParams}`)
+        res.status(200).send(shopInfo.data);
+    } catch (err) {
+        console.log(err.response.data);
+        return res.status(400).send({error: err.response.data});
+    }
+});
+
 /* router.post('/order', async function(req, res, next) {
     // let jsonBody = gcpParser(req.body.message.data);
     // let jsonBody = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
@@ -502,9 +520,9 @@ router.post(PATH_AUTH, async function(req, res, next) {
         refresh_token: ''
     }
     if (partnerBody) {
-        partnerBody = Buffer.from(partnerBody, 'base64').toString('ascii');
-        shopeePartnerId = partnerBody.split(':')[0];
-        shopeePartnerKey = partnerBody.split(':')[1];
+        const encodedPartner = Buffer.from(partnerBody, 'base64').toString('ascii');
+        shopeePartnerId = encodedPartner.split(':')[0];
+        shopeePartnerKey = encodedPartner.split(':')[1];
         tokenDbPayload = {
             status: 'ACTIVE',
             secondary_token: '',
@@ -548,11 +566,13 @@ router.post(PATH_AUTH, async function(req, res, next) {
             console.log(token.data);
             return res.status(400).send(token.data);
         }
-        tokenDbPayload['token'] = encryptData(token.data.access_token);
-        tokenDbPayload['refresh_token'] = encryptData(token.data.refresh_token);
         if (partnerBody) {
             tokenDbPayload['secondary_token'] = encryptData(token.data.access_token);
             tokenDbPayload['secondary_refresh_token'] = encryptData(token.data.refresh_token);
+            tokenDbPayload['url'] = `${shopeePartnerId}:${shopeePartnerKey}`;
+        } else {
+            tokenDbPayload['token'] = encryptData(token.data.access_token);
+            tokenDbPayload['refresh_token'] = encryptData(token.data.refresh_token);
         }
         shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token.data.access_token}${req.body.shop_id}`;
         // sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
@@ -575,18 +595,87 @@ router.post(PATH_AUTH, async function(req, res, next) {
             }).then(() => {
                 return res.status(200).send({});
             })
-        }
-        
-        if (shopInfo.data) {
-            if (shopInfo.data.error) {
-                console.log(shopInfo.data);
-                return res.status(400).send(shopInfo.data);
-            }
-            // console.log(shopInfo.data);
-             
-            const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
-            let clientStored = await Promise.all([
-                prisma.store.upsert({
+        } else {
+            if (shopInfo.data) {
+                if (shopInfo.data.error) {
+                    console.log(shopInfo.data);
+                    return res.status(400).send(shopInfo.data);
+                }
+                // console.log(shopInfo.data);
+                 
+                const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
+                let clientStored = await Promise.all([
+                    prisma.store.upsert({
+                        where: {
+                            origin_id: req.body.shop_id.toString()
+                        },
+                        update: {
+                            status: 'ACTIVE',
+                            token: encryptData(token.data.access_token),
+                            refresh_token: encryptData(token.data.refresh_token)
+                        },
+                        create: {
+                            origin_id: req.body.shop_id.toString(),
+                            name: shopInfo.data.shop_name,
+                            status: 'ACTIVE',
+                            token: encryptData(token.data.access_token),
+                            refresh_token: encryptData(token.data.refresh_token),
+                            channel: {
+                                connectOrCreate: {
+                                    where: {
+                                        name: SHOPEE
+                                    },
+                                    create: {
+                                        name: SHOPEE,
+                                        client: {
+                                            connectOrCreate: {
+                                                where: {
+                                                     origin_id: req.auth.payload.org_id
+                                                },
+                                                create: {
+                                                    name: req.auth.payload.org_id,
+                                                    origin_id: req.auth.payload.org_id
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }),
+                    basePrisma.stores.upsert({
+                        where: {
+                            origin_id: req.body.shop_id.toString()
+                        },
+                        create: {
+                            origin_id: req.body.shop_id.toString(),
+                            clients: {
+                                connectOrCreate: {
+                                    where: {
+                                        org_id: orgBase64
+                                    }, 
+                                    create: {
+                                        org_id: orgBase64
+                                    }
+                                }
+                            }
+                        },
+                        update: {
+                            clients: {
+                                connectOrCreate: {
+                                    where: {
+                                        org_id: orgBase64
+                                    },
+                                    create: {
+                                        org_id: orgBase64
+                                    }
+                                }
+                            }
+                        }
+                    })
+                ])
+                res.status(200).send(clientStored[0]);
+                /* let newStore = await prisma.store.upsert({
                     where: {
                         origin_id: req.body.shop_id.toString()
                     },
@@ -598,8 +687,8 @@ router.post(PATH_AUTH, async function(req, res, next) {
                     create: {
                         origin_id: req.body.shop_id.toString(),
                         name: shopInfo.data.shop_name,
-                        status: 'ACTIVE',
                         token: encryptData(token.data.access_token),
+                        status: 'ACTIVE',
                         refresh_token: encryptData(token.data.refresh_token),
                         channel: {
                             connectOrCreate: {
@@ -607,107 +696,38 @@ router.post(PATH_AUTH, async function(req, res, next) {
                                     name: SHOPEE
                                 },
                                 create: {
-                                    name: SHOPEE,
-                                    client: {
-                                        connectOrCreate: {
-                                            where: {
-                                                 origin_id: req.auth.payload.org_id
-                                            },
-                                            create: {
-                                                name: req.auth.payload.org_id,
-                                                origin_id: req.auth.payload.org_id
-                                            }
-                                        }
-                                    }
+                                    name: SHOPEE
                                 }
                             }
                         }
                     }
-                }),
-                basePrisma.stores.upsert({
-                    where: {
-                        origin_id: req.body.shop_id.toString()
-                    },
-                    create: {
-                        origin_id: req.body.shop_id.toString(),
-                        clients: {
-                            connectOrCreate: {
-                                where: {
-                                    org_id: orgBase64
-                                }, 
-                                create: {
-                                    org_id: orgBase64
-                                }
-                            }
-                        }
-                    },
-                    update: {
-                        clients: {
-                            connectOrCreate: {
-                                where: {
-                                    org_id: orgBase64
-                                },
-                                create: {
-                                    org_id: orgBase64
-                                }
-                            }
-                        }
-                    }
-                })
-            ])
-            /* let newStore = await prisma.store.upsert({
-                where: {
-                    origin_id: req.body.shop_id.toString()
-                },
-                update: {
-                    status: 'ACTIVE',
-                    token: encryptData(token.data.access_token),
-                    refresh_token: encryptData(token.data.refresh_token)
-                },
-                create: {
-                    origin_id: req.body.shop_id.toString(),
-                    name: shopInfo.data.shop_name,
-                    token: encryptData(token.data.access_token),
-                    status: 'ACTIVE',
-                    refresh_token: encryptData(token.data.refresh_token),
-                    channel: {
-                        connectOrCreate: {
-                            where: {
-                                name: SHOPEE
-                            },
-                            create: {
-                                name: SHOPEE
-                            }
-                        }
-                    }
-                }
-            }).catch(function (err) {
-                console.log(err);
-                return res.status(400).send({error: err});
-            }); */
-            // console.log(newStore);
-            /* COMMENT SINCE MOVING TO PUB/SUB */
-            // console.log(clientStored[0]);
-            // if (clientStored[0]) {
-            //     /* DO SYNC PRODUCTS */
-            //     let taskPayload = {
-            //         channel: SHOPEE,
-            //         code: 9999,
-            //         shop_id: req.body.shop_id,
-            //         token: encryptData(token.data.access_token),
-            //         refresh_token: encryptData(token.data.refresh_token),
-            //         org_id: req.tenantId,
-            //         tenantDB: req.tenantDB
-            //     }
-            //     pushTask(env, taskPayload)
-                res.status(200).send(clientStored[0]);
-            // } else {
-            //     res.status(400).send(clientStored[0]);
-            // }
-            /* COMMENT SINCE MOVING TO PUB/SUB */
-
-        } else {
-            return res.status(400).send({error: 'No response from Shopee API'});
+                }).catch(function (err) {
+                    console.log(err);
+                    return res.status(400).send({error: err});
+                }); */
+                // console.log(newStore);
+                /* COMMENT SINCE MOVING TO PUB/SUB */
+                // console.log(clientStored[0]);
+                // if (clientStored[0]) {
+                //     /* DO SYNC PRODUCTS */
+                //     let taskPayload = {
+                //         channel: SHOPEE,
+                //         code: 9999,
+                //         shop_id: req.body.shop_id,
+                //         token: encryptData(token.data.access_token),
+                //         refresh_token: encryptData(token.data.refresh_token),
+                //         org_id: req.tenantId,
+                //         tenantDB: req.tenantDB
+                //     }
+                //     pushTask(env, taskPayload)
+                // } else {
+                //     res.status(400).send(clientStored[0]);
+                // }
+                /* COMMENT SINCE MOVING TO PUB/SUB */
+    
+            } else {
+                return res.status(400).send({error: 'No response from Shopee API'});
+            }
         }
     } else {
         return res.status(400).send({error: 'No response from Shopee API'});

@@ -2,7 +2,7 @@ const { SEARCH_CANCELLATION, SEARCH_RETURN } = require('../../config/tiktok_apis
 const { TIKTOK, RRTiktokStatus } = require('../../config/utils');
 const { getTenantDB } = require('../../middleware/tenantIdentifier');
 const { PrismaClient } = require('../../prisma/generated/client');
-const { callTiktok } = require('./function');
+const { callTiktok, callTiktokNew } = require('./function');
 let mPrisma = new PrismaClient();
 
 async function routeTiktok (jsonBody, prisma, org) {
@@ -170,7 +170,17 @@ async function routeTiktok (jsonBody, prisma, org) {
             }).then((rr) => {
                 if (rr.line_item.length == 0) {
                     const data = { cancel_ids: [jsonBody.data.cancel_id] }
-                    callTiktok('post', SEARCH_CANCELLATION(rr.order.store.secondary_token, data), data, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokCancel) => {
+                    let callTiktokParams = {
+                        refreshToken: rr.order.store.refresh_token,
+                        mShopId: rr.order.store.id,
+                        tenantDB: getTenantDB(org[1]),
+                        orgId: org[1],
+                        token: rr.order.store.token,
+                        method: 'post',
+                        url: SEARCH_CANCELLATION(rr.order.store.secondary_token, data),
+                        body: data,
+                    };
+                    callTiktokNew(callTiktokParams).then((tiktokCancel) => {
                         const ccData = tiktokCancel.data.data;
                         if (ccData) {
                             if (ccData.cancellations && ccData.cancellations.length > 0) {
@@ -192,10 +202,10 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     orgId: org[0]
                                 }
                             } else {
-                                throw new Error("rrData not found");
+                                throw new Error("ccData is empty");
                             }
                         } else {
-                            throw new Error("rrData not found");
+                            throw new Error("ccData not found");
                         }
                     }).catch((err) => {
                         console.log(err);
@@ -266,7 +276,18 @@ async function routeTiktok (jsonBody, prisma, org) {
             }).then((rr) => {
                 if (jsonBody.data.return_status == 'RETURN_OR_REFUND_REQUEST_PENDING') {
                     const body = {order_ids: [jsonBody.data.order_id]}
-                    callTiktok('POST', SEARCH_RETURN(rr.order.store.secondary_token, body), body, rr.order.store.token, rr.order.store.refresh_token, rr.order.store.id, getTenantDB(org[1]), org[1]).then((tiktokRr) => {
+                    
+                    let callTiktokParams = {
+                        refreshToken: rr.order.store.refresh_token,
+                        mShopId: rr.order.store.id,
+                        tenantDB: getTenantDB(org[1]),
+                        orgId: org[1],
+                        token: rr.order.store.token,
+                        method: 'post',
+                        url: SEARCH_RETURN(rr.order.store.secondary_token, body),
+                        body: body,
+                    };
+                    callTiktokNew(callTiktokParams).then((tiktokRr) => {
                         const rrData = tiktokRr.data.data;
                         if (rrData) {
                             if (rrData.return_orders && rrData.return_orders.length > 0) {
@@ -288,7 +309,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                                     orgId: org[1]
                                 }
                             } else {
-                                throw new Error("rrData not found");
+                                throw new Error("rrData is empty");
                             }
                         } else {
                             throw new Error("rrData not found");
