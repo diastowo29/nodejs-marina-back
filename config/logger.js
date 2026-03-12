@@ -19,10 +19,10 @@ const errorLogger = (msgId, orgId) => {
 }
 
 
-const infoLogger = (storeId, msgId, orgId) => {
+const infoLogger = (msg, orgId) => {
     logger.log({
         level: 'info',
-        message: `storeId: ${storeId} pubMessageId: ${msgId}`,
+        message: msg,
         org_id: orgId
     });
 }

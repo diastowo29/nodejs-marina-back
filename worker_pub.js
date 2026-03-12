@@ -58,7 +58,7 @@ function messageHandler (pubMessage, socket) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        logger.infoLogger(storeId, pubMessage.id, org[1]);
+        logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}`, org[1]);
         const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
@@ -381,7 +381,7 @@ async function processShopee(body, pubMessage) {
                 console.log('error on worker function');
                 // console.log(JSON.stringify(body));
                 console.log(error);
-                logger.errorLogger(pubMessage.id, org[1]);
+                logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }).then(() => {
                 pubMessage.ack();
@@ -391,7 +391,7 @@ async function processShopee(body, pubMessage) {
                 console.log('error on worker function');
                 // console.log(JSON.stringify(body));
                 console.log(error);
-                logger.errorLogger(pubMessage.id, org[1]);
+                logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }).then(() => {
                 pubMessage.ack();
@@ -508,13 +508,13 @@ async function processShopee(body, pubMessage) {
                     }
                 }).catch((err) => {
                     console.log(err);
-                    logger.errorLogger(pubMessage.id, org[1]);
+                    logger.errorLogger(pubMessage.id, body.org_id);
                     pubMessage.nack();
                 });
     
             } else {
                 console.log(productsInfo.data);
-                logger.errorLogger(pubMessage.id, org[1]);
+                logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }
         } else {
@@ -522,7 +522,7 @@ async function processShopee(body, pubMessage) {
             logger.log({
                 level: 'warning',
                 message: `pubMessageId: ${pubMessage.id}`,
-                org_id: org[1]
+                org_id: body.org_id
             });
             pubMessage.nack();
         }
@@ -534,7 +534,7 @@ async function processShopee(body, pubMessage) {
         collectShopeeRR(body, pubMessage).catch((error) => {
             console.log('error on worker function');
             console.log(error);
-            logger.errorLogger(pubMessage.id, org[1]);
+            logger.errorLogger(pubMessage.id, body.org_id);
             pubMessage.nack();
         })
     } else {
