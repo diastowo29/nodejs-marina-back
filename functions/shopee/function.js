@@ -548,7 +548,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
 }
 
 async function callShopeeNew (callParams) {
-    const { method, url, body, refreshToken, shopId, tenantConfig } = callParams;
+    const { method, url, body, refreshToken, shopOriginId, tenantConfig } = callParams;
     try {
         return await api({
             method: method,
@@ -561,19 +561,22 @@ async function callShopeeNew (callParams) {
         console.log(`API Error - Status: ${statusCode}, Data:`, errorData);
         if ((statusCode === 403) && (errorData.error === 'invalid_acceess_token')) {
             try {
-                console.log('Attempting to refresh token for shop:', shopId);
-                const newToken = await generateShopeeToken(shopId, refreshToken, tenantConfig);
+                console.log('Attempting to refresh token for shop:', shopOriginId);
+                const newToken = await generateShopeeToken(shopOriginId, refreshToken, tenantConfig);
                 if (!newToken || !newToken.access_token) {
                     throw new Error('Failed to refresh token - no access token received');
                 }
-                return await api({
-                    method: method,
-                    url: url,
-                    data: (body) ? body : {}
-                });
+                throw ({refreshed: true, token_data: newToken});
             } catch (refreshErr) {
-                console.error('Token refresh failed:', refreshErr.message);
-                throw new Error(`Token refresh failed: ${refreshErr.message}`);
+                if (refreshErr.message) {
+                    console.error('Token refresh failed:', refreshErr.message);
+                    console.log(errorData);
+                    throw new Error(`Shopee refresh token Error: ${JSON.stringify(errorData)}`);
+                } else {
+                    if (refreshErr.refreshed) {
+                        throw refreshErr;
+                    }
+                }
             }
         } else {
             throw new Error(`Shopee API Error: ${JSON.stringify(errorData)}`);

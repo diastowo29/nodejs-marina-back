@@ -419,7 +419,6 @@ async function routeTiktok (jsonBody, prisma, org) {
                     }
                 // }
             } catch (err) {
-                console.log(err);
                 throw new Error(err);                
             }
             break;

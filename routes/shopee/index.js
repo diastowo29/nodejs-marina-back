@@ -354,11 +354,11 @@ function msgContainer (msgType, content) {
 }
 
 router.post('/shop_info', async function(req, res, next) {
+    const shopeeShopId = req.body.shop_id;
     const token = decryptData(req.body.token);
     const shopeePartnerId = req.body.partner_id;
-    const ts = Math.floor(Date.now() / 1000);
     const shopeePartnerKey = req.body.partner_key;
-    const shopeeShopId = req.body.shop_id;
+    const ts = Math.floor(Date.now() / 1000);
     const shopeeSignString = `${shopeePartnerId}${GET_SHOPEE_SHOP_INFO_PATH}${ts}${token}${shopeeShopId}`;
     const sign = createHmac('sha256', shopeePartnerKey).update(shopeeSignString).digest('hex');
     const shopInfoParams = `partner_id=${shopeePartnerId}&timestamp=${ts}&access_token=${token}&shop_id=${shopeeShopId}&sign=${sign}`;

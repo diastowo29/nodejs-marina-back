@@ -5,8 +5,8 @@ const { api } = require('../../../functions/axios/interceptor');
 const { CANCEL_ORDER, APPROVE_CANCELLATION, UPLOAD_IMAGE, REJECT_CANCELLATION, SHIP_PACKAGE, GET_SHIP_DOCUMENT, APPROVE_REFUND, REJECT_REFUND, GET_SHIP_TRACKING, APPROVAL_RR } = require('../../../config/tiktok_apis');
 const multer = require('multer');
 const { SHOPEE_CANCEL_ORDER, GET_SHOPEE_SHIP_PARAMS, SHOPEE_SHIP_ORDER, SPE_HANDLE_CANCELLATION, SPE_GET_TRACKING_INFO } = require('../../../config/shopee_apis');
-const { callShopeeNew } = require('../../../functions/shopee/function');
-const { decryptData } = require('../../../functions/encryption');
+const { callShopeeNew, generateShopeeToken } = require('../../../functions/shopee/function');
+const { decryptData, encryptData } = require('../../../functions/encryption');
 var env = process.env.NODE_ENV || 'development';
 const { PrismaClient } = require('../../../prisma/generated/client');
 const { callTiktok, callTiktokNew } = require('../../../functions/tiktok/function');
@@ -155,23 +155,36 @@ router.get('/:id/awb_track', async function(req, res, next) {
                 return res.status(500).send({ error: err.message });
             })
         } else if (order.store.channel.name == SHOPEE) {
+            const shopOriginId = order.store.origin_id;
+            const refreshToken = order.store.refresh_token;
             let callShopeeParams = {
-                refreshToken: order.store.refresh_token,
-                shopOriginId: order.store.origin_id,
+                refreshToken: refreshToken,
+                shopOriginId: shopOriginId,
                 tenantConfig: tenantConfig,
                 method: 'get',
-                url: SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id),
+                url: SPE_GET_TRACKING_INFO(order.store.token, shopOriginId, order.origin_id),
                 body: {},
             };
 
-            callShopeeNew(callShopeeParams).then((orderTracking) => {
+            try {
+                const orderTracking = await callShopeeNew(callShopeeParams);
+                // console.log(orderTracking.data);
                 if (orderTracking.data && orderTracking.data.response) {
                     return res.status(200).send({tracking: orderTracking.data.response.tracking_info})
                 }
-            }).catch((err) => {
-                console.log(err);
+            } catch (err) {
+                // console.log(err);
+                if (err.refreshed) {
+                    callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                    callShopeeParams['url'] = SPE_GET_TRACKING_INFO(encryptData(err.token_data.access_token), shopOriginId, order.origin_id);
+                    const retryOrderTracking = await callShopeeNew(callShopeeParams);
+                    console.log(retryOrderTracking.data);
+                    if (retryOrderTracking.data && retryOrderTracking.data.response) {
+                        return res.status(200).send({tracking: retryOrderTracking.data.response.tracking_info})
+                    }
+                }
                 return res.status(500).send({ error: err.message });
-            })
+            }
 
             /* callShopee('GET', SPE_GET_TRACKING_INFO(order.store.token, order.store.origin_id, order.origin_id), {}, order.store.refresh_token, order.store.origin_id, tenantConfig).then((orderTracking) => {
                 if (orderTracking.data && orderTracking.data.response) {
@@ -514,12 +527,35 @@ router.put('/:id', async function(req, res, next) {
                     url: SHOPEE_CANCEL_ORDER(order.store.token, order.origin_id, order.store.origin_id, req.body.cancel_reason),
                     body: JSON.stringify(cancelPayload)
                 }
+                /* try {
+                    const cancelOrder = await callShopeeNew(callShopeeParams);
+                    statusCode = cancelOrder.status;
+                    responseCode = cancelOrder.statusCode;
+                    responseData = cancelOrder.data;
+                } catch (err) {
+                    if (err.response) {
+                        responseCode = err.response.statusCode;
+                        responseData = err.response.data;
+                    } else {
+                        console.log(err);
+                        responseCode = 500;
+                        responseData = 'Internal Server Error';
+                    }
+                } */
                 try {
                     const cancelOrder = await callShopeeNew(callShopeeParams);
                     statusCode = cancelOrder.status;
                     responseCode = cancelOrder.statusCode;
                     responseData = cancelOrder.data;
                 } catch (err) {
+                    if (err.refreshed) {
+                        callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                        callShopeeParams['url'] = SHOPEE_CANCEL_ORDER(encryptData(err.token_data.access_token), order.origin_id, order.store.origin_id, req.body.cancel_reason);
+                        const cancelOrder = await callShopeeNew(callShopeeParams);
+                        statusCode = cancelOrder.status;
+                        responseCode = cancelOrder.statusCode;
+                        responseData = cancelOrder.data;
+                    }
                     if (err.response) {
                         responseCode = err.response.statusCode;
                         responseData = err.response.data;
@@ -544,19 +580,40 @@ router.put('/:id', async function(req, res, next) {
                             operation: "ACCEPT"
                         },
                     }
-                    const cancellation = await Promise.all([
-                        callShopeeNew(callShopeeParams),
-                        mPrisma.orders.update({
-                            where: {
-                                origin_id: order.origin_id
-                            },
-                            data: {
-                                status: 'CANCELLED'
+                    try {
+                        const approveCancel = await callShopeeNew(callShopeeParams);
+                        if (approveCancel.data && approveCancel.data.response) {
+                            await mPrisma.orders.update({
+                                where: {
+                                    origin_id: order.origin_id
+                                },
+                                data: {
+                                    status: 'CANCELLED'
+                                }
+                            });
+                            responseCode = 200;
+                            responseData = approveCancel.data
+                        }
+                    } catch (err) {
+                        if (err.refreshed) {
+                            callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                            callShopeeParams['url'] = SPE_GET_TRACKING_INFO(encryptData(err.token_data.access_token), order.store.origin_id, order.origin_id);
+                            const retryapproveCancel = await callShopeeNew(callShopeeParams);
+                            console.log(retryapproveCancel.data);
+                            if (retryapproveCancel.data && retryapproveCancel.data.response) {
+                                await mPrisma.orders.update({
+                                    where: {
+                                        origin_id: order.origin_id
+                                    },
+                                    data: {
+                                        status: 'CANCELLED'
+                                    }
+                                });
+                                responseCode = 200;
+                                responseData = retryapproveCancel.data
                             }
-                        })
-                    ])
-                    responseCode = 200;
-                    responseData = cancellation[0].data;
+                        }
+                    }
                 } catch (err) {
                     console.log(err)
                     if (err.response) {
@@ -568,16 +625,16 @@ router.put('/:id', async function(req, res, next) {
                     }
                 }
             } else if (action == 'reject') {
-                try {
-                    callShopeeParams = {
-                        ...callShopeeParams,
-                        method: 'post',
-                        url: SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id),
-                        body: {
-                            order_sn: order.origin_id,
-                            operation: 'REJECT'
-                        }
+                callShopeeParams = {
+                    ...callShopeeParams,
+                    method: 'post',
+                    url: SPE_HANDLE_CANCELLATION(order.store.token, order.store.origin_id),
+                    body: {
+                        order_sn: order.origin_id,
+                        operation: 'REJECT'
                     }
+                }
+                /* try {
                     const approveCancel = await callShopeeNew(callShopeeParams);
                     responseCode = 200;
                     responseData = approveCancel.data;
@@ -590,7 +647,31 @@ router.put('/:id', async function(req, res, next) {
                         responseCode = 500;
                         responseData = 'Internal Server Error';
                     }
+                } */
+                try {
+                    const approveCancel = await callShopeeNew(callShopeeParams);
+                    statusCode = approveCancel.status;
+                    responseCode = approveCancel.statusCode;
+                    responseData = approveCancel.data;
+                } catch (err) {
+                    if (err.refreshed) {
+                        callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                        callShopeeParams['url'] = SPE_HANDLE_CANCELLATION(encryptData(err.token_data.access_token), order.store.origin_id);
+                        const retryApproveCancel = await callShopeeNew(callShopeeParams);
+                        statusCode = retryApproveCancel.status;
+                        responseCode = retryApproveCancel.statusCode;
+                        responseData = retryApproveCancel.data;
+                    }
+                    if (err.response) {
+                        responseCode = err.response.statusCode;
+                        responseData = err.response.data;
+                    } else {
+                        console.log(err);
+                        responseCode = 500;
+                        responseData = 'Internal Server Error';
+                    }
                 }
+
             } else {
                 try {
                     callShopeeParams = {
@@ -600,15 +681,32 @@ router.put('/:id', async function(req, res, next) {
                         body: {}
                     }
                     if (!req.body.shipment) {
-                        const shipParams = await callShopeeNew(callShopeeParams);
-                        if (shipParams.data.error) {
-                            return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
+                        // const shipParams = await callShopeeNew(callShopeeParams);
+                        // if (shipParams.data.error) {
+                        //     return res.status(400).send({message: 'Error getting ship parameter', response: shipParams.data});
+                        // }
+                        // statusCode = 200;
+                        // responseCode = 200;
+                        // responseData = shipParams.data;
+                        // data = {};
+                        // return res.status(200).send({shipping_params: shipParams.data});
+                        try {
+                            const shipParams = await callShopeeNew(callShopeeParams);
+                            if (shipParams.data && shipParams.data.response) {
+                                return res.status(200).send({shipping_params: shipParams.data})
+                            }
+                        } catch (err) {
+                            if (err.refreshed) {
+                                callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                                callShopeeParams['url'] = SPE_GET_TRACKING_INFO(encryptData(err.token_data.access_token), order.store.origin_id, order.origin_id);
+                                const retryshipParams = await callShopeeNew(callShopeeParams);
+                                console.log(retryshipParams.data);
+                                if (retryshipParams.data && retryshipParams.data.response) {
+                                    return res.status(200).send({shipping_params: retryshipParams.data})
+                                }
+                            }
+                            return res.status(500).send({ error: err.message });
                         }
-                        statusCode = 200;
-                        responseCode = 200;
-                        responseData = shipParams.data;
-                        data = {};
-                        return res.status(200).send({shipping_params: shipParams.data});
                     }
                     let shipmentPayload = {
                         order_sn: order.origin_id,
@@ -626,7 +724,26 @@ router.put('/:id', async function(req, res, next) {
                         url: SHOPEE_SHIP_ORDER(order.store.token, order.store.origin_id),
                         body: JSON.stringify(shipmentPayload),
                     }
-                    const shipArrangement = await callShopeeNew(callShopeeParams);
+                    // const shipArrangement = await callShopeeNew(callShopeeParams);
+                    try {
+                        const shipArrangement = await callShopeeNew(callShopeeParams);
+                        // console.log(shipArrangement.data);
+                        if (shipArrangement.data && shipArrangement.data.response) {
+                            return res.status(200).send({shipping_params: shipArrangement.data})
+                        }
+                    } catch (err) {
+                        // console.log(err);
+                        if (err.refreshed) {
+                            callShopeeParams['refresh_token'] = err.token_data.refresh_token || refreshToken;
+                            callShopeeParams['url'] = SHOPEE_SHIP_ORDER(encryptData(err.token_data.access_token), order.store.origin_id);
+                            const retryshipArrangement = await callShopeeNew(callShopeeParams);
+                            console.log(retryshipArrangement.data);
+                            if (retryshipArrangement.data && retryshipArrangement.data.response) {
+                                return res.status(200).send({shipping_params: retryshipArrangement.data})
+                            }
+                        }
+                        return res.status(500).send({ error: err.message });
+                    }
                     if (shipArrangement.data.error) {
                         return res.status(400).send({
                             parameter: shipParams.data,

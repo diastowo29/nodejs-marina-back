@@ -58,12 +58,7 @@ function messageHandler (pubMessage, socket) {
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
         prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        logger.log({
-            level: 'info',
-            message: `message received store id: ${storeId} id: ${pubMessage.id}`,
-            org_id: org[1]
-        });
-        // console.log(getTenantDB(org[1]).url);
+        logger.infoLogger(storeId, pubMessage.id, org[1]);
         const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
@@ -106,6 +101,7 @@ function messageHandler (pubMessage, socket) {
                     }
                 }).catch((error) => {
                     console.log(error);
+                    logger.errorLogger(pubMessage.id, org[1]);
                     pubMessage.nack();
                 });
                 break;
@@ -383,8 +379,9 @@ async function processShopee(body, pubMessage) {
         if (body.status == 'SHIPPED') {
             collectShopeeTrackNumber(body).catch((error) => {
                 console.log('error on worker function');
-                console.log(JSON.stringify(body));
+                // console.log(JSON.stringify(body));
                 console.log(error);
+                logger.errorLogger(pubMessage.id, org[1]);
                 pubMessage.nack();
             }).then(() => {
                 pubMessage.ack();
@@ -392,8 +389,9 @@ async function processShopee(body, pubMessage) {
         } else {
             collectShopeeOrder(body).catch((error) => {
                 console.log('error on worker function');
-                console.log(JSON.stringify(body));
+                // console.log(JSON.stringify(body));
                 console.log(error);
+                logger.errorLogger(pubMessage.id, org[1]);
                 pubMessage.nack();
             }).then(() => {
                 pubMessage.ack();
@@ -510,15 +508,22 @@ async function processShopee(body, pubMessage) {
                     }
                 }).catch((err) => {
                     console.log(err);
+                    logger.errorLogger(pubMessage.id, org[1]);
                     pubMessage.nack();
                 });
     
             } else {
                 console.log(productsInfo.data);
+                logger.errorLogger(pubMessage.id, org[1]);
                 pubMessage.nack();
             }
         } else {
             console.log(products.data);
+            logger.log({
+                level: 'warning',
+                message: `pubMessageId: ${pubMessage.id}`,
+                org_id: org[1]
+            });
             pubMessage.nack();
         }
     } else if (body.code == 10) {
@@ -528,8 +533,8 @@ async function processShopee(body, pubMessage) {
     } else if (body.code == 29) {
         collectShopeeRR(body, pubMessage).catch((error) => {
             console.log('error on worker function');
-            console.log(JSON.stringify(body));
             console.log(error);
+            logger.errorLogger(pubMessage.id, org[1]);
             pubMessage.nack();
         })
     } else {

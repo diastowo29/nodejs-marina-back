@@ -10,4 +10,25 @@ const logger = winston.createLogger({
   ],
 });
 
-module.exports = logger;
+const errorLogger = (msgId, orgId) => {
+    logger.log({
+        level: 'error',
+        message: `pubMessageId: ${msgId}`,
+        org_id: orgId
+    });
+}
+
+
+const infoLogger = (storeId, msgId, orgId) => {
+    logger.log({
+        level: 'info',
+        message: `storeId: ${storeId} pubMessageId: ${msgId}`,
+        org_id: orgId
+    });
+}
+
+module.exports = {
+    logger,
+    errorLogger,
+    infoLogger
+};
