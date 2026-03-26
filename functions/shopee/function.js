@@ -327,6 +327,10 @@ async function collectShopeeOrder (body) {
     const orderTrx = await prisma.$transaction(trxArray);
     console.log(orderTrx); */
     /* ==== soon need to be optimized ===== */
+    let totalProductPrice = 0;
+    order.data.response.order_list[0].item_list.forEach(item => {
+        totalProductPrice = totalProductPrice + item.model_discounted_price
+    });
 
     prisma.orders.update({
         where: {
@@ -363,7 +367,8 @@ async function collectShopeeOrder (body) {
             recp_addr_postal_code: orderData.recipient_address.zipicode,
             recp_name: orderData.recipient_address.name,
             recp_phone: orderData.recipient_address.phone,
-            shipping_price: orderData.estimated_shipping_fee,
+            shipping_price: orderData.actual_shipping_fee || orderData.estimated_shipping_fee,
+            total_product_price: totalProductPrice,
             total_amount: orderData.total_amount,
             status: orderData.order_status,
             order_items: {
@@ -496,6 +501,7 @@ async function getProductVarian (productIds, body) {
 async function generateShopeeToken (shop_id, refToken, tenantConfig) {
     prisma = getPrismaClientForTenant(tenantConfig.org_id, tenantConfig.tenantDB.url);
     let ts = Math.floor(Date.now() / 1000);
+    /* PARTNER_ID and PARTNER_KEY should be dynamic (for supporting shopee chat) */
     try {
         const shopeeSignString = `${PARTNER_ID}${GET_SHOPEE_REFRESH_TOKEN}${ts}`;
         const sign = CryptoJS.HmacSHA256(shopeeSignString, PARTNER_KEY).toString(CryptoJS.enc.Hex);
@@ -511,6 +517,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
             data: genTokenPayload,
         });
         if ((token.data) && (token.data.access_token)) {
+            /* can be token OR secondary token */
             await prisma.store.update({
                 where: {
                     origin_id: shop_id.toString()
