@@ -508,7 +508,7 @@ async function generateShopeeToken (shop_id, refToken, tenantConfig) {
         const genTokenPayload =  {
             refresh_token: decryptData(refToken),
             partner_id: Number.parseInt(PARTNER_ID),
-            shop_id: Number.parseInt(shop_id),
+            shop_id: Number.parseInt(shop_id)
         };
         // console.log(genTokenPayload);
         let token = await axios({

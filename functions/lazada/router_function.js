@@ -5,10 +5,11 @@ let mPrisma = new PrismaClient();
 
 async function routeLazada (jsonBody, prisma, org) {
     mPrisma = prisma;
-    const taskPayload = {
+    let taskPayload = {
         channel: LAZADA,
         orgId: org[1],
-        tenantDB: getTenantDB(org[1])
+        tenantDB: getTenantDB(org[1]),
+        doWorker: false
     }
     if (jsonBody.message_type == 0) {
         const orderId = jsonBody.data.trade_order_id; 
@@ -36,14 +37,18 @@ async function routeLazada (jsonBody, prisma, org) {
             }
         });
         if (newOrder.order_items.length == 0) {
-            taskPayload['token'] = newOrder.store.token;
-            taskPayload['refresh_token'] = newOrder.store.refresh_token;
-            taskPayload['orderId'] = orderId; 
-            taskPayload['customerId'] = jsonBody.data.buyer_id;
-            taskPayload['id'] = newOrder.id;
-            taskPayload['storeId'] = newOrder.storeId;
-            taskPayload['code'] = jsonBody.message_type;
-            taskPayload['jobId'] = orderId.toString();
+            taskPayload.doWorker = true;
+            taskPayload = {
+                ...taskPayload,
+                token: newOrder.store.token,
+                refresh_token: newOrder.store.refresh_token,
+                orderId: orderId, 
+                customerId: jsonBody.data.buyer_id,
+                id: newOrder.idorderId,
+                storeId: newOrder.storeIdorderId,
+                code: jsonBody.message_typeorderId,
+                jobId: orderId.toString(),
+            }
         }
     } else if (jsonBody.message_type == 2) {
         const bodyData = jsonBody.data;

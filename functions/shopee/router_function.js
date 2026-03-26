@@ -5,9 +5,14 @@ let prisma = new PrismaClient();
 
 async function routeShopee (jsonBody, mPrisma, org) {
     prisma = mPrisma
-    let taskPayload = {};
     let payloadCode = jsonBody.code;
     const tenantDbUrl = getTenantDB(org[1]);
+    let taskPayload = {
+        channel: SHOPEE,
+        shop_id: jsonBody.shop_id,
+        tenantDB: tenantDbUrl,
+        org_id: org[1]
+    };
     switch (payloadCode) {
         case 3:
             if (!jsonBody.data.status.includes('cancel')) {
@@ -16,6 +21,7 @@ async function routeShopee (jsonBody, mPrisma, org) {
                         origin_id: jsonBody.data.ordersn
                     },
                     update: {
+                        updatedAt: new Date(),
                         status: jsonBody.data.status
                     },
                     create: {
@@ -24,7 +30,6 @@ async function routeShopee (jsonBody, mPrisma, org) {
                         store: {
                             connect: {
                                 origin_id: jsonBody.shop_id.toString()
-                                // origin_id: '138335'
                             }
                         }
                     },
@@ -38,17 +43,14 @@ async function routeShopee (jsonBody, mPrisma, org) {
                 if (newOrder.order_items.length == 0 || jsonBody.data.status == 'SHIPPED') {
                     if (newOrder.store.status != storeStatuses.EXPIRED) {
                         taskPayload = {
-                            channel: SHOPEE, 
+                            ...taskPayload,
                             order_id: jsonBody.data.ordersn,
                             id: newOrder.id,
                             token: newOrder.store.token,
                             code: payloadCode,
                             m_shop_id: newOrder.store.id,
-                            shop_id: jsonBody.shop_id,
                             refresh_token: newOrder.store.refresh_token,
                             status: jsonBody.data.status,
-                            tenantDB: tenantDbUrl,
-                            org_id: org[1]
                         }
                     } else {
                         console.log('Shopee store: %s Expired', newOrder.store.id);
@@ -166,14 +168,12 @@ async function routeShopee (jsonBody, mPrisma, org) {
                     if (upsertMessage.store.channel.client.integration.length > 0) {
                         if (jsonBody.data.content.business_type == 0) {
                             taskPayload = {
-                                channel: SHOPEE,
-                                code: jsonBody.code,
+                                ...taskPayload,
+                                code: payloadCode,
                                 chat_type: jsonBody.data.content.message_type,
                                 message: upsertMessage,
                                 userExternalId: userExternalId,
                                 message_content: jsonBody.data.content,
-                                tenantDB: getTenantDB(org[1]),
-                                org_id: org[1],
                                 syncCustomer: false
                             }
                         }
@@ -241,8 +241,7 @@ async function routeShopee (jsonBody, mPrisma, org) {
                     });
                     if (returnRefund.line_item.length == 0) {
                         taskPayload = {
-                            tenantDB: tenantDbUrl,
-                            channel: SHOPEE,
+                            ...taskPayload,
                             token: returnRefund.order.store.token,
                             refresh_token: returnRefund.order.store.refresh_token,
                             order_id: returnRefund.order.origin_id,
@@ -251,13 +250,11 @@ async function routeShopee (jsonBody, mPrisma, org) {
                             m_order_id: returnRefund.order.id,
                             returnId: returnRefund.origin_id,
                             status: 'RETURN_AND_REFUND',
-                            code: jsonBody.code,
+                            code: payloadCode,
                             customer_id: returnRefund.order.customers.origin_id,
-                            shop_id: jsonBody.shop_id,
                             integration: returnRefund.order.store.channel.client.integration,
-                            org_id: org[1]
                         }
-                        console.log(taskPayload);
+                        // console.log(taskPayload);
                         // pushTask(env, taskPayload);
                     }
                     // res.status(200).send({message: {id: returnRefund.id}});
