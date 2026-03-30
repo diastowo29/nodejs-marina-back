@@ -42,13 +42,13 @@ function messageHandler (pubMessage, socket) {
     if (!storeId || storeId == 'null') {
         return pubMessage.ack();
     }
-    if (pubPayload.timestamp) {
+    if (pubPayload.timestamp && pubMessage.received) {
         const receivedTime = new Date(pubMessage.received);
         const eventTime = new Date(pubPayload.timestamp);
         const diffMs = receivedTime - eventTime;
         const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
         if (diffMins > 1) {
-            logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}: duplicate event. acked()`, org[1]);
+            logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}: duplicate event. acked()`);
             return pubMessage.ack();
         }
     }
