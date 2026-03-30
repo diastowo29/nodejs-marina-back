@@ -42,16 +42,6 @@ function messageHandler (pubMessage, socket) {
     if (!storeId || storeId == 'null') {
         return pubMessage.ack();
     }
-    if (pubPayload.timestamp && pubMessage.received) {
-        const receivedTime = new Date(pubMessage.received);
-        const eventTime = new Date(pubPayload.timestamp);
-        const diffMs = receivedTime - eventTime;
-        const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
-        if (diffMins > 1) {
-            logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}: duplicate event. acked()`);
-            return pubMessage.ack();
-        }
-    }
     basePrisma.stores.findUnique({
         where: {
             origin_id: storeId.toString()
@@ -128,14 +118,19 @@ function messageHandler (pubMessage, socket) {
                 });
                 break;
             case 'shopee':
-                routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
-                    // console.log(taskPayload);
-                    if (taskPayload.code) {
-                        processShopee(taskPayload, pubMessage);
-                    } else {
-                        pubMessage.ack();
-                    }
-                });
+                const passed = checkTimestamp(pubPayload, pubMessage, org[1]);
+                if (passed) {
+                    routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
+                        // console.log(taskPayload);
+                        if (taskPayload.code) {
+                            processShopee(taskPayload, pubMessage);
+                        } else {
+                            pubMessage.ack();
+                        }
+                    });
+                } else {
+                    pubMessage.ack();
+                }
                 break;
             case 'blibli':
                 console.log('blibli message received');
@@ -154,6 +149,21 @@ function messageHandler (pubMessage, socket) {
     })
     // pubMessage.nack()
     // throw new Error("error marina");
+}
+
+function checkTimestamp (pubPayload, pubMessage, org) {
+    let passed = true;
+    if (pubPayload.timestamp && pubMessage.received) {
+        const receivedTime = new Date(pubMessage.received);
+        const eventTime = new Date(pubPayload.timestamp);
+        const diffMs = receivedTime - eventTime;
+        const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
+        if (diffMins > 1) {
+            logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}: duplicate event. acked()`, org);
+            passed = false;
+        }
+    }
+    return passed;
 }
 
 function errorHandler (error) {
