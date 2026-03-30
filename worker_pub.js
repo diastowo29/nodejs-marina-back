@@ -118,7 +118,10 @@ function messageHandler (pubMessage, socket) {
                 });
                 break;
             case 'shopee':
-                const passed = checkTimestamp(pubPayload, pubMessage, org[1]);
+                const tsCheckParams = {
+                    storeId: storeId, pubPayload: pubPayload, pubMessage: pubMessage, org: org[1]
+                }
+                const passed = checkTimestamp(tsCheckParams);
                 if (passed) {
                     routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
                         // console.log(taskPayload);
@@ -151,7 +154,8 @@ function messageHandler (pubMessage, socket) {
     // throw new Error("error marina");
 }
 
-function checkTimestamp (pubPayload, pubMessage, org) {
+function checkTimestamp (tsCheckParams) {
+    const {storeId, pubPayload, pubMessage, org} = tsCheckParams
     let passed = true;
     if (pubPayload.timestamp && pubMessage.received) {
         const receivedTime = new Date(pubMessage.received);
