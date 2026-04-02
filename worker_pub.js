@@ -126,7 +126,7 @@ function messageHandler (pubMessage, socket) {
                 //     return pubMessage.ack();
                 // }
                 routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
-                    // console.log(taskPayload);
+                    console.log(taskPayload);
                     if (taskPayload.code) {
                         processShopee(taskPayload, pubMessage);
                     } else {
