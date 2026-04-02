@@ -74,11 +74,9 @@ function messageHandler (pubMessage, socket) {
             pubMessage.ack();
             return;
         }
-        console.log(mStore.name);
         switch (mStore.channel.name) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
-                    console.log(taskPayload);
                     if (taskPayload) {
                         if (taskPayload.code == 1) {
                             /* ==== ORDERS UPDATE==== */
@@ -120,22 +118,21 @@ function messageHandler (pubMessage, socket) {
                 });
                 break;
             case 'shopee':
-                const tsCheckParams = {
-                    storeId: storeId, pubPayload: pubPayload, pubMessage: pubMessage, org: org[1]
-                }
-                const passed = checkTimestamp(tsCheckParams);
-                if (passed) {
-                    routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
-                        // console.log(taskPayload);
-                        if (taskPayload.code) {
-                            processShopee(taskPayload, pubMessage);
-                        } else {
-                            pubMessage.ack();
-                        }
-                    });
-                } else {
-                    pubMessage.ack();
-                }
+                // const tsCheckParams = {
+                //     storeId: storeId, pubPayload: pubPayload, pubMessage: pubMessage, org: org[1]
+                // }
+                // const passed = checkTimestamp(tsCheckParams);
+                // if (!passed) {
+                //     return pubMessage.ack();
+                // }
+                routeShopee(pubPayload, prisma, org).then(async (taskPayload) => {
+                    // console.log(taskPayload);
+                    if (taskPayload.code) {
+                        processShopee(taskPayload, pubMessage);
+                    } else {
+                        pubMessage.ack();
+                    }
+                });
                 break;
             case 'blibli':
                 console.log('blibli message received');
