@@ -23,6 +23,7 @@ const infoLogger = (msg, orgId) => {
     logger.log({
         level: 'info',
         message: msg,
+        source: 'heroku_worker',
         org_id: orgId
     });
 }
