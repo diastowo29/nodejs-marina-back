@@ -24,7 +24,7 @@ const infoLogger = (msg, orgId) => {
         level: 'info',
         message: msg,
         source: 'heroku_worker',
-        org_id: orgId
+        org_id: orgId || 'unknown_org'
     });
 }
 

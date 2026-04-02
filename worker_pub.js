@@ -51,8 +51,8 @@ function messageHandler (pubMessage, socket) {
         }
     }).then(async(baseStore) => {
         if (!baseStore) {
-            console.log(JSON.stringify(pubPayload))
-            console.log('cannot find the client');
+            logger.infoLogger(JSON.stringify(pubPayload))
+            logger.infoLogger('cannot find the client');
             pubMessage.ack();
             return;
         }
@@ -70,7 +70,7 @@ function messageHandler (pubMessage, socket) {
             }
         });
         if (!mStore) {
-            console.log('store not found in tenant db');
+            logger.infoLogger('store not found in tenant db', org[1]);
             pubMessage.ack();
             return;
         }
@@ -92,7 +92,7 @@ function messageHandler (pubMessage, socket) {
                             socket.emit('worker-event', {tenant: org[1], message: taskPayload.message.origin_id});
                             forwardConversation(taskPayload, pubMessage);
                         } else {
-                            console.log('code %s not implemented yet', taskPayload.code);
+                            logger.infoLogger('code %s not implemented yet', taskPayload.code, org[1]);
                             pubMessage.ack();
                         }
                         // processTiktok(taskPayload, pubMessage);
@@ -100,7 +100,7 @@ function messageHandler (pubMessage, socket) {
                         pubMessage.ack();
                     }
                 }).catch((error) => {
-                    console.log(error);
+                    logger.infoLogger(error, org[1]);
                     logger.errorLogger(pubMessage.id, org[1]);
                     pubMessage.nack();
                 });
@@ -134,18 +134,18 @@ function messageHandler (pubMessage, socket) {
                 });
                 break;
             case 'blibli':
-                console.log('blibli message received');
-                console.log(JSON.stringify(pubPayload));
+                logger.infoLogger('blibli message received', org[1]);
+                logger.infoLogger(JSON.stringify(pubPayload));
                 pubMessage.ack();
                 break;
             default:
-                console.log('default channel');
+                logger.infoLogger('default channel', org[1]);
                 pubMessage.nack();
                 break;
         }
     }).catch((err) => {
-        console.log(err);
-        console.log("inbound error: " + pubMessage.id);
+        logger.infoLogger(err);
+        logger.infoLogger("inbound error: " + pubMessage.id);
         pubMessage.nack();
     })
     // pubMessage.nack()
@@ -174,7 +174,7 @@ function errorHandler (error) {
 }
 
 function start() {
-    console.log('Marina Worker started... ', env);
+    logger.infoLogger('Marina Worker started... ', env);
     const socket = io(process.env.BE_HOST || 'http://localhost:3002');
     const pubsub = new PubSub({projectId: projectId});
     const topic = pubsub.topic(topicName);
@@ -191,7 +191,7 @@ async function processLazada(body, pubMessage) {
     prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
     switch (body.code) {
         case 0:
-            console.log('create order id: ', body.orderId);
+            logger.infoLogger(`create order id: ${body.orderId}`, body.orgId);
             try {
                 let orderDetailPromise = await Promise.all([
                     lazCall(lazGetOrderDetail,
@@ -288,11 +288,11 @@ async function processLazada(body, pubMessage) {
                         }
                     }
                 }).then((order) => {
-                    console.log('order synced: ' + order.id)
+                    logger.infoLogger(`order synced: ${order.id}`, body.orgId);
                     pubMessage.ack();
                 })
             } catch (err) {
-                console.log(err);
+                logger.infoLogger(err, body.orgId);
                 pubMessage.nack();
             }
             break;
@@ -304,7 +304,7 @@ async function processLazada(body, pubMessage) {
                         body.refresh_token, body.token, body.storeId, body.orgId,
                                 body.tenantDB, false);
                     if (session && session.success) {
-                        console.log(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`);
+                        logger.infoLogger(`get session: ${session.data.session_id} username: ${session.data.title} userId: ${session.data.buyer_id}`, body.orgId);
                         await prisma.customers.update({
                             where: {
                                 origin_id: session.data.buyer_id.toString()
@@ -315,27 +315,25 @@ async function processLazada(body, pubMessage) {
                         });
                         // pubMessage.ack();
                     } else {
-                        console.log(session);
-                        console.log('session invalid: %s', body.sessionId);
+                        logger.infoLogger(session, body.orgId);
+                        logger.infoLogger(`session invalid: ${body.sessionId}`, body.orgId);
                         // pubMessage.ack();
                     }
                 }
                 forwardConversation(body, pubMessage);
             } else {
-                console.log('lazada chat not from customer');
+                logger.infoLogger('lazada chat not from customer', body.orgId);
                 pubMessage.ack();
             }
             break;
         case 3: 
-            console.log('code 3');
-            // console.log(body);
+            logger.infoLogger('code 3', body.orgId);
+            // logger.infoLogger(body);
             const getProductParams = `item_id=${body.productId}`
             lazCall(lazGetProducts(appKeyOMS),
                 getProductParams, body.refreshToken,
                 body.token, body.mStoreId, body.orgId,
                 body.tenantDB, isOms).then(async (productDetail) => {
-                    // console.log((productDetail))
-                    // console.log(JSON.stringify(productDetail))
                     await prisma.products.update({
                         where: {
                             origin_id: body.productId.toString()
@@ -376,13 +374,13 @@ async function processLazada(body, pubMessage) {
                     })
                     pubMessage.ack();
                 }).catch((err) => {
-                    console.log('error fetching product detail');
-                    console.log(err);
+                    logger.infoLogger('error fetching product detail', body.orgId);
+                    logger.infoLogger(err, body.orgId);
                     pubMessage.nack();
                 });
             break;
         default:
-            console.log(`code: ${body.code} is not supported yet`)
+            logger.infoLogger(`code: ${body.code} is not supported yet`, body.orgId)
             pubMessage.ack();
             break;
     }
@@ -400,9 +398,9 @@ async function processShopee(body, pubMessage) {
         /* ==== ORDERS ==== */
         if (body.status == 'SHIPPED') {
             collectShopeeTrackNumber(body).catch((error) => {
-                console.log('error on worker function');
-                // console.log(JSON.stringify(body));
-                console.log(error);
+                logger.infoLogger('error on worker function', body.org_id);
+                // logger.infoLogger(JSON.stringify(body));
+                logger.infoLogger(error, body.org_id);
                 logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }).then(() => {
@@ -410,9 +408,9 @@ async function processShopee(body, pubMessage) {
             })
         } else {
             collectShopeeOrder(body).catch((error) => {
-                console.log('error on worker function');
-                // console.log(JSON.stringify(body));
-                console.log(error);
+                logger.infoLogger('error on worker function', body.org_id);
+                // logger.infoLogger(JSON.stringify(body));
+                logger.infoLogger(error, body.org_id);
                 logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }).then(() => {
@@ -422,13 +420,11 @@ async function processShopee(body, pubMessage) {
     } else if (body.code == 9999) {
         let accToken = body.token;
         let refToken = body.refresh_token
-        // console.log(accToken);
-        // console.log(GET_SHOPEE_PRODUCTS_LIST(accToken, body.shop_id));
         const products = await api.get(
             GET_SHOPEE_PRODUCTS_LIST(accToken, body.shop_id)
         ).catch(async function (err) {
             if ((err.status === 403) && (err.response.data.error === 'invalid_acceess_token')) {
-                console.log(`error status ${err.status} response ${err.response.data.error}`);
+                logger.infoLogger(`error status ${err.status} response ${err.response.data.error}`, body.org_id);
                 let newToken = await generateShopeeToken(body.shop_id, refToken, tenantConfig);
                 accToken = newToken.access_token;
                 refToken = newToken.refresh_token;
@@ -442,13 +438,12 @@ async function processShopee(body, pubMessage) {
         // SOON - PRODUCT SYNC // const products = await callShopee('get', GET_SHOPEE_PRODUCTS_LIST(body.token, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
         if ((!products) || (!products.data.error)) {
             let productIds = products.data.response.item.map(item => item.item_id);
-            // console.log(GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id))
-            console.log('getting base info total %s product', productIds.length);
+            logger.infoLogger(`getting base info total %s product ${productIds.length}`, body.org_id);
             // SOON - PRODUCT SYNC // const productsInfo = await callShopee('get', GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
             const productsInfo = await api.get(
                 GET_SHOPEE_PRODUCTS_INFO(accToken, productIds, body.shop_id)
             ).catch(function (err) {
-                console.log(err.response.data);
+                logger.infoLogger(err.response.data, body.org_id);
             });
             if (productsInfo.data.response) {
                 prisma.products.createManyAndReturn({
@@ -482,7 +477,6 @@ async function processShopee(body, pubMessage) {
                             }
                         });
                         const productsModel = await Promise.all(getModelIdsPromises);
-                        // console.log(JSON.stringify(productsModel[0].data.response));
                         const modelToCreate = [];
                         getModelProductIds.forEach((id, i) => {
                             if (productsModel[i].data && productsModel[i].data.response) {
@@ -505,9 +499,9 @@ async function processShopee(body, pubMessage) {
                             skipDuplicates: true,
                             data: modelToCreate
                         }).then((varian) => {
-                            console.log(varian);
+                            logger.infoLogger(varian, body.org_id);
                         }).catch((err) => {
-                            console.log(err);
+                            logger.infoLogger(err, body.org_id);
                         });
                         if (newProducts.length > 0) {
                             await prisma.products_img.createManyAndReturn({
@@ -521,46 +515,41 @@ async function processShopee(body, pubMessage) {
                             });
                         }
                     } catch (err) {
-                        console.log(err);
-                        console.log('Error getting list of model');
+                        logger.infoLogger(err, body.org_id);
+                        logger.infoLogger('Error getting list of model', body.org_id);
                     }
                     if (env !== 'production') {
                         pubMessage.ack();
 
                     }
                 }).catch((err) => {
-                    console.log(err);
+                    logger.infoLogger(err, body.org_id);
                     logger.errorLogger(pubMessage.id, body.org_id);
                     pubMessage.nack();
                 });
     
             } else {
-                console.log(productsInfo.data);
+                logger.infoLogger(productsInfo.data, body.org_id);
                 logger.errorLogger(pubMessage.id, body.org_id);
                 pubMessage.nack();
             }
         } else {
-            console.log(products.data);
-            logger.log({
-                level: 'warning',
-                message: `pubMessageId: ${pubMessage.id}`,
-                org_id: body.org_id
-            });
+            logger.infoLogger(products.data, body.org_id);
             pubMessage.nack();
         }
     } else if (body.code == 10) {
         // forwardConversation(body, pubMessage);
-        console.log('shopee chat not forwararded yet');
+        logger.infoLogger('shopee chat not forwararded yet', body.org_id);
         pubMessage.ack();
     } else if (body.code == 29) {
         collectShopeeRR(body, pubMessage).catch((error) => {
-            console.log('error on worker function');
-            console.log(error);
+            logger.infoLogger('error on worker function', body.org_id);
+            logger.infoLogger(error, body.org_id);
             logger.errorLogger(pubMessage.id, body.org_id);
             pubMessage.nack();
         })
     } else {
-        console.log('shopee code not supported: ', body.code);
+        logger.infoLogger(`shopee code not supported: ${body.code}`, body.org_id);
         pubMessage.ack();
     }
 }
