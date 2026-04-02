@@ -1,4 +1,4 @@
-var { PrismaClient } = require('@prisma/client');
+/* var { PrismaClient } = require('@prisma/client');
 let marinaPrisma;
 function prismaDb(url) {
     marinaPrisma = new PrismaClient({
@@ -7,4 +7,4 @@ function prismaDb(url) {
     return marinaPrisma;
 }
 
-module.exports = {prismaDb, marinaPrisma};
+module.exports = {prismaDb, marinaPrisma}; */

@@ -6,7 +6,8 @@
     "start": "node ./bin/www",
     "prisma": "prisma generate --schema=prisma/schema.prisma",
     "prisma:base": "prisma generate --schema=prisma/schemaBase.prisma",
-    "watch_worker": "nodemon worker_pub.js -L"
+    "watch_worker": "nodemon worker_pub.js -L",
+    "build": "prisma generate --schema=prisma/schema.prisma && prisma generate --schema=prisma/schemaBase.prisma && chmod +x cloud-sql-proxy"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.5",

@@ -15,3 +15,4 @@ test.js
 helper
 ecosystem.config.js
 helper.js
+prisma/generated/
