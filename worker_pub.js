@@ -74,9 +74,11 @@ function messageHandler (pubMessage, socket) {
             pubMessage.ack();
             return;
         }
+        console.log(mStore.name);
         switch (mStore.channel.name) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
+                    console.log(taskPayload);
                     if (taskPayload) {
                         if (taskPayload.code == 1) {
                             /* ==== ORDERS UPDATE==== */
