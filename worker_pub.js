@@ -75,6 +75,7 @@ function messageHandler (pubMessage, socket) {
             pubMessage.ack();
             return;
         }
+        
         switch (mStore.channel.name) {
             case 'tiktok':
                 routeTiktok(pubPayload, prisma, org).then(async (taskPayload) => {
