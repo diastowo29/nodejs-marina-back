@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 const { lazReplyChat, chatContentType, channelSource, TOKOPEDIA, LAZADA } = require('../../../config/utils');
 // const { lazPostCall, lazPostGetCall } = require('../../../functions/lazada/caller');
-const { getToken } = require('../../../functions/helper');
 const { api } = require('../../../functions/axios/interceptor');
 const { TOKO_REPLYCHAT, TOKO_INITIATE_CHAT } = require('../../../config/toko_apis');
 const sendLazadaChat = require('../../../functions/lazada/function');
@@ -20,6 +19,19 @@ const tokoAppId = process.env.TOKO_APP_ID;
     io.emit('worker-event', 'event to ' + req.tenantId);
     res.status(200).send({})
 }); */
+
+class LazadaChatParams {
+    constructor(chatId, templateId, storeId, contentType, chatLine, token, refreshToken, orgId) {
+        this.chatId = chatId;
+        this.templateId = templateId;
+        this.storeId = storeId;
+        this.contentType = contentType;
+        this.chatLine = chatLine;
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.orgId = orgId;
+    }
+}
 
 router.get('/', async function(req, res, next) {
     mPrisma = req.prisma;
@@ -125,7 +137,18 @@ router.post('/initiate', async function(req, res, next) {
     } else if (channel.toLowerCase() === LAZADA) {
         let templateId = '10007';
         let contentType = 'order_id';
-        let chat = await sendLazadaChat('chatId', templateId, storeId, contentType, 'chatLine');
+        // const sendLazadaChatParams = {
+        //     chatId: 'chatId',
+        //     templateId: templateId,
+        //     storeId: storeId,
+        //     contentType: contentType,
+        //     chatLine: 'chatLine',
+            // token: mStore.secondary_token,
+            // refreshToken: mStore.secondary_refresh_token,
+            // orgId: org_id
+        // }
+        const sendLazadaChatParams = new LazadaChatParams('chatId', templateId, storeId, contentType, 'chatLine', store.token, store.refresh_token, req.auth.payload.org_id);
+        let chat = await sendLazadaChat(sendLazadaChatParams);
         res.status(200).send({chat: chat});
     } else {
         res.status(400).send({error: 'Not implemented'});
@@ -234,6 +257,19 @@ router.post('/sunco/event', async function(req, res, next){
 async function sendMessageToBuyer(body, org_id) {
     // console.log('sendMessageToBuyer', JSON.stringify(body))
     let templateId;
+    let mStore = {};
+    if (!body.omnichat) {
+        console.log('== get omnichat ==')
+        // const mPrisma = getPrismaClient(getTenantDB(org_id));
+        mPrisma = getPrismaClientForTenant(org_id, getTenantDB(org_id).url);
+        mStore = await mPrisma.store.findUnique({
+            where: {
+                origin_id: body.store_origin_id.toString()
+            }
+        });
+    } else {
+        mStore = body.omnichat.store;
+    }
     if (body.channel_name.toString().toLowerCase() === channelSource.LAZADA.toLowerCase()) {
         let contentType;
         let bodyChat = body.line_text;
@@ -260,10 +296,30 @@ async function sendMessageToBuyer(body, org_id) {
             default:
                 break;
         }
+
         // let apiParams = `session_id=${body.omnichat_origin_id}&template_id=${templateId}&${contentType}=${body.line_text}`;
         // let token = await getToken(body.store_origin_id);
         // let chatReply = await lazPostCall(lazReplyChat, apiParams, token.secondary_refresh_token, token.secondary_token);
-        let chatReply = await sendLazadaChat(body.omnichat_origin_id, templateId, body.store_origin_id, contentType, bodyChat);
+        // const sendLazadaChatParams = {
+        //     chatId: body.omnichat_origin_id,
+        //     templateId: templateId,
+        //     storeId: body.store_origin_id,
+        //     contentType: contentType,
+        //     chatLine: bodyChat,
+        //     token: mStore.secondary_token,
+        //     refreshToken: mStore.secondary_refresh_token,
+        //     orgId: org_id
+        // }
+        const sendLazadaChatParams = new LazadaChatParams();
+        sendLazadaChatParams.chatId = body.omnichat_origin_id;
+        sendLazadaChatParams.templateId = templateId;
+        sendLazadaChatParams.storeId = body.store_origin_id;
+        sendLazadaChatParams.contentType = contentType;
+        sendLazadaChatParams.chatLine = bodyChat;
+        sendLazadaChatParams.token = mStore.secondary_token;
+        sendLazadaChatParams.refreshToken = mStore.refresh_token;
+        sendLazadaChatParams.orgId = org_id;
+        let chatReply = await sendLazadaChat(sendLazadaChatParams);
         if (!chatReply.success) {
             // return res.status(400).send({chat: chatReply});
             return {success: false, error: chatReply}
@@ -272,7 +328,7 @@ async function sendMessageToBuyer(body, org_id) {
         // res.status(200).send(chat);
         return {success: true, chat: chat}
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TOKOPEDIA.toLowerCase()) {
-        let token = await getToken(body.store_origin_id); // <<==== NEED TO CHECK!!! ASAP!!!
+        /* let token = await getToken(body.store_origin_id); // <<==== NEED TO CHECK!!! ASAP!!!
         // console.log(token);
         // console.log(TOKO_REPLYCHAT(process.env.TOKO_APP_ID, body.last_messageId));
         switch (body.chat_type) {
@@ -334,9 +390,9 @@ async function sendMessageToBuyer(body, org_id) {
             console.log(err);
             // res.status(400).send({error: err});
             return {success: false, error: err}
-        }
+        } */
     } else if (body.channel_name.toString().toLowerCase() === channelSource.TIKTOK.toLowerCase()) {
-        let mStore = {};
+        /* let mStore = {};
         if (!body.omnichat) {
             console.log('== get omnichat ==')
             // const mPrisma = getPrismaClient(getTenantDB(org_id));
@@ -348,7 +404,7 @@ async function sendMessageToBuyer(body, org_id) {
             });
         } else {
             mStore = body.omnichat.store;
-        }
+        } */
         let contentChat = {
             ...(body.chat_type === chatContentType.TEXT ? {content: body.line_text} : {}),
             ...(body.chat_type === chatContentType.IMAGE ? {url: body.file_path, width: 1280, height: 720} : {}),

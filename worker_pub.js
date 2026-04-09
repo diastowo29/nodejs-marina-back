@@ -58,8 +58,10 @@ function messageHandler (pubMessage, socket) {
             return;
         }
         const org = Buffer.from(baseStore.clients.org_id, 'base64').toString('ascii').split(':');
-        prisma = getPrismaClientForTenant(org[1], getTenantDB(org[1]).url);
-        logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}`, org[1]);
+        const tenantOrgId = org[1];
+        const tenantDbUrl = getTenantDB(tenantOrgId).url;
+        prisma = getPrismaClientForTenant(tenantOrgId, tenantDbUrl);
+        logger.infoLogger(`storeId: ${storeId} pubMessageId: ${pubMessage.id}`, tenantOrgId);
         const mStore = await prisma.store.findFirst({
             where: {
                 origin_id: baseStore.origin_id
@@ -71,7 +73,7 @@ function messageHandler (pubMessage, socket) {
             }
         });
         if (!mStore) {
-            logger.infoLogger('store not found in tenant db', org[1]);
+            logger.infoLogger('store not found in tenant db', tenantOrgId);
             pubMessage.ack();
             return;
         }
@@ -94,7 +96,7 @@ function messageHandler (pubMessage, socket) {
                             socket.emit('worker-event', {tenant: org[1], message: taskPayload.message.origin_id});
                             forwardConversation(taskPayload, pubMessage);
                         } else {
-                            logger.infoLogger('code %s not implemented yet', taskPayload.code, org[1]);
+                            logger.infoLogger('code %s not implemented yet', taskPayload.code, tenantOrgId);
                             pubMessage.ack();
                         }
                         // processTiktok(taskPayload, pubMessage);
@@ -102,8 +104,8 @@ function messageHandler (pubMessage, socket) {
                         pubMessage.ack();
                     }
                 }).catch((error) => {
-                    logger.infoLogger(error, org[1]);
-                    logger.errorLogger(pubMessage.id, org[1]);
+                    logger.infoLogger(error, tenantOrgId);
+                    logger.errorLogger(pubMessage.id, tenantOrgId);
                     pubMessage.nack();
                 });
                 break;
@@ -111,7 +113,7 @@ function messageHandler (pubMessage, socket) {
                 routeLazada(pubPayload, prisma, org).then(async (taskPayload) => {
                     if (taskPayload.code) {
                         if (taskPayload.code == 2) {
-                            socket.emit('worker-event', {tenant: org[1], message: taskPayload.message.origin_id});
+                            socket.emit('worker-event', {tenant: tenantOrgId, message: taskPayload.message.origin_id});
                         }
                         processLazada(taskPayload, pubMessage);
                     } else {
@@ -121,7 +123,7 @@ function messageHandler (pubMessage, socket) {
                 break;
             case 'shopee':
                 // const tsCheckParams = {
-                //     storeId: storeId, pubPayload: pubPayload, pubMessage: pubMessage, org: org[1]
+                //     storeId: storeId, pubPayload: pubPayload, pubMessage: pubMessage, org: tenantOrgId
                 // }
                 // const passed = checkTimestamp(tsCheckParams);
                 // if (!passed) {
@@ -136,12 +138,12 @@ function messageHandler (pubMessage, socket) {
                 });
                 break;
             case 'blibli':
-                logger.infoLogger('blibli message received', org[1]);
+                logger.infoLogger('blibli message received', tenantOrgId);
                 logger.infoLogger(JSON.stringify(pubPayload));
                 pubMessage.ack();
                 break;
             default:
-                logger.infoLogger('default channel', org[1]);
+                logger.infoLogger('default channel', tenantOrgId);
                 pubMessage.nack();
                 break;
         }
@@ -632,7 +634,7 @@ async function processBlibli(body, done) {
         console.log(err);
     } */
 
-    console.log(JSON.stringify(body));
+    // console.log(JSON.stringify(body));
     if (env !== 'production') {
         done(null, {
             response: 'testing'

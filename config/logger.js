@@ -20,12 +20,16 @@ const errorLogger = (msgId, orgId) => {
 
 
 const infoLogger = (msg, orgId) => {
-    logger.log({
-        level: 'info',
-        message: msg,
-        source: 'heroku_worker',
-        org_id: orgId || 'unknown_org'
-    });
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(msg);
+    } else {
+        logger.log({
+            level: 'info',
+            message: msg,
+            source: 'heroku_worker',
+            org_id: orgId || 'unknown_org'
+        });
+    }
 }
 
 module.exports = {

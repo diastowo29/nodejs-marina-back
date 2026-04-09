@@ -11,6 +11,18 @@ const { PrismaClient } = require("../../prisma/generated/client");
 const { doCreateZdTicket } = require("../zendesk/function");
 let prisma = new PrismaClient();
 
+class ShopeeApiConstructor {
+    constructor(method, url, body, token, refreshToken, shopId, tenantConfig) {
+        this.method = method;
+        this.url = url;
+        this.body = body;
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.shopId = shopId;
+        this.tenantConfig = tenantConfig;
+    }
+}
+
 async function collectShopeeTrackNumber(body) {
     prisma = getPrismaClientForTenant(body.org_id, body.tenantDB.url);
     const tenantConfig = {
@@ -18,7 +30,8 @@ async function collectShopeeTrackNumber(body) {
         tenantDB: body.tenantDB
     }
     try {
-        const trackingNumber = await callShopee('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+        const shopeeApi = new ShopeeApiConstructor('GET', SPE_GET_TRACKING_NUMBER(body.token, body.shop_id, body.order_id), {}, body.token, body.refresh_token, body.shop_id, tenantConfig);
+        const trackingNumber = await callShopeeNew(shopeeApi);
         if (trackingNumber.data && trackingNumber.data.response) {
             // console.log(trackingNumber.data.response);
             const _ = await prisma.orders.update({
@@ -239,7 +252,8 @@ async function collectShopeeOrder (body) {
         org_id: body.org_id,
         tenantDB: body.tenantDB
     }
-    const order = await callShopee('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.refresh_token, body.shop_id, tenantConfig);
+    const shopeeApi = new ShopeeApiConstructor('GET', GET_SHOPEE_ORDER_DETAIL(body.token, body.order_id, body.shop_id), {}, body.token, body.refresh_token, body.shop_id, tenantConfig);
+    const order = await callShopeeNew(shopeeApi);
     if (!order) {
         console.log(order);
         throw new Error('Failed to retrieve order data');

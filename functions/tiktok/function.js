@@ -11,8 +11,31 @@ let prisma = new PrismaClient();
 // const { PrismaClient } = require("@prisma/client");
 // const prisma = new PrismaClient();
 
+class TiktokApiParams {
+    constructor(api, method, params, token, refreshToken, storeId, tenantDB, orgId) {
+        this.api = api;
+        this.method = method;
+        this.params = params;
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.storeId = storeId;
+        this.tenantDB = tenantDB;
+        this.orgId = orgId;
+    }
+}
+
 async function collectTiktokOrder (body, subs) {
-    let tiktokOrder = await callTiktok('get', GET_ORDER_API(body.order_id, body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId);
+    const tiktokApiParams = new TiktokApiParams();
+    tiktokApiParams.token = body.token;
+    tiktokApiParams.refreshToken = body.refresh_token;
+    tiktokApiParams.storeId = body.m_shop_id;
+    tiktokApiParams.tenantDB = body.tenantDB;
+    tiktokApiParams.orgId = body.orgId;
+
+    tiktokApiParams.api = GET_ORDER_API(body.order_id, body.cipher);
+    tiktokApiParams.method = 'get';
+    tiktokApiParams.params = {};
+    let tiktokOrder = await callNewTiktok(tiktokApiParams);
     if (tiktokOrder) {
         prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
         // const prisma = getPrismaClient(body.tenantDB);
@@ -131,7 +154,10 @@ async function collectTiktokOrder (body, subs) {
                     console.log('Sync products')
                     let productPromises = [];
                     body.syncProduct.forEach(item => {
-                        productPromises.push(callTiktok('GET', GET_PRODUCT(item.split('-')[0], body.cipher), {}, body.token, body.refresh_token, body.m_shop_id, body.tenantDB, body.orgId))
+                        tiktokApiParams.api = GET_PRODUCT(item.split('-')[0], body.cipher);
+                        tiktokApiParams.method = 'get';
+                        tiktokApiParams.params = {};
+                        productPromises.push(callNewTiktok(tiktokApiParams))
                     });
                     Promise.all(productPromises).then((products) => {
                         let productImgs = [];
@@ -896,6 +922,51 @@ async function callTiktokNew (callParams) {
 }
 
 async function callTiktok (method, url, body, token, refreshToken, mShopId, tenantDB, orgId) {
+    return api({
+        method: method,
+        url: url,
+        data: (body) ? body : {},
+        headers: {
+            'x-tts-access-token': decryptData(token),
+            'content-type': 'application/json'
+        }
+    }).catch(async function (err) {
+        console.log(err.response.data)
+        if (err.response.data.code == 105002) {
+            console.log('Refreshing token...');
+            let newToken = await api.get(GET_REFRESH_TOKEN_API(decryptData(refreshToken)));
+            // console.log(newToken.data);
+            if (!newToken.data.data.access_token) {
+                throw new Error('Failed to refresh token');
+            }
+            // const prisma = getPrismaClient(tenantDB);
+            prisma = getPrismaClientForTenant(orgId, tenantDB.url);
+            const _stored = await prisma.store.update({
+                where: {
+                    id: mShopId
+                },
+                data: {
+                    token: encryptData(newToken.data.data.access_token),
+                    refresh_token: encryptData(newToken.data.data.refresh_token)
+                }
+            });
+            return api({
+                method: method,
+                url: url,
+                data: (body) ? body : {},
+                headers: {
+                    'x-tts-access-token': newToken.data.data.access_token,
+                    'content-type': 'application/json'
+                }
+            })
+        } else {
+            throw new Error(err.response.data);
+        }
+    });
+}
+
+async function callNewTiktok (params) {
+    const { method, url, body, token, refreshToken, mShopId, tenantDB, orgId } = params;
     return api({
         method: method,
         url: url,

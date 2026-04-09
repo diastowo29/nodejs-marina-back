@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { PrismaClient: prismaBaseClient } = require('../../prisma/generated/baseClient');
-const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, GET_PRODUCT, CANCEL_ORDER, REJECT_CANCELLATION, GET_ORDER_API, GET_RETURN_RECORDS, SEARCH_RETURN, SEARCH_PRODUCTS, SEARCH_CANCELLATION } = require('../../config/tiktok_apis');
+const { GET_TOKEN_API, GET_AUTHORIZED_SHOP, APPROVE_CANCELLATION, REJECT_CANCELLATION, SEARCH_RETURN, SEARCH_CANCELLATION } = require('../../config/tiktok_apis');
 const { api } = require('../../functions/axios/interceptor');
 const { TIKTOK, PATH_WEBHOOK, PATH_AUTH, PATH_ORDER, PATH_CANCELLATION, convertOrgName, RRTiktokStatus } = require('../../config/utils');
 const { pushTask } = require('../../functions/queue/task');
@@ -694,13 +694,104 @@ router.post(PATH_AUTH, async function(req, res, next) {
             if (shops.data.data.shops.length == 0) {
                 return res.status(400).send({error: 'No shop found'});
             }
-            let storeFound = shops.data.data.shops.find((shop) => shop.name == token.data.data.seller_name);
-            if ((!storeFound)) {
-                return res.status(400).send({error: 'No shop found'});
-            }
 
             const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
-            let clientStored = await Promise.all([
+            shops.data.data.shops.forEach(async (shop) => {
+                await basePrisma.stores.upsert({
+                    where: {
+                        origin_id: shop.id
+                    },
+                    create: {
+                        origin_id: shop.id,
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                }, 
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    },
+                    update: {
+                        clients: {
+                            connectOrCreate: {
+                                where: {
+                                    org_id: orgBase64
+                                },
+                                create: {
+                                    org_id: orgBase64
+                                }
+                            }
+                        }
+                    }
+                });
+                await mPrisma.store.upsert({
+                    where: {
+                        origin_id: shop.id
+                    },
+                    create: {
+                        origin_id: shop.id,
+                        name: token.data.data.seller_name,
+                        token: encryptData(token.data.data.access_token),
+                        refresh_token: encryptData(token.data.data.refresh_token),
+                        secondary_token: encryptData(shop.cipher),
+                        status: 'ACTIVE',
+                        channel: {
+                            connectOrCreate: {
+                                where: {
+                                    name: TIKTOK
+                                },
+                                create: {
+                                    name: TIKTOK,
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    update: {
+                        token: encryptData(token.data.data.access_token),
+                        refresh_token: encryptData(token.data.data.refresh_token),
+                        status: 'ACTIVE',
+                        channel: {
+                            upsert: {
+                                where: {
+                                    name: TIKTOK
+                                },
+                                create: {
+                                    name: TIKTOK
+                                },
+                                update: {
+                                    client: {
+                                        connectOrCreate: {
+                                            where: {
+                                                origin_id: req.auth.payload.org_id
+                                            },
+                                            create: {
+                                                name: req.auth.payload.org_id,
+                                                origin_id: req.auth.payload.org_id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            res.status(200).send({status: 'success'});
+            /* let clientStored = await Promise.all([
                 basePrisma.stores.upsert({
                     where: {
                         origin_id: storeFound.id
@@ -740,7 +831,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         name: token.data.data.seller_name,
                         token: encryptData(token.data.data.access_token),
                         refresh_token: encryptData(token.data.data.refresh_token),
-                        secondary_token: encryptData(shops.data.data.shops[0].cipher),
+                        secondary_token: encryptData(storeFound.cipher),
                         status: 'ACTIVE',
                         channel: {
                             connectOrCreate: {
@@ -793,13 +884,13 @@ router.post(PATH_AUTH, async function(req, res, next) {
                         }
                     }
                 })
-            ]);
-            res.status(200).send(clientStored);
+            ]); */
         } catch (err) {
             console.log(err);
             res.status(400).send({error: err})
         }
     } else {
+        console.log(token.data);
         res.status(422).send({error: token.data})
     }
 });

@@ -1,11 +1,21 @@
 const { lazReplyChat } = require("../../config/utils");
-const { getToken } = require("../helper");
+const { getTenantDB } = require("../../middleware/tenantIdentifier");
 const { lazPostCall } = require("./caller");
 
-async function sendLazadaChat (chatId, templateId, storeId, contentType, chatLine) {
+async function sendLazadaChat (sendLazadaChatParams) {
+    const { chatId, templateId, storeId, contentType, chatLine, token, refreshToken, orgId } = sendLazadaChatParams;
     let apiParams = `session_id=${chatId}&template_id=${templateId}&${contentType}=${chatLine}${(contentType == 'img_url') ? '&width=300&height=300' : ''}`;
-    let token = await getToken(storeId);
-    let chatReply = await lazPostCall(lazReplyChat, apiParams, token.secondary_refresh_token, token.secondary_token);
+    /* const lazPostCallParams = {
+        api: lazReplyChat,
+        additionalParams: apiParams,
+        refreshToken: refreshToken,
+        token: token,
+        storeId: storeId,
+        orgId: 'orgId',
+        tenantDB: 'tenantDb',
+        isOms: false
+    } */
+    let chatReply = await lazPostCall(lazReplyChat, apiParams, refreshToken, token, storeId, orgId, getTenantDB(orgId).url, false);
     return chatReply;
 }
 

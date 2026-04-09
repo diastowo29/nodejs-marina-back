@@ -12,8 +12,9 @@ public.key
 private.key
 baseSeeder.js
 test.js
-helper
 ecosystem.config.js
-helper.js
+/helper.js
 prisma/generated/
 marina-apps-8b7e75b7ff54.json
+marina_create_old.sql
+marina_create.sql

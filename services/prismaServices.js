@@ -3,14 +3,14 @@ const { PrismaClient } = require('../prisma/generated/client')
 const prismaClients = {}
 
 const getPrismaClient = (tenantConfig) => {
-    const prisma = new PrismaClient({
-        datasources: {
-            db: {
-                url: (tenantConfig.url) ? tenantConfig.url : tenantConfig
-            }
-        }
-    })
-    return prisma;
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: (tenantConfig.url) ? tenantConfig.url : tenantConfig
+      }
+    }
+  })
+  return prisma;
 };
 
 const getPrismaClientForTenant = (tenantId, dbUrl) => {

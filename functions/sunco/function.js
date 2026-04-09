@@ -72,12 +72,10 @@ function createSuncoConversation(appId, conversationCreateBody){
     let conversationsApi = new SunshineConversationsClient.ConversationsApi()
     
     return conversationsApi.createConversation(appId, conversationCreateBody).then(function(conv) {
-        // console.log(baseLog, `conversation for user #${conversationCreateBody.participants[0].userExternalId} created: #${conv.conversation.id}`)
         return conv
     }, function(error) {
         console.log(error.body)
         if(error.status == 429){
-            // console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.response.text}`)
             return {
                 status: error.status,
                 body:{
@@ -94,21 +92,18 @@ function createSuncoConversation(appId, conversationCreateBody){
                 }
             }
         }
-        // console.log(`${baseLog} - create conversation for user #${conversationCreateBody.participants[0].userExternalId} error: ${error.body.errors[0].title}`)
         return error
     })
 }
 
 function postMessage(suncoAppId, conversationId, payload) {
-    // console.log('post message Payload', payload)
     const messageApi = new SunshineConversationsClient.MessagesApi()
     return messageApi.postMessage(suncoAppId, conversationId, payload).then(function(message) {
         console.log(`message sent to ${conversationId}`)
         return message
     }, function(error) {
-        console.log(error.body)
+        console.log(JSON.stringify(error.body));
         if (error.status == 429) {
-            // console.log(`post message to ${conversationId} error: ${error.response.text}`)
             return {
                 error: {
                     title: error.response.text,
@@ -116,14 +111,7 @@ function postMessage(suncoAppId, conversationId, payload) {
                 }
             }
         } else {
-            // console.log(`post message to ${conversationId} error: ${error.body.errors[0].title}`)
             throw new Error(JSON.stringify(error.body));
-            /* return {
-                error: {
-                    title: error.body.errors[0].title,
-                    data: error.body.errors[0]
-                }
-            } */
         }
     })
 }
