@@ -3,6 +3,7 @@ const { decryptData } = require('../functions/encryption');
 
 function marinaPsql (username, password, database) {
     const dbConfig = JSON.parse(decryptData(process.env.DB_CONFIG));
+    console.log(dbConfig);
     return postgres({
         host: dbConfig.DB_PARAMS.replace('host=', '') || 'ep-twilight-haze-a5rc91p5-pooler.us-east-2.aws.neon.tech',
         username: dbConfig.DB_USER || username,

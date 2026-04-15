@@ -21,7 +21,8 @@ const tenantIdentifier = (req, res, next) => {
   if (excludedPath.includes(req.path)) {
     return next();
   }
-  let tenantId = req.headers['x-tenant-id'] || req.auth.payload.org_id;
+  const isItIframe = req.headers['iframe'] == 'true';
+  let tenantId = req.headers['x-tenant-id'] || req.headers['client_id'] || req.auth.payload.org_id;
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
@@ -37,11 +38,13 @@ const tenantIdentifier = (req, res, next) => {
   } */
 
   if (tenantId != 'org_SdVZvtRmlurL47iY' && tenantId != 'org_rfMkRHgxqG9uxYUY') {
-    if (!req.headers['x-tenant-id']) {
+    if (!req.headers['x-tenant-id'] && !isItIframe) {
       tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
     }
+    if (isItIframe) {
+      tenantId = `ifr_${tenantId}`;
+    }
   }
-
   const dbUrl = getTenantDB(tenantId);
   req.tenantDB = dbUrl;
   req.tenantId = tenantId;
