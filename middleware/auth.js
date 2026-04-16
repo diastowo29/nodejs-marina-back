@@ -10,7 +10,7 @@ const checkJwt = async (req, res, next) => {
   if (req.headers['zd-event'] == 'local_test') {
     return next();
   }
-  if (req.headers['iframe'] == 'true') {
+  if ((req.headers['iframe'] == 'true') && (req.path == '/api/v1/channels/stores_lite')) {
     return next();
   }
   const token = req.headers.authorization && req.headers.authorization.split(' ')[1];

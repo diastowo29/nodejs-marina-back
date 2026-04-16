@@ -22,7 +22,7 @@ const tenantIdentifier = (req, res, next) => {
     return next();
   }
   const isItIframe = req.headers['iframe'] == 'true';
-  let tenantId = req.headers['x-tenant-id'] || req.headers['client_id'] || req.auth.payload.org_id;
+  let tenantId = req.headers['x-tenant-id'] || req.headers['m-client-id'] || req.auth.payload.org_id;
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }

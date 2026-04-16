@@ -38,7 +38,7 @@ router.get('/stores_lite', async function(req, res, next) {
     mResponse.data = [];
     try {
         if (req.headers['iframe'] == 'true') {
-            const clientId = req.query.client_id || req.headers['client_id'];
+            const clientId = req.query.client_id || req.headers['m-client-id'];
             const client = await baseClient.clients.findUnique({
                 where: {
                     org_id: Buffer.from(`iframe:${clientId}`, 'ascii').toString('base64')
@@ -70,7 +70,8 @@ router.get('/stores_lite', async function(req, res, next) {
         res.status(500).send({
             status: 500,
             message: 'Error fetching channels',
-            error: err.message
+            error: err.message,
+            data: []
         });
     }
 });
