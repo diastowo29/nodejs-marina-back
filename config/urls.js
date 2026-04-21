@@ -10,6 +10,7 @@ const whitelistUrl = [
     '/api/v1/auth0/schema',
     '/api/v1/auth0/registration',
     '/api/v1/auth0/pre-registration',
+    '/api/v1/auth0/token',
     '/socket.io/'
 ]
 

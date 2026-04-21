@@ -22,10 +22,12 @@ var crmRouter = require('./routes/module/crm');
 const helmet = require('helmet');
 const checkJwt = require('./middleware/auth');
 const { tenantIdentifier } = require('./middleware/tenantIdentifier');
+const { redisClient } = require('./config/redis.config');
 
 var app = express();
 app.use(checkJwt);
 app.use(helmet());
+redisClient.connect();
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');

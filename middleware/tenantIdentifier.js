@@ -22,27 +22,16 @@ const tenantIdentifier = (req, res, next) => {
     return next();
   }
   const isItIframe = req.headers['iframe'] == 'true';
-  let tenantId = req.headers['x-tenant-id'] || req.headers['m-client-id'] || req.auth.payload.org_id;
+  let tenantId = req.auth.payload.aud || req.auth.payload.org_id;
   if (!tenantId) {
     return res.status(400).json({ error: 'Tenant identification missing' });
   }
 
-  /* if (tenantId == 'org_SdVZvtRmlurL47iY') {
-    tenantId = 'org_SdVZvtRmlurL47iY';
-  } else if (tenantId == 'org_rfMkRHgxqG9uxYUY') {
-    tenantId = 'org_rfMkRHgxqG9uxYUY';
-  } else {
-    if (!req.headers['x-tenant-id']) {
-      tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
-    }
-  } */
-
   if (tenantId != 'org_SdVZvtRmlurL47iY' && tenantId != 'org_rfMkRHgxqG9uxYUY') {
-    if (!req.headers['x-tenant-id'] && !isItIframe) {
-      tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
-    }
-    if (isItIframe) {
-      tenantId = `ifr_${tenantId}`;
+    if (!isItIframe) {
+      if (req.auth.payload.morg_name) {
+        tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+      }
     }
   }
   const dbUrl = getTenantDB(tenantId);

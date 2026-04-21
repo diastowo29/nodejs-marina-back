@@ -38,7 +38,7 @@ router.get('/stores_lite', async function(req, res, next) {
     mResponse.data = [];
     try {
         if (req.headers['iframe'] == 'true') {
-            const clientId = req.query.client_id || req.headers['m-client-id'];
+            const clientId = req.auth.payload.sub;
             const client = await baseClient.clients.findUnique({
                 where: {
                     org_id: Buffer.from(`iframe:${clientId}`, 'ascii').toString('base64')

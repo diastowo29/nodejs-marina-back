@@ -1,10 +1,12 @@
 var express = require('express');
 const { google } = require('googleapis');
 const { ManagementClient, AuthenticationClient, TOKEN_FOR_CONNECTION_GRANT_TYPE, ManagementApiError, PostCustomDomains201ResponseTypeEnum, GetBrandingPhoneProviders200ResponseProvidersInnerChannelEnum } = require('auth0');
+const jwt = require('jsonwebtoken');
 const {PrismaClient: prismaBaseClient} = require('../../prisma/generated/baseClient');
 const { encryptData, decryptData } = require('../../functions/encryption');
 const basePrisma = new prismaBaseClient();
 const { marinaPsql } = require('../../config/db');
+const { redisClient } = require('../../config/redis.config');
 
 var router = express.Router();
 const aoDomainConfig = JSON.parse(decryptData(process.env.A0_DOMAIN_CONFIG))
@@ -12,6 +14,69 @@ const aoDomainConfig = JSON.parse(decryptData(process.env.A0_DOMAIN_CONFIG))
 router.get('/', function(req, res) {
     res.status(200).send(aoDomainConfig)
 })
+
+router.post('/token', async function(req, res, next) {
+    const authHeader = req.headers.authorization;
+    // const clientId = req.body.clientId || req.headers['m-client-id'];
+    const payload = req.body.payload || {};
+    const expiresIn = req.body.expiresIn || process.env.JWT_EXPIRES_IN || '1h';
+
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+        return res.status(401).send({ message: 'Basic authentication is required' });
+    }
+
+    // if (!clientId) {
+    //     return res.status(401).send({ message: 'Client ID is required' });
+    // }
+
+    // Decode Basic auth credentials
+    const base64Credentials = authHeader.split(' ')[1];
+    let credentials;
+    try {
+        credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+    } catch (err) {
+        return res.status(401).send({ message: 'Invalid Basic authentication' });
+    }
+
+    const [clientId, clientSecret] = credentials.split(':');
+    if (!clientId || !clientSecret) {
+        return res.status(401).send({ message: 'Invalid Basic authentication credentials' });
+    }
+    // const expectedSecret = apiSecrets && apiSecrets[clientId] ? apiSecrets[clientId] : process.env.API_SHARED_SECRET;
+    const expectedSecret = await redisClient.get(`iframe:${clientId}`);
+    console.log(expectedSecret)
+    if (!expectedSecret || clientSecret !== expectedSecret) {
+        return res.status(401).send({ message: 'Invalid API key or secret' });
+    }
+
+    if (!process.env.MARINA_SECRETZ) {
+        return res.status(500).send({ message: 'Server is not configured to generate JWT tokens' });
+    }
+
+    try {
+        const token = jwt.sign(payload, process.env.MARINA_SECRETZ, {
+            expiresIn,
+            audience: clientId,
+            issuer: process.env.JWT_ISSUER || 'marina'
+        });
+        
+        res.status(200).send({ token });
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({ message: 'Failed to generate JWT token' });
+    }
+});
+
+/* router.get('/token', async function(req, res, next) {
+    const payload = {
+        iss: 'CLIENT_ID_123',      // The Client ID you gave them
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (60 * 5) // Valid for only 5 minutes
+    };
+
+    const token = jwt.sign(payload, 'YOUR_PROVIDED_API_KEYS', { algorithm: 'HS256' });
+    res.status(200).send({ token });
+}) */
 
 router.post('/schema', async function(req, res, next) {
     if (!req.body.org_id || !req.body.company_name) {
@@ -73,9 +138,10 @@ router.post('/hook', async function (req, res, next) {
                     data: {
                         org_id: Buffer.from(`${orgId}:${company}`, 'ascii').toString('base64'),
                         db_user: orgId,
-                        db_pass: encryptData(orgId)
+                        db_pass: encryptData(`${orgId}:${company}`)
                     }
                 })
+                await redisClient.set(`iframe:${orgId}`, encryptData(`${orgId}:${company}`));
                 res.status(200).send({});
             });
         })
