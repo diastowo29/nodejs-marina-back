@@ -1,4 +1,5 @@
 const { whitelistUrl } = require("../config/urls");
+const { convertOrgName } = require("../config/utils");
 const { decryptData } = require("../functions/encryption");
 const { getPrismaClientForTenant } = require("../services/prismaServices");
 
@@ -30,7 +31,7 @@ const tenantIdentifier = (req, res, next) => {
   if (tenantId != 'org_SdVZvtRmlurL47iY' && tenantId != 'org_rfMkRHgxqG9uxYUY') {
     if (!isItIframe) {
       if (req.auth.payload.morg_name) {
-        tenantId = req.auth.payload.morg_name.toString().toLowerCase().split(' ').join('_');
+        tenantId = convertOrgName(req.auth.payload.morg_name);
       }
     }
   }

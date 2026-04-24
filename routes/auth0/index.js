@@ -141,7 +141,7 @@ router.post('/hook', async function (req, res, next) {
                         db_pass: encryptData(`${orgId}:${company}`)
                     }
                 })
-                await redisClient.set(`iframe:${orgId}`, encryptData(`${orgId}:${company}`));
+                await redisClient.set(`${orgId}:${company}`, encryptData(`${orgId}:${company}`));
                 res.status(200).send({});
             });
         })

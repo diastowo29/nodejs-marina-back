@@ -620,8 +620,8 @@ async function collectTiktokProduct (body, subs) {
 }
 
 async function forwardConversation (body, subs) {
-    const findZd = body.message.store.channel.client.integration.find(intg => intg.name == 'ZENDESK');
-    const findSf = body.message.store.channel.client.integration.find(intg => intg.name == 'SALESFORCE');
+    const findZd = body.integration.find(intg => intg.name == 'ZENDESK');
+    const findSf = body.integration.find(intg => intg.name == 'SALESFORCE');
     prisma = getPrismaClientForTenant(body.orgId, body.tenantDB.url);
     let userExternalId = body.userExternalId;
     if (body.syncCustomer) {

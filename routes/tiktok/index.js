@@ -695,7 +695,7 @@ router.post(PATH_AUTH, async function(req, res, next) {
                 return res.status(400).send({error: 'No shop found'});
             }
 
-            const orgBase64 = Buffer.from(`${req.auth.payload.org_id}:${convertOrgName(req.auth.payload.morg_name)}`).toString('base64');
+            const orgBase64 = Buffer.from(`${req.auth.payload.org_id || 'iframe'}:${convertOrgName(req.auth.payload.morg_name || req.auth.payload.aud)}`).toString('base64');
             shops.data.data.shops.forEach(async (shop) => {
                 await basePrisma.stores.upsert({
                     where: {
@@ -748,11 +748,11 @@ router.post(PATH_AUTH, async function(req, res, next) {
                                     client: {
                                         connectOrCreate: {
                                             where: {
-                                                origin_id: req.auth.payload.org_id
+                                                origin_id: req.auth.payload.org_id || req.auth.payload.aud
                                             },
                                             create: {
-                                                name: req.auth.payload.org_id,
-                                                origin_id: req.auth.payload.org_id
+                                                name: req.auth.payload.org_id || req.auth.payload.aud,
+                                                origin_id: req.auth.payload.org_id || req.auth.payload.aud
                                             }
                                         }
                                     }
@@ -776,11 +776,11 @@ router.post(PATH_AUTH, async function(req, res, next) {
                                     client: {
                                         connectOrCreate: {
                                             where: {
-                                                origin_id: req.auth.payload.org_id
+                                                origin_id: req.auth.payload.org_id || req.auth.payload.aud
                                             },
                                             create: {
-                                                name: req.auth.payload.org_id,
-                                                origin_id: req.auth.payload.org_id
+                                                name: req.auth.payload.org_id || req.auth.payload.aud,
+                                                origin_id: req.auth.payload.org_id || req.auth.payload.aud
                                             }
                                         }
                                     }

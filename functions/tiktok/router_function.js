@@ -375,22 +375,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                         customer: true,
                         store: {
                             include: {
-                                channel: {
-                                    select: {
-                                        client: {
-                                            select: {
-                                                integration: {
-                                                    select: {
-                                                        name: true,
-                                                        notes: true,
-                                                        id: true,
-                                                        credent: true
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                channel: true
                             }
                         }
                     }
@@ -399,6 +384,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                     let doSyncCustomer = false;
                     if (jsonBody.data.sender.role == 'BUYER') {
                         doSyncCustomer = true;
+                        const integration = mPrisma.integration.findMany();
                         if (upsertMessage.customer) {
                             doSyncCustomer = false;
                             userExternalId = `tiktok-${upsertMessage.customer.origin_id}-${jsonBody.shop_id}`;
@@ -409,6 +395,7 @@ async function routeTiktok (jsonBody, prisma, org) {
                             chat_type: jsonBody.data.type,
                             message: upsertMessage,
                             userExternalId: userExternalId,
+                            integration: integration,
                             imUserId: jsonBody.data.sender.im_user_id,
                             message_content: jsonBody.data.content,
                             tenantDB: getTenantDB(org[1]),

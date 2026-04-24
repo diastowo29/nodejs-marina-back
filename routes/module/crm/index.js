@@ -3,12 +3,13 @@ var router = express.Router();
 const { SUN_APP_ID, SUN_APP_KEY, SUN_APP_SECRET, ZD_API_TOKEN } = require('../../../config/utils');
 const { encryptData } = require('../../../functions/encryption');
 const { default: axios } = require('axios');
+const { PrismaClient } = require('../../../prisma/generated/client');
+let mPrisma = new PrismaClient();
 
-// const prisma = new PrismaClient();
 router.get('/', async function(req, res, next) {
-    const prisma = req.prisma;
+    mPrisma = req.prisma;
     try {
-        let integration = await prisma.integration.findMany({
+        let integration = await mPrisma.integration.findMany({
             include: {
                 credent: true
             }
@@ -24,20 +25,20 @@ router.get('/', async function(req, res, next) {
 })
 
 router.delete('/:id', async function(req, res, next) {
-    const prisma = req.prisma;
+    mPrisma = req.prisma;
     /* DELETE TICKET FIELDS AND SUNCO WEBHOOK */
     try {
-        let credent = prisma.credent.deleteMany({
+        let credent = mPrisma.credent.deleteMany({
             where: {
                 integrationId: parseInt(req.params.id)
             }
         })
-        let integration = prisma.integration.delete({
+        let integration = mPrisma.integration.delete({
             where: {
                 id: parseInt(req.params.id)
             }
         });
-        let deleteExtId = prisma.omnichat.updateMany({
+        let deleteExtId = mPrisma.omnichat.updateMany({
             where: {
                 AND: [{ externalId: { not: null }},
                     { externalId: { not: ''}}]
@@ -46,7 +47,7 @@ router.delete('/:id', async function(req, res, next) {
                 externalId: null
             }
         })
-        prisma.$transaction([credent, integration, deleteExtId]).then((trx) => {
+        mPrisma.$transaction([credent, integration, deleteExtId]).then((trx) => {
             res.status(200).send({success: true, deleted: trx});
         }).catch((err) => {
             console.log(err);
@@ -59,9 +60,78 @@ router.delete('/:id', async function(req, res, next) {
     }
 })
 
+router.post('/upsert', async function(req, res, next) {
+    mPrisma = req.prisma;
+    try {
+        const integration = await mPrisma.integration.upsert({
+            where: {
+                baseUrl: req.body.host
+            },
+            create: {
+                baseUrl: req.body.host,
+                name: req.body.name,
+                credent: {
+                    createMany: {
+                        skipDuplicates: true,
+                        data: [
+                            {key: SUN_APP_ID, value: req.body.suncoAppId},
+                            {key: SUN_APP_KEY, value: encryptData(req.body.suncoAppKey)},
+                            {key: SUN_APP_SECRET, value: encryptData(req.body.suncoAppSecret)}
+                        ]
+                    }
+                }
+            },
+            update : {}
+        });
+        const updateAppId = mPrisma.credent.updateMany({
+            where: {
+                AND: [
+                    { integrationId: integration.id },
+                    { key: SUN_APP_ID }
+                ]
+            },
+            data: {
+                value: req.body.suncoAppId
+            }
+        });
+        const updateAppKey = mPrisma.credent.updateMany({
+            where: {
+                AND: [
+                    { integrationId: integration.id },
+                    { key: SUN_APP_KEY }
+                ]
+            },
+            data: {
+                value: encryptData(req.body.suncoAppKey)
+            }
+        });
+        const updateAppSecret = mPrisma.credent.updateMany({
+            where: {
+                AND: [
+                    { integrationId: integration.id },
+                    { key: SUN_APP_SECRET }
+                ]
+            },
+            data: {
+                value: encryptData(req.body.suncoAppSecret)
+            }
+        });
+        const updateSuncoTrx = await mPrisma.$transaction([updateAppId, updateAppKey, updateAppSecret])
+        res.status(200).send({
+            status: 200,
+            message: 'Integration upserted successfully',
+            crm: { integration: integration.baseUrl },
+            crm_auth: { credential: updateSuncoTrx }
+        });
+    } catch (err) {
+        console.log(err);
+        res.status(400).send({failed: err});
+    }
+})
+
 router.post('/', async function(req, res, next) {
-    const prisma = req.prisma;
-    const stores = await prisma.store.findMany({
+    mPrisma = req.prisma;
+    const stores = await mPrisma.store.findMany({
         select: {
             name: true,
             origin_id: true
@@ -91,7 +161,7 @@ router.post('/', async function(req, res, next) {
                 // axios(zdApiConfigTagger(req.body.host, req.body.apiToken, 'Is Repliable', storeOptions)),
                 axios(suncoApiConfig(req.body.suncoAppId, btoa(`${req.body.suncoAppKey}:${req.body.suncoAppSecret}`)))
             ]);
-            const integration = await prisma.integration.create({
+            const integration = await mPrisma.integration.create({
                 data: {
                     baseUrl: req.body.host,
                     name: req.body.name,
