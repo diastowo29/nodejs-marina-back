@@ -43,7 +43,7 @@ const checkJwt = async (req, res, next) => {
     }
   }
 
-  // from here, try validating with Auth0
+  // from here, try validating with Auth0 validation
   try {
     console.log('Attempting Auth0 JWT validation');
     const tokenValidator = promisify(
